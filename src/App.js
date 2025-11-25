@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import Sidebar from './components/Sidebar';
 import AdminSidebar from './components/AdminSidebar';
+import ProtectedRoute from './components/ProtectedRoute';
+import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Checks from './pages/Checks';
 import CheckDetails from './pages/CheckDetails';
@@ -17,12 +20,22 @@ import './App.css';
 function AppContent() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const [showAdminSubmenu, setShowAdminSubmenu] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [showAdminSidebar, setShowAdminSidebar] = useState(false);
 
   const isAdminRoute = location.pathname.startsWith('/admin');
+  const isLoginPage = location.pathname === '/login';
 
+  // Redirect to login if not authenticated (except on login page)
+  useEffect(() => {
+    if (!isAuthenticated && !isLoginPage) {
+      navigate('/login', { replace: true });
+    }
+  }, [isAuthenticated, isLoginPage, navigate]);
+
+  // Handle admin sidebar state
   useEffect(() => {
     if (isAdminRoute) {
       setShowAdminSidebar(true);
@@ -31,6 +44,15 @@ function AppContent() {
       setShowAdminSidebar(false);
     }
   }, [isAdminRoute]);
+
+  // Don't show sidebar on login page
+  if (isLoginPage) {
+    return (
+      <Routes>
+        <Route path="/login" element={<Login />} />
+      </Routes>
+    );
+  }
 
   const handleAdminClick = () => {
     if (!isAdminRoute) {
@@ -69,17 +91,17 @@ function AppContent() {
       )}
       <div className={`main-content ${isSidebarCollapsed ? 'sidebar-collapsed' : ''} ${showAdminSidebar ? 'admin-sidebar-open' : ''}`}>
         <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/checks" element={<Checks />} />
-          <Route path="/checks/:id" element={<CheckDetails />} />
-          <Route path="/check-upload" element={<CheckUpload />} />
-          <Route path="/clarifications" element={<Clarifications />} />
-          <Route path="/unknown" element={<Unknown />} />
-          <Route path="/dit-drl-payments" element={<DITDRLPayments />} />
-          <Route path="/admin" element={<Navigate to="/admin/users" replace />} />
-          <Route path="/admin/users" element={<Users />} />
-          <Route path="/admin/practices" element={<Practices />} />
-          <Route path="/admin/roles" element={<Roles />} />
+          <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/checks" element={<ProtectedRoute><Checks /></ProtectedRoute>} />
+          <Route path="/checks/:id" element={<ProtectedRoute><CheckDetails /></ProtectedRoute>} />
+          <Route path="/check-upload" element={<ProtectedRoute><CheckUpload /></ProtectedRoute>} />
+          <Route path="/clarifications" element={<ProtectedRoute><Clarifications /></ProtectedRoute>} />
+          <Route path="/unknown" element={<ProtectedRoute><Unknown /></ProtectedRoute>} />
+          <Route path="/dit-drl-payments" element={<ProtectedRoute><DITDRLPayments /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute><Navigate to="/admin/users" replace /></ProtectedRoute>} />
+          <Route path="/admin/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
+          <Route path="/admin/practices" element={<ProtectedRoute><Practices /></ProtectedRoute>} />
+          <Route path="/admin/roles" element={<ProtectedRoute><Roles /></ProtectedRoute>} />
         </Routes>
       </div>
     </div>
@@ -88,9 +110,11 @@ function AppContent() {
 
 function App() {
   return (
-    <Router>
-      <AppContent />
-    </Router>
+    <AuthProvider>
+      <Router>
+        <AppContent />
+      </Router>
+    </AuthProvider>
   );
 }
 

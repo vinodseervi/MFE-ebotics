@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import './Sidebar.css';
 
 const Sidebar = ({ showAdminSubmenu, onAdminClick, isCollapsed, onToggleCollapse }) => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const isAdminRoute = location.pathname.startsWith('/admin');
   const [adminExpanded, setAdminExpanded] = useState(isAdminRoute || showAdminSubmenu || false);
 
@@ -25,13 +28,52 @@ const Sidebar = ({ showAdminSubmenu, onAdminClick, isCollapsed, onToggleCollapse
     if (onAdminClick) onAdminClick();
   };
 
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
+
+  const getUserDisplayName = () => {
+    if (user) {
+      return `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || 'User';
+    }
+    return 'User';
+  };
+
+  const getUserInitials = () => {
+    if (user) {
+      const firstName = user.firstName || '';
+      const lastName = user.lastName || '';
+      if (firstName && lastName) {
+        return `${firstName[0]}${lastName[0]}`.toUpperCase();
+      }
+      if (user.email) {
+        return user.email[0].toUpperCase();
+      }
+    }
+    return 'U';
+  };
+
+  const getUserRole = () => {
+    if (user && user.roles && user.roles.length > 0) {
+      const role = user.roles[0];
+      // Format role: ADMIN -> Admin, SUPER_ADMIN -> Super Admin, etc.
+      return role
+        .split('_')
+        .map(word => word.charAt(0) + word.slice(1).toLowerCase())
+        .join(' ');
+    }
+    return 'User';
+  };
+
   return (
     <div className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
       <div className="sidebar-header">
         {!isCollapsed && (
           <>
             <div className="logo">
-              <span className="logo-e3">E3</span> otics
+              <img src="/ebotics_icon.png" alt="Ebotics Icon" className="logo-expanded-icon" />
+              <span className="logo-text">otics</span>
             </div>
             <button className="collapse-btn" onClick={onToggleCollapse}>
               <svg 
@@ -52,7 +94,7 @@ const Sidebar = ({ showAdminSubmenu, onAdminClick, isCollapsed, onToggleCollapse
             title="Click to expand"
           >
             <div className="logo-icon">
-              <span className="logo-e3">E3</span>
+              <img src="/ebotics_icon.png" alt="Ebotics Icon" className="logo-icon-img" />
             </div>
           </button>
         )}
@@ -126,19 +168,19 @@ const Sidebar = ({ showAdminSubmenu, onAdminClick, isCollapsed, onToggleCollapse
       <div className="sidebar-footer">
         {!isCollapsed && (
           <div className="user-profile">
-            <div className="user-avatar">S</div>
+            <div className="user-avatar">{getUserInitials()}</div>
             <div className="user-info">
-              <div className="user-name">Sarah Johnson</div>
-              <div className="user-role">Super Admin</div>
+              <div className="user-name">{getUserDisplayName()}</div>
+              <div className="user-role">{getUserRole()}</div>
             </div>
           </div>
         )}
         {isCollapsed && (
           <div className="user-profile-collapsed">
-            <div className="user-avatar">S</div>
+            <div className="user-avatar">{getUserInitials()}</div>
           </div>
         )}
-        <button className="sign-out-btn" title={isCollapsed ? 'Sign Out' : ''}>
+        <button className="sign-out-btn" onClick={handleLogout} title={isCollapsed ? 'Sign Out' : ''}>
           <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
             <path d="M7 17H3C2.44772 17 2 16.5523 2 16V4C2 3.44772 2.44772 3 3 3H7" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
             <path d="M13 14L17 10L13 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>

@@ -1,7 +1,7 @@
 .sidebar {
   width: 260px;
   height: 100vh;
-  background: linear-gradient(180deg, #1e3a5f 0%, #0f1e2e 100%);
+  background: #5B336A;
   color: white;
   display: flex;
   flex-direction: column;
@@ -11,6 +11,7 @@
   z-index: 1000;
   overflow-y: auto;
   transition: width 0.3s ease;
+  border-right: 1px solid #4A2856;
 }
 
 .sidebar.collapsed {
@@ -22,7 +23,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid #4A2856;
   min-height: 60px;
 }
 
@@ -37,6 +38,22 @@
   color: white;
   white-space: nowrap;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.logo-expanded-icon {
+  height: 50px;
+  width: auto;
+  object-fit: contain;
+}
+
+.logo-text {
+  font-size: 24px;
+  font-weight: 700;
+  color: white;
+  letter-spacing: 0.5px;
 }
 
 .sidebar.collapsed .logo {
@@ -48,6 +65,14 @@
   font-weight: 600;
   color: white;
   display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-icon-img {
+  height: 55px;
+  width: auto;
+  object-fit: contain;
 }
 
 .logo-icon-btn {
@@ -114,7 +139,7 @@
   border-bottom: none;
   width: 100%;
   text-align: left;
-  font-size: 14px;
+  font-size: 20px;
   position: relative;
 }
 
@@ -133,9 +158,11 @@
 }
 
 .nav-item.active {
-  background: rgba(20, 184, 166, 0.15);
-  color: #14b8a6;
-  border-left-color: #14b8a6;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border-left-color: white;
+  border-left-width: 4px;
+  font-weight: 600;
 }
 
 .nav-item svg {
@@ -144,7 +171,7 @@
 
 .sidebar-divider {
   height: 1px;
-  background: rgba(255, 255, 255, 0.1);
+  background: #4A2856;
   margin: 10px 20px;
 }
 
@@ -172,7 +199,7 @@
 
 .sidebar-footer {
   padding: 20px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid #4A2856;
 }
 
 .sidebar.collapsed .sidebar-footer {

@@ -228,6 +228,46 @@ class ApiService {
       roles: JSON.parse(localStorage.getItem('userRoles') || '[]'),
     };
   }
+
+  // ==================== User Management APIs ====================
+
+  /**
+   * Create a new user
+   * POST /api/v1/users
+   */
+  async createUser(userData) {
+    return this.post('/api/v1/users', userData);
+  }
+
+  /**
+   * Get all users
+   * GET /api/v1/users
+   */
+  async getAllUsers() {
+    return this.get('/api/v1/users');
+  }
+
+  /**
+   * Update a user
+   * PATCH /api/v1/users/{userId}
+   */
+  async updateUser(userId, userData) {
+    return this.patch(`/api/v1/users/${userId}`, userData);
+  }
+
+  /**
+   * Update user status
+   * PATCH /api/v1/users/{userId}/status
+   */
+  async updateUserStatus(userId, status) {
+    // Ensure x-user-id header is included (logged-in admin's ID)
+    const adminUserId = this.getUserId();
+    return this.patch(`/api/v1/users/${userId}/status`, { status }, {
+      headers: {
+        'x-user-id': adminUserId,
+      },
+    });
+  }
 }
 
 // Export singleton instance

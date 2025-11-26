@@ -165,8 +165,24 @@
   font-weight: 600;
 }
 
-.nav-item svg {
+.nav-item svg,
+.nav-item .nav-icon {
   flex-shrink: 0;
+  margin-right: 12px;
+  font-size: 22px;
+}
+
+.sidebar.collapsed .nav-icon {
+  margin-right: 0;
+  margin-left: 0;
+}
+
+.sign-out-btn .nav-icon {
+  margin-right: 12px;
+}
+
+.sidebar.collapsed .sign-out-btn .nav-icon {
+  margin-right: 0;
 }
 
 .sidebar-divider {

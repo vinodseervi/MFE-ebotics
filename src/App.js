@@ -20,7 +20,7 @@ import './App.css';
 function AppContent() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
   const [showAdminSubmenu, setShowAdminSubmenu] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [showAdminSidebar, setShowAdminSidebar] = useState(false);
@@ -29,11 +29,12 @@ function AppContent() {
   const isLoginPage = location.pathname === '/login';
 
   // Redirect to login if not authenticated (except on login page)
+  // Only redirect after loading is complete
   useEffect(() => {
-    if (!isAuthenticated && !isLoginPage) {
+    if (!loading && !isAuthenticated && !isLoginPage) {
       navigate('/login', { replace: true });
     }
-  }, [isAuthenticated, isLoginPage, navigate]);
+  }, [isAuthenticated, isLoginPage, navigate, loading]);
 
   // Handle admin sidebar state
   useEffect(() => {
@@ -44,6 +45,23 @@ function AppContent() {
       setShowAdminSidebar(false);
     }
   }, [isAdminRoute]);
+
+  // Show loading state while checking authentication
+  if (loading) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        background: '#f9fafb'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '16px', color: '#6b7280' }}>Loading...</div>
+        </div>
+      </div>
+    );
+  }
 
   // Don't show sidebar on login page
   if (isLoginPage) {

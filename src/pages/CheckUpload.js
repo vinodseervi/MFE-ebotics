@@ -24,8 +24,6 @@ const CheckUpload = () => {
       const droppedFile = e.dataTransfer.files[0];
       if (droppedFile.type === 'text/csv' || droppedFile.name.endsWith('.csv')) {
         setFile(droppedFile);
-      } else {
-        alert('Please upload a CSV file');
       }
     }
   };
@@ -35,8 +33,6 @@ const CheckUpload = () => {
       const selectedFile = e.target.files[0];
       if (selectedFile.type === 'text/csv' || selectedFile.name.endsWith('.csv')) {
         setFile(selectedFile);
-      } else {
-        alert('Please upload a CSV file');
       }
     }
   };

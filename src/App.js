@@ -15,6 +15,7 @@ import DITDRLPayments from './pages/DITDRLPayments';
 import Users from './pages/admin/Users';
 import Practices from './pages/admin/Practices';
 import Roles from './pages/admin/Roles';
+import Profile from './pages/Profile';
 import './App.css';
 
 function AppContent() {
@@ -90,7 +91,7 @@ function AppContent() {
 
   const handleCloseAdminSidebar = () => {
     setShowAdminSidebar(false);
-    navigate('/');
+    // Don't navigate - keep user on current page
   };
 
   return (
@@ -116,6 +117,7 @@ function AppContent() {
           <Route path="/clarifications" element={<ProtectedRoute><Clarifications /></ProtectedRoute>} />
           <Route path="/unknown" element={<ProtectedRoute><Unknown /></ProtectedRoute>} />
           <Route path="/dit-drl-payments" element={<ProtectedRoute><DITDRLPayments /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute><Navigate to="/admin/users" replace /></ProtectedRoute>} />
           <Route path="/admin/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
           <Route path="/admin/practices" element={<ProtectedRoute><Practices /></ProtectedRoute>} />

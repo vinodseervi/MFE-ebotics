@@ -39,7 +39,7 @@ const Login = () => {
       <div className="login-card">
         <div className="login-header">
           <div className="login-logo">
-            <img src="/ebotics_icon.png" alt="Ebotics Logo" />
+            <img src="/ebotics.png" alt="Ebotics Logo" />
           </div>
           <h1>Welcome Back</h1>
           <p>Sign in to your account to continue</p>

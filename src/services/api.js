@@ -258,6 +258,16 @@ class ApiService {
   }
 
   /**
+   * Get user by ID
+   * GET /api/v1/users/{userId}
+   * Requires x-user-id header (automatically included via getHeaders)
+   */
+  async getUserById(userId) {
+    // x-user-id header is automatically included via getHeaders() in the request method
+    return this.get(`/api/v1/users/${userId}`);
+  }
+
+  /**
    * Update a user
    * PATCH /api/v1/users/{userId}
    */
@@ -276,6 +286,19 @@ class ApiService {
       headers: {
         'x-user-id': adminUserId,
       },
+    });
+  }
+
+  /**
+   * Change user password
+   * PATCH /api/v1/users/me/password
+   * Requires x-user-id header (automatically included via getHeaders)
+   */
+  async changePassword(currentPassword, newPassword) {
+    // x-user-id header is automatically included via getHeaders() in the request method
+    return this.patch('/api/v1/users/me/password', {
+      currentPassword,
+      newPassword
     });
   }
 

@@ -1,7 +1,7 @@
 .sidebar {
   width: 260px;
   height: 100vh;
-  background: #5B336A;
+  background: #1e293b; /* slate-800 */
   color: white;
   display: flex;
   flex-direction: column;
@@ -11,7 +11,7 @@
   z-index: 1000;
   overflow-y: auto;
   transition: width 0.3s ease;
-  border-right: 1px solid #4A2856;
+  border-right: 1px solid #334155; /* slate-700 */
 }
 
 .sidebar.collapsed {
@@ -23,7 +23,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #4A2856;
+  border-bottom: 1px solid #334155; /* slate-700 */
   min-height: 60px;
 }
 
@@ -95,7 +95,7 @@
 }
 
 .logo-e3 {
-  color: #14b8a6;
+  color: #0d9488; /* teal-600 */
 }
 
 .collapse-btn {
@@ -128,16 +128,15 @@
   align-items: center;
   gap: 12px;
   padding: 12px 20px;
+  margin: 4px 12px;
   color: rgba(255, 255, 255, 0.8);
   text-decoration: none;
   transition: all 0.2s;
-  border-left: 3px solid transparent;
+  border: 2px solid transparent;
+  border-radius: 8px;
   cursor: pointer;
   background: none;
-  border-right: none;
-  border-top: none;
-  border-bottom: none;
-  width: 100%;
+  width: calc(100% - 24px);
   text-align: left;
   font-size: 20px;
   position: relative;
@@ -145,24 +144,42 @@
 
 .sidebar.collapsed .nav-item {
   padding: 12px;
+  margin: 4px 8px;
   justify-content: center;
+  width: calc(100% - 16px);
+}
+
+.sidebar.collapsed .nav-item.active {
+  margin: 6px 8px;
+  padding: 8px;
+}
+
+.sidebar.collapsed .nav-item:hover:not(.active) {
+  margin: 6px 8px;
+  padding: 8px;
 }
 
 .sidebar.collapsed .nav-item span {
   display: none;
 }
 
-.nav-item:hover {
-  background: rgba(255, 255, 255, 0.05);
+.nav-item:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.1);
   color: white;
+  border: 2px solid transparent;
+  margin: 6px 12px;
+  padding: 8px 16px;
 }
 
 .nav-item.active {
-  background: rgba(255, 255, 255, 0.2);
+  background: #0d9488; /* teal-600 */
   color: white;
-  border-left-color: white;
-  border-left-width: 4px;
+  border: 2px solid #0d9488; /* teal-600 */
+  border-radius: 8px;
+  margin: 6px 12px;
+  padding: 8px 16px;
   font-weight: 600;
+  box-shadow: 0 2px 4px rgba(13, 148, 136, 0.3);
 }
 
 .nav-item svg,
@@ -187,7 +204,7 @@
 
 .sidebar-divider {
   height: 1px;
-  background: #4A2856;
+  background: #334155; /* slate-700 */
   margin: 10px 20px;
 }
 
@@ -215,18 +232,50 @@
 
 .sidebar-footer {
   padding: 20px;
-  border-top: 1px solid #4A2856;
+  border-top: 1px solid #334155; /* slate-700 */
 }
 
 .sidebar.collapsed .sidebar-footer {
   padding: 20px 10px;
 }
 
+.user-profile-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  margin-bottom: 15px;
+  border-radius: 8px;
+  padding: 8px;
+  transition: all 0.2s;
+}
+
+.user-profile-link:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.user-profile-link-collapsed {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  margin-bottom: 15px;
+  border-radius: 8px;
+  padding: 8px;
+  transition: all 0.2s;
+  display: none;
+}
+
+.sidebar.collapsed .user-profile-link-collapsed {
+  display: block;
+}
+
+.user-profile-link-collapsed:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .user-profile {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 15px;
 }
 
 .sidebar.collapsed .user-profile {
@@ -236,7 +285,6 @@
 .user-profile-collapsed {
   display: none;
   justify-content: center;
-  margin-bottom: 15px;
 }
 
 .sidebar.collapsed .user-profile-collapsed {
@@ -247,7 +295,7 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: #14b8a6;
+  background: #0d9488; /* teal-600 */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -285,6 +333,7 @@
   transition: all 0.2s;
   font-size: 14px;
   justify-content: center;
+  font-weight: 500;
 }
 
 .sidebar.collapsed .sign-out-btn {

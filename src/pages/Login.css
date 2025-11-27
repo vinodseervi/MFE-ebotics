@@ -38,8 +38,9 @@
 }
 
 .login-logo img {
-  width: 80px;
-  height: 80px;
+  width: auto;
+  height: 100px;
+  max-width: 250px;
   object-fit: contain;
 }
 

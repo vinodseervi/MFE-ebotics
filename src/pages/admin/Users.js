@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { Edit } from 'lucide-react';
+import { countryCodes, parsePhoneNumber, formatPhoneNumber, getDefaultCountry } from '../../utils/countryCodes';
 import './Admin.css';
 
 const Users = () => {
@@ -22,9 +23,10 @@ const Users = () => {
     roleId: '',
     status: 'ACTIVE',
     phone: '',
-    phoneNumber: '',
-    profileUrl: ''
+    phoneNumber: ''
   });
+  const [editCountryCode, setEditCountryCode] = useState(getDefaultCountry());
+  const [addCountryCode, setAddCountryCode] = useState(getDefaultCountry());
   const [formData, setFormData] = useState({
     email: '',
     firstName: '',
@@ -237,6 +239,34 @@ const Users = () => {
     return roleColors[roleName] || roleColors[roleName.toUpperCase()] || '#6b7280';
   };
 
+  const getAvatarColor = (firstName, lastName) => {
+    // Generate a consistent color based on user's initials
+    const name = `${firstName || ''}${lastName || ''}`.toLowerCase();
+    if (!name) return '#6b7280';
+    
+    // Use a professional color palette
+    const colors = [
+      { bg: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', text: '#ffffff' },
+      { bg: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', text: '#ffffff' },
+      { bg: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', text: '#ffffff' },
+      { bg: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', text: '#ffffff' },
+      { bg: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', text: '#ffffff' },
+      { bg: 'linear-gradient(135deg, #30cfd0 0%, #330867 100%)', text: '#ffffff' },
+      { bg: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)', text: '#374151' },
+      { bg: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)', text: '#374151' },
+      { bg: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)', text: '#374151' },
+      { bg: 'linear-gradient(135deg, #ff6a88 0%, #ee5a6f 100%)', text: '#ffffff' },
+    ];
+    
+    // Simple hash function to consistently pick a color
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % colors.length;
+    return colors[index];
+  };
+
   const filteredUsers = users.filter(user => {
     const matchesSearch = !searchTerm || 
       user.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -288,6 +318,11 @@ const Users = () => {
 
   const handleEditClick = (user) => {
     setEditingUser(user);
+    // Parse phone number to extract country code
+    const phone = user.phone || user.phoneNumber || '';
+    const parsed = parsePhoneNumber(phone);
+    setEditCountryCode(parsed.countryCode || getDefaultCountry());
+    
     // Use roleId from user object
     setEditFormData({
       email: user.email || '',
@@ -295,9 +330,8 @@ const Users = () => {
       lastName: user.lastName || '',
       roleId: user.roleId || '',
       status: user.status || 'ACTIVE',
-      phone: user.phone || '',
-      phoneNumber: user.phoneNumber || '',
-      profileUrl: user.profileUrl || ''
+      phone: parsed.phoneNumber,
+      phoneNumber: parsed.phoneNumber
     });
     setEditFormErrors({});
     setShowEditModal(true);
@@ -352,21 +386,24 @@ const Users = () => {
 
     try {
       setIsUpdating(true);
+      const phoneNumber = editFormData.phone || editFormData.phoneNumber || '';
+      const fullPhoneNumber = phoneNumber ? formatPhoneNumber(editCountryCode, phoneNumber) : '';
+      
       const updateData = {
         email: editFormData.email,
         firstName: editFormData.firstName,
         lastName: editFormData.lastName,
         roleId: editFormData.roleId,
         status: editFormData.status,
-        phone: editFormData.phone || editFormData.phoneNumber,
-        phoneNumber: editFormData.phoneNumber || editFormData.phone,
-        profileUrl: editFormData.profileUrl
+        phone: fullPhoneNumber,
+        phoneNumber: fullPhoneNumber
       };
 
       await api.updateUser(editingUser.id, updateData);
       
       setShowEditModal(false);
       setEditingUser(null);
+      setEditCountryCode(getDefaultCountry());
       
       // Refresh users list
       await fetchUsers();
@@ -510,23 +547,37 @@ const Users = () => {
                                   if (fallback) fallback.style.display = 'flex';
                                 }}
                               />
-                              <div 
-                                className="user-avatar-small" 
-                                style={{ 
-                                  backgroundColor: getRoleColor(user.role, user.roleMeta),
-                                  display: 'none'
-                                }}
-                              >
-                                {user.firstName?.[0] || ''}{user.lastName?.[0] || ''}
-                              </div>
+                              {(() => {
+                                const avatarColor = getAvatarColor(user.firstName, user.lastName);
+                                return (
+                                  <div 
+                                    className="user-avatar-small" 
+                                    style={{ 
+                                      background: avatarColor.bg,
+                                      color: avatarColor.text,
+                                      display: 'none'
+                                    }}
+                                  >
+                                    {user.firstName?.[0] || ''}{user.lastName?.[0] || ''}
+                                  </div>
+                                );
+                              })()}
                             </>
                           ) : (
-                            <div 
-                              className="user-avatar-small" 
-                              style={{ backgroundColor: getRoleColor(user.role, user.roleMeta) }}
-                            >
-                              {user.firstName?.[0] || ''}{user.lastName?.[0] || ''}
-                            </div>
+                            (() => {
+                              const avatarColor = getAvatarColor(user.firstName, user.lastName);
+                              return (
+                                <div 
+                                  className="user-avatar-small user-avatar-gradient" 
+                                  style={{ 
+                                    background: avatarColor.bg,
+                                    color: avatarColor.text
+                                  }}
+                                >
+                                  {user.firstName?.[0] || ''}{user.lastName?.[0] || ''}
+                                </div>
+                              );
+                            })()
                           )}
                         </div>
                       </td>
@@ -704,13 +755,21 @@ const Users = () => {
 
       {/* Edit User Modal */}
       {showEditModal && editingUser && (
-        <div className="modal-overlay" onClick={() => !isUpdating && setShowEditModal(false)}>
+        <div className="modal-overlay" onClick={() => {
+          if (!isUpdating) {
+            setShowEditModal(false);
+            setEditCountryCode(getDefaultCountry());
+          }
+        }}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Edit User</h2>
               <button 
                 className="modal-close"
-                onClick={() => setShowEditModal(false)}
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditCountryCode(getDefaultCountry());
+                }}
                 disabled={isUpdating}
               >
                 <svg width="24" height="24" viewBox="0 0 20 20" fill="none">
@@ -767,29 +826,39 @@ const Users = () => {
                 </div>
               </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="edit-phone">Phone</label>
+              <div className="form-group">
+                <label htmlFor="edit-phone">Phone</label>
+                <div className="phone-input-group">
+                  <select
+                    className="country-code-select"
+                    value={editCountryCode.code}
+                    onChange={(e) => {
+                      const country = countryCodes.find(c => c.code === e.target.value);
+                      if (country) setEditCountryCode(country);
+                    }}
+                    disabled={isUpdating}
+                  >
+                    {countryCodes.map((country) => (
+                      <option key={country.code} value={country.code}>
+                        {country.flag} {country.dialCode}
+                      </option>
+                    ))}
+                  </select>
                   <input
                     type="tel"
                     id="edit-phone"
                     name="phone"
-                    value={editFormData.phone}
-                    onChange={handleEditInputChange}
-                    placeholder="Enter phone number"
-                    disabled={isUpdating}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="edit-profileUrl">Profile URL</label>
-                  <input
-                    type="url"
-                    id="edit-profileUrl"
-                    name="profileUrl"
-                    value={editFormData.profileUrl}
-                    onChange={handleEditInputChange}
-                    placeholder="Enter profile image URL"
+                    value={editFormData.phone || ''}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '');
+                      setEditFormData(prev => ({
+                        ...prev,
+                        phone: value,
+                        phoneNumber: value
+                      }));
+                    }}
+                    className="phone-input"
+                    placeholder="Phone number"
                     disabled={isUpdating}
                   />
                 </div>

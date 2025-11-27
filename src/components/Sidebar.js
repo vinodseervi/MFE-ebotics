@@ -8,7 +8,8 @@ import {
   MdOutlineHelpOutline,
   MdOutlineHelp,
   MdOutlinePayment,
-  MdOutlineLogout
+  MdOutlineLogout,
+  MdOutlinePerson
 } from 'react-icons/md';
 import { GrUserAdmin } from 'react-icons/gr';
 import './Sidebar.css';
@@ -156,18 +157,22 @@ const Sidebar = ({ showAdminSubmenu, onAdminClick, isCollapsed, onToggleCollapse
 
       <div className="sidebar-footer">
         {!isCollapsed && (
-          <div className="user-profile">
-            <div className="user-avatar">{getUserInitials()}</div>
-            <div className="user-info">
-              <div className="user-name">{getUserDisplayName()}</div>
-              <div className="user-role">{getUserRole()}</div>
+          <Link to="/profile" className="user-profile-link">
+            <div className="user-profile">
+              <div className="user-avatar">{getUserInitials()}</div>
+              <div className="user-info">
+                <div className="user-name">{getUserDisplayName()}</div>
+                <div className="user-role">{getUserRole()}</div>
+              </div>
             </div>
-          </div>
+          </Link>
         )}
         {isCollapsed && (
-          <div className="user-profile-collapsed">
-            <div className="user-avatar">{getUserInitials()}</div>
-          </div>
+          <Link to="/profile" className="user-profile-link-collapsed" title="Profile">
+            <div className="user-profile-collapsed">
+              <div className="user-avatar">{getUserInitials()}</div>
+            </div>
+          </Link>
         )}
         <button className="sign-out-btn" onClick={handleLogout} title={isCollapsed ? 'Sign Out' : ''}>
           <MdOutlineLogout className="nav-icon" size={22} />

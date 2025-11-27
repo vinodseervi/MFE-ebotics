@@ -1,7 +1,7 @@
 .admin-sidebar {
   width: 240px;
   height: 100vh;
-  background: #4A2856;
+  background: #334155; /* slate-700 - slightly lighter than main sidebar */
   color: white;
   display: flex;
   flex-direction: column;
@@ -10,7 +10,7 @@
   top: 0;
   z-index: 999;
   overflow-y: auto;
-  border-right: 1px solid #3A1D45;
+  border-right: 1px solid #475569; /* slate-600 */
   transition: left 0.3s ease, width 0.3s ease;
 }
 
@@ -23,7 +23,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #3A1D45;
+  border-bottom: 1px solid #475569; /* slate-600 */
   min-height: 60px;
 }
 
@@ -73,24 +73,33 @@
   align-items: center;
   gap: 12px;
   padding: 12px 20px;
+  margin: 4px 12px;
   color: rgba(255, 255, 255, 0.8);
   text-decoration: none;
   transition: all 0.2s;
-  border-left: 3px solid transparent;
+  border: 2px solid transparent;
+  border-radius: 8px;
   font-size: 18px;
+  width: calc(100% - 24px);
 }
 
-.admin-nav-item:hover {
-  background: rgba(255, 255, 255, 0.05);
+.admin-nav-item:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.1);
   color: white;
+  border: 2px solid transparent;
+  margin: 6px 12px;
+  padding: 8px 16px;
 }
 
 .admin-nav-item.active {
-  background: rgba(255, 255, 255, 0.2);
+  background: #0d9488; /* teal-600 */
   color: white;
-  border-left-color: white;
-  border-left-width: 4px;
+  border: 2px solid #0d9488; /* teal-600 */
+  border-radius: 8px;
+  margin: 6px 12px;
+  padding: 8px 16px;
   font-weight: 600;
+  box-shadow: 0 2px 4px rgba(13, 148, 136, 0.3);
 }
 
 .admin-nav-item svg {

@@ -154,7 +154,9 @@ class ApiService {
       localStorage.setItem('userEmail', response.email);
       localStorage.setItem('userFirstName', response.firstName);
       localStorage.setItem('userLastName', response.lastName);
-      localStorage.setItem('userRoles', JSON.stringify(response.roles));
+      localStorage.setItem('roleId', response.roleId);
+      localStorage.setItem('roleMeta', JSON.stringify(response.roleMeta || {}));
+      localStorage.setItem('perms', JSON.stringify(response.perms || []));
       localStorage.setItem('expiresAt', response.expiresAt);
     }
     
@@ -187,7 +189,9 @@ class ApiService {
     localStorage.removeItem('userEmail');
     localStorage.removeItem('userFirstName');
     localStorage.removeItem('userLastName');
-    localStorage.removeItem('userRoles');
+    localStorage.removeItem('roleId');
+    localStorage.removeItem('roleMeta');
+    localStorage.removeItem('perms');
     localStorage.removeItem('expiresAt');
   }
 
@@ -225,7 +229,9 @@ class ApiService {
       email: localStorage.getItem('userEmail'),
       firstName: localStorage.getItem('userFirstName'),
       lastName: localStorage.getItem('userLastName'),
-      roles: JSON.parse(localStorage.getItem('userRoles') || '[]'),
+      roleId: localStorage.getItem('roleId'),
+      roleMeta: JSON.parse(localStorage.getItem('roleMeta') || '{}'),
+      perms: JSON.parse(localStorage.getItem('perms') || '[]'),
     };
   }
 
@@ -267,6 +273,59 @@ class ApiService {
         'x-user-id': adminUserId,
       },
     });
+  }
+
+  // ==================== Role Management APIs ====================
+
+  /**
+   * Get all roles
+   * GET /api/v1/roles
+   */
+  async getAllRoles(roleName = null) {
+    const params = roleName ? `?roleName=${encodeURIComponent(roleName)}` : '';
+    return this.get(`/api/v1/roles${params}`);
+  }
+
+  /**
+   * Create a new role
+   * POST /api/v1/roles
+   */
+  async createRole(roleData) {
+    return this.post('/api/v1/roles', roleData);
+  }
+
+  /**
+   * Update a role
+   * PUT /api/v1/roles/{roleId}
+   */
+  async updateRole(roleId, roleData) {
+    return this.put(`/api/v1/roles/${roleId}`, roleData);
+  }
+
+  /**
+   * Update role status
+   * PATCH /api/v1/roles/{roleId}/status
+   */
+  async updateRoleStatus(roleId, status) {
+    return this.patch(`/api/v1/roles/${roleId}/status`, { status });
+  }
+
+  /**
+   * Update role permissions
+   * PATCH /api/v1/roles/{roleId}/permissions
+   */
+  async updateRolePermissions(roleId, permissions) {
+    return this.patch(`/api/v1/roles/${roleId}/permissions`, { permissions });
+  }
+
+  // ==================== Permissions APIs ====================
+
+  /**
+   * Get all available permissions
+   * GET /api/v1/permissions
+   */
+  async getAllPermissions() {
+    return this.get('/api/v1/permissions');
   }
 }
 

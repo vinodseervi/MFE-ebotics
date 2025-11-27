@@ -65,10 +65,9 @@ const Sidebar = ({ showAdminSubmenu, onAdminClick, isCollapsed, onToggleCollapse
   };
 
   const getUserRole = () => {
-    if (user && user.roles && user.roles.length > 0) {
-      const role = user.roles[0];
-      // Format role: ADMIN -> Admin, SUPER_ADMIN -> Super Admin, etc.
-      return role
+    if (user && user.roleMeta && user.roleMeta.name) {
+      // Format role: SUPER ADMIN -> Super Admin, etc.
+      return user.roleMeta.name
         .split('_')
         .map(word => word.charAt(0) + word.slice(1).toLowerCase())
         .join(' ');

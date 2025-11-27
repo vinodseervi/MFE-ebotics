@@ -179,9 +179,11 @@ const Users = () => {
     }
   };
 
-  const formatRole = (role) => {
-    if (!role) return '';
-    return role
+  const formatRole = (role, roleMeta) => {
+    // Prefer roleMeta.name if available, otherwise use role string
+    const roleName = roleMeta?.name || role;
+    if (!roleName) return '';
+    return roleName
       .split('_')
       .map(word => word.charAt(0) + word.slice(1).toLowerCase())
       .join(' ');
@@ -192,14 +194,17 @@ const Users = () => {
     return status.charAt(0) + status.slice(1).toLowerCase();
   };
 
-  const getRoleColor = (role) => {
+  const getRoleColor = (role, roleMeta) => {
+    // Use roleMeta.name if available, otherwise use role string
+    const roleName = roleMeta?.name || role || '';
     const roleColors = {
       'ADMIN': '#a855f7',
       'USER': '#3b82f6',
       'SUPER_ADMIN': '#ef4444',
+      'SUPER ADMIN': '#ef4444',
       'MANAGER': '#c084fc',
     };
-    return roleColors[role] || '#6b7280';
+    return roleColors[roleName] || roleColors[roleName.toUpperCase()] || '#6b7280';
   };
 
   const filteredUsers = users.filter(user => {
@@ -209,13 +214,14 @@ const Users = () => {
       user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.id?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesRole = selectedRole === 'All Roles' || formatRole(user.role) === selectedRole;
+    const userRoleName = formatRole(user.role, user.roleMeta);
+    const matchesRole = selectedRole === 'All Roles' || userRoleName === selectedRole;
     const matchesStatus = selectedStatus === 'All Statuses' || formatStatus(user.status) === selectedStatus;
     
     return matchesSearch && matchesRole && matchesStatus;
   });
 
-  const uniqueRoles = ['All Roles', ...Array.from(new Set(users.map(u => formatRole(u.role)).filter(Boolean)))];
+  const uniqueRoles = ['All Roles', ...Array.from(new Set(users.map(u => formatRole(u.role, u.roleMeta)).filter(Boolean)))];
   const uniqueStatuses = ['All Statuses', ...Array.from(new Set(users.map(u => formatStatus(u.status)).filter(Boolean)))];
 
   const formatLastLogin = (lastLogin) => {
@@ -249,13 +255,25 @@ const Users = () => {
     });
   };
 
+  // Convert role name to API format (e.g., "SUPER ADMIN" -> "SUPER_ADMIN")
+  const roleNameToApiFormat = (roleName) => {
+    if (!roleName) return 'USER';
+    // If already in API format (has underscore), return as-is
+    if (roleName.includes('_')) return roleName.toUpperCase();
+    // Convert space-separated to underscore-separated and uppercase
+    return roleName.replace(/\s+/g, '_').toUpperCase();
+  };
+
   const handleEditClick = (user) => {
     setEditingUser(user);
+    // Extract role name from roleMeta or use role string, convert to API format
+    const roleName = user.roleMeta?.name || user.role || 'USER';
+    const roleValue = roleNameToApiFormat(roleName);
     setEditFormData({
       email: user.email || '',
       firstName: user.firstName || '',
       lastName: user.lastName || '',
-      role: user.role || 'USER',
+      role: roleValue,
       status: user.status || 'ACTIVE',
       phone: user.phone || '',
       phoneNumber: user.phoneNumber || '',
@@ -471,7 +489,7 @@ const Users = () => {
                               <div 
                                 className="user-avatar-small" 
                                 style={{ 
-                                  backgroundColor: getRoleColor(user.role),
+                                  backgroundColor: getRoleColor(user.role, user.roleMeta),
                                   display: 'none'
                                 }}
                               >
@@ -481,7 +499,7 @@ const Users = () => {
                           ) : (
                             <div 
                               className="user-avatar-small" 
-                              style={{ backgroundColor: getRoleColor(user.role) }}
+                              style={{ backgroundColor: getRoleColor(user.role, user.roleMeta) }}
                             >
                               {user.firstName?.[0] || ''}{user.lastName?.[0] || ''}
                             </div>
@@ -495,11 +513,11 @@ const Users = () => {
                         <span 
                           className="role-badge"
                           style={{ 
-                            backgroundColor: getRoleColor(user.role) + '20', 
-                            color: getRoleColor(user.role) 
+                            backgroundColor: getRoleColor(user.role, user.roleMeta) + '20', 
+                            color: getRoleColor(user.role, user.roleMeta) 
                           }}
                         >
-                          {formatRole(user.role)}
+                          {formatRole(user.role, user.roleMeta)}
                         </span>
                       </td>
                       <td>{user.phone || user.phoneNumber || '-'}</td>

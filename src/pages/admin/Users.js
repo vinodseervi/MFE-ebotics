@@ -7,6 +7,7 @@ import './Admin.css';
 const Users = () => {
   const { user } = useAuth();
   const [users, setUsers] = useState([]);
+  const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -18,7 +19,7 @@ const Users = () => {
     email: '',
     firstName: '',
     lastName: '',
-    role: 'USER',
+    roleId: '',
     status: 'ACTIVE',
     phone: '',
     phoneNumber: '',
@@ -28,7 +29,7 @@ const Users = () => {
     email: '',
     firstName: '',
     lastName: '',
-    role: 'USER',
+    roleId: '',
     status: 'ACTIVE'
   });
   const [formErrors, setFormErrors] = useState({});
@@ -44,6 +45,7 @@ const Users = () => {
 
   useEffect(() => {
     fetchUsers();
+    fetchRoles();
   }, []);
 
   const fetchUsers = async () => {
@@ -56,6 +58,25 @@ const Users = () => {
       setUsers([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchRoles = async () => {
+    try {
+      // x-user-id header is automatically included via api service
+      const data = await api.getPublicRoles();
+      console.log('Fetched roles:', data);
+      setRoles(data || []);
+    } catch (error) {
+      console.error('Error fetching roles:', error);
+      console.error('Error status:', error.status);
+      console.error('Error data:', error.data);
+      setRoles([]);
+      // Show error if it's a 403 (permission issue)
+      if (error.status === 403 || (error.message && error.message.includes('403'))) {
+        console.error('Permission denied: Make sure you are logged in and have the required permissions.');
+        console.error('Current userId:', api.getUserId());
+      }
     }
   };
 
@@ -111,6 +132,10 @@ const Users = () => {
       errors.lastName = 'Last name is required';
     }
     
+    if (!formData.roleId) {
+      errors.roleId = 'Role is required';
+    }
+    
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -125,8 +150,13 @@ const Users = () => {
     try {
       setIsSubmitting(true);
       const password = generatePassword();
+      // Send roleId to API (API should accept roleId)
       const userData = {
-        ...formData,
+        email: formData.email,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        roleId: formData.roleId,
+        status: formData.status,
         password
       };
 
@@ -146,7 +176,7 @@ const Users = () => {
         email: '',
         firstName: '',
         lastName: '',
-        role: 'USER',
+        roleId: '',
         status: 'ACTIVE'
       });
       
@@ -255,25 +285,15 @@ const Users = () => {
     });
   };
 
-  // Convert role name to API format (e.g., "SUPER ADMIN" -> "SUPER_ADMIN")
-  const roleNameToApiFormat = (roleName) => {
-    if (!roleName) return 'USER';
-    // If already in API format (has underscore), return as-is
-    if (roleName.includes('_')) return roleName.toUpperCase();
-    // Convert space-separated to underscore-separated and uppercase
-    return roleName.replace(/\s+/g, '_').toUpperCase();
-  };
 
   const handleEditClick = (user) => {
     setEditingUser(user);
-    // Extract role name from roleMeta or use role string, convert to API format
-    const roleName = user.roleMeta?.name || user.role || 'USER';
-    const roleValue = roleNameToApiFormat(roleName);
+    // Use roleId from user object
     setEditFormData({
       email: user.email || '',
       firstName: user.firstName || '',
       lastName: user.lastName || '',
-      role: roleValue,
+      roleId: user.roleId || '',
       status: user.status || 'ACTIVE',
       phone: user.phone || '',
       phoneNumber: user.phoneNumber || '',
@@ -315,6 +335,10 @@ const Users = () => {
       errors.lastName = 'Last name is required';
     }
     
+    if (!editFormData.roleId) {
+      errors.roleId = 'Role is required';
+    }
+    
     setEditFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -332,7 +356,7 @@ const Users = () => {
         email: editFormData.email,
         firstName: editFormData.firstName,
         lastName: editFormData.lastName,
-        role: editFormData.role,
+        roleId: editFormData.roleId,
         status: editFormData.status,
         phone: editFormData.phone || editFormData.phoneNumber,
         phoneNumber: editFormData.phoneNumber || editFormData.phone,
@@ -621,18 +645,23 @@ const Users = () => {
 
               <div className="form-row">
                 <div className="form-group">
-                  <label htmlFor="role">Role *</label>
+                  <label htmlFor="roleId">Role *</label>
                   <select
-                    id="role"
-                    name="role"
-                    value={formData.role}
+                    id="roleId"
+                    name="roleId"
+                    value={formData.roleId}
                     onChange={handleInputChange}
                     disabled={isSubmitting}
                     required
                   >
-                    <option value="USER">User</option>
-                    <option value="ADMIN">Admin</option>
+                    <option value="">Select a role</option>
+                    {roles.map((role) => (
+                      <option key={role.roleId} value={role.roleId}>
+                        {role.roleName}
+                      </option>
+                    ))}
                   </select>
+                  {formErrors.roleId && <span className="error-text">{formErrors.roleId}</span>}
                 </div>
 
                 <div className="form-group">
@@ -768,20 +797,23 @@ const Users = () => {
 
               <div className="form-row">
                 <div className="form-group">
-                  <label htmlFor="edit-role">Role *</label>
+                  <label htmlFor="edit-roleId">Role *</label>
                   <select
-                    id="edit-role"
-                    name="role"
-                    value={editFormData.role}
+                    id="edit-roleId"
+                    name="roleId"
+                    value={editFormData.roleId}
                     onChange={handleEditInputChange}
                     disabled={isUpdating}
                     required
                   >
-                    <option value="USER">User</option>
-                    <option value="ADMIN">Admin</option>
-                    <option value="SUPER_ADMIN">Super Admin</option>
-                    <option value="MANAGER">Manager</option>
+                    <option value="">Select a role</option>
+                    {roles.map((role) => (
+                      <option key={role.roleId} value={role.roleId}>
+                        {role.roleName}
+                      </option>
+                    ))}
                   </select>
+                  {editFormErrors.roleId && <span className="error-text">{editFormErrors.roleId}</span>}
                 </div>
 
                 <div className="form-group">

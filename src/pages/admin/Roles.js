@@ -136,6 +136,12 @@ const Roles = () => {
     
     if (!formData.roleName.trim()) {
       errors.roleName = 'Role name is required';
+    } else {
+      // Validate: roleName must be alphanumeric with spaces only
+      const roleNameRegex = /^[a-zA-Z0-9\s]+$/;
+      if (!roleNameRegex.test(formData.roleName.trim())) {
+        errors.roleName = 'Role name must contain only letters, numbers, and spaces';
+      }
     }
     
     if (!formData.description.trim()) {
@@ -151,6 +157,12 @@ const Roles = () => {
     
     if (!editFormData.roleName.trim()) {
       errors.roleName = 'Role name is required';
+    } else {
+      // Validate: roleName must be alphanumeric with spaces only
+      const roleNameRegex = /^[a-zA-Z0-9\s]+$/;
+      if (!roleNameRegex.test(editFormData.roleName.trim())) {
+        errors.roleName = 'Role name must contain only letters, numbers, and spaces';
+      }
     }
     
     if (!editFormData.description.trim()) {
@@ -171,9 +183,10 @@ const Roles = () => {
     try {
       setIsSubmitting(true);
       // Create role with only roleName and description (as per API spec)
+      // Trim roleName to remove extra spaces
       const roleData = {
-        roleName: formData.roleName,
-        description: formData.description
+        roleName: formData.roleName.trim(),
+        description: formData.description.trim()
       };
 
       const createdRole = await api.createRole(roleData);
@@ -183,11 +196,29 @@ const Roles = () => {
         try {
           await api.updateRolePermissions(createdRole.roleId, formData.permissions);
         } catch (permError) {
-          console.warn('Role created but permissions update failed:', permError);
-          // Role is created, permissions can be updated later
+          console.error('Permissions update failed:', permError);
+          // Role was created successfully, but permissions failed
+          // Show warning but don't block - user can edit to add permissions
+          const permErrorMessage = permError.message || permError.error || 'Failed to update permissions due to server error';
+          setFormErrors({ 
+            submit: `⚠️ Role created successfully, but permissions update failed: ${permErrorMessage}. You can edit the role to add permissions.` 
+          });
+          // Close modal and refresh after showing message
+          setTimeout(() => {
+            setShowAddModal(false);
+            setFormData({
+              roleName: '',
+              description: '',
+              permissions: []
+            });
+            setFormErrors({});
+            fetchRoles();
+          }, 3000);
+          return;
         }
       }
       
+      // Everything succeeded
       setShowAddModal(false);
       setFormData({
         roleName: '',
@@ -195,12 +226,23 @@ const Roles = () => {
         permissions: []
       });
       setFormErrors({});
-      
       await fetchRoles();
     } catch (error) {
       console.error('Error creating role:', error);
-      const errorMessage = error.message || error.error || 'Failed to create role. Please try again.';
-      setFormErrors({ submit: errorMessage });
+      // Handle validation errors from API
+      let errorMessage = 'Failed to create role. Please try again.';
+      if (error.details && Array.isArray(error.details) && error.details.length > 0) {
+        const fieldError = error.details.find(d => d.field === 'roleName');
+        if (fieldError) {
+          setFormErrors({ roleName: fieldError.message });
+          errorMessage = fieldError.message;
+        } else {
+          errorMessage = error.details[0].message || error.message || error.error || errorMessage;
+        }
+      } else {
+        errorMessage = error.message || error.error || errorMessage;
+      }
+      setFormErrors(prev => ({ ...prev, submit: errorMessage }));
     } finally {
       setIsSubmitting(false);
     }
@@ -226,31 +268,40 @@ const Roles = () => {
 
     try {
       setIsUpdating(true);
-      // Update role with only roleName and description (as per API spec)
+      // Update role with roleName, description, and permissions in PUT request
+      // Trim roleName to remove extra spaces
       const updateData = {
-        roleName: editFormData.roleName,
-        description: editFormData.description
+        roleName: editFormData.roleName.trim(),
+        description: editFormData.description.trim(),
+        permissions: editFormData.permissions || []
       };
 
+      // Update role - x-user-id header is automatically included via api service
       await api.updateRole(editingRole.roleId, updateData);
       
-      // Update permissions separately
-      try {
-        await api.updateRolePermissions(editingRole.roleId, editFormData.permissions);
-      } catch (permError) {
-        console.warn('Role updated but permissions update failed:', permError);
-        // Role info updated, permissions can be updated later
-      }
-      
+      // Everything succeeded
       setShowEditModal(false);
       setEditingRole(null);
       setEditFormErrors({});
-      
       await fetchRoles();
     } catch (error) {
       console.error('Error updating role:', error);
-      const errorMessage = error.message || error.error || 'Failed to update role. Please try again.';
-      setEditFormErrors({ submit: errorMessage });
+      // Handle validation errors from API
+      let errorMessage = 'Failed to update role. Please try again.';
+      if (error.details && Array.isArray(error.details) && error.details.length > 0) {
+        const fieldError = error.details.find(d => d.field === 'roleName');
+        if (fieldError) {
+          setEditFormErrors({ roleName: fieldError.message });
+          errorMessage = fieldError.message;
+        } else {
+          errorMessage = error.details[0].message || error.message || error.error || errorMessage;
+        }
+      } else if (error.status === 403) {
+        errorMessage = 'You do not have permission to update this role.';
+      } else {
+        errorMessage = error.message || error.error || errorMessage;
+      }
+      setEditFormErrors(prev => ({ ...prev, submit: errorMessage }));
     } finally {
       setIsUpdating(false);
     }
@@ -410,86 +461,71 @@ const Roles = () => {
         </div>
       </div>
 
-      <div className="table-section">
+      <div className="roles-section">
         {loading ? (
           <div style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>
             Loading roles...
           </div>
+        ) : filteredRoles.length === 0 ? (
+          <div style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>
+            No roles found
+          </div>
         ) : (
-          <div className="table-wrapper">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Role Name</th>
-                  <th>Description</th>
-                  <th>Permissions</th>
-                  <th>Status</th>
-                  <th>Created At</th>
-                  <th>Updated At</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredRoles.length === 0 ? (
-                  <tr>
-                    <td colSpan="7" style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>
-                      No roles found
-                    </td>
-                  </tr>
-                ) : (
-                  filteredRoles.map((role) => (
-                    <tr key={role.roleId}>
-                      <td>
-                        <strong>{role.roleName || '-'}</strong>
-                      </td>
-                      <td>{role.description || '-'}</td>
-                      <td>
-                        <div className="permissions-badge-list">
-                          {role.permissions && role.permissions.length > 0 ? (
-                            <>
-                              <span className="permission-count">{role.permissions.length} permission{role.permissions.length !== 1 ? 's' : ''}</span>
-                              <div className="permissions-preview">
-                                {role.permissions.slice(0, 3).map((perm, idx) => (
-                                  <span key={idx} className="permission-tag">{perm}</span>
-                                ))}
-                                {role.permissions.length > 3 && (
-                                  <span className="permission-more">+{role.permissions.length - 3} more</span>
-                                )}
-                              </div>
-                            </>
-                          ) : (
-                            <span style={{ color: '#9ca3af' }}>No permissions</span>
-                          )}
-                        </div>
-                      </td>
-                      <td>
-                        <span 
-                          className={`status-badge clickable ${role.status === 'ACTIVE' ? 'status-active' : 'status-inactive'}`}
-                          onClick={() => handleStatusToggle(role)}
-                          title={`Click to ${role.status === 'ACTIVE' ? 'deactivate' : 'activate'} role`}
-                        >
-                          {formatStatus(role.status)}
-                        </span>
-                      </td>
-                      <td>{formatDate(role.createdAt)}</td>
-                      <td>{formatDate(role.updatedAt)}</td>
-                      <td>
-                        <Edit
-                          size={18}
-                          style={{
-                            color: '#3b82f6',
-                            cursor: 'pointer',
-                            transition: 'color 0.2s'
-                          }}
-                          onClick={() => handleEditClick(role)}
-                          title="Edit role"
-                        />
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          <div className="roles-grid">
+            {filteredRoles.map((role) => (
+              <div key={role.roleId} className="role-card">
+                <div className="role-header">
+                  <h3 className="role-name">{role.roleName || '-'}</h3>
+                  <div className="role-header-actions">
+                    <span 
+                      className={`status-badge clickable ${role.status === 'ACTIVE' ? 'status-active' : 'status-inactive'}`}
+                      onClick={() => handleStatusToggle(role)}
+                      title={`Click to ${role.status === 'ACTIVE' ? 'deactivate' : 'activate'} role`}
+                    >
+                      {formatStatus(role.status)}
+                    </span>
+                    <button 
+                      className="icon-btn-small"
+                      onClick={() => handleEditClick(role)}
+                      title="Edit role"
+                    >
+                      <Edit size={18} style={{ color: '#3b82f6' }} />
+                    </button>
+                  </div>
+                </div>
+                <p className="role-description">{role.description || '-'}</p>
+                <div className="role-permissions">
+                  <h4 className="permissions-title">Key Permissions:</h4>
+                  {role.permissions && role.permissions.length > 0 ? (
+                    <ul className="permissions-list">
+                      {role.permissions.slice(0, 4).map((permission, index) => (
+                        <li key={index} className="permission-item">
+                          <span className="permission-dot"></span>
+                          {permission}
+                        </li>
+                      ))}
+                      {role.permissions.length > 4 && (
+                        <li className="permission-item">
+                          <span className="permission-more">+{role.permissions.length - 4} more</span>
+                        </li>
+                      )}
+                    </ul>
+                  ) : (
+                    <p style={{ color: '#9ca3af', fontSize: '13px', margin: 0 }}>No permissions assigned</p>
+                  )}
+                </div>
+                <div className="role-footer">
+                  <div className="role-meta-info">
+                    <span className="role-meta-label">Created:</span>
+                    <span className="role-meta-value">{formatDate(role.createdAt)}</span>
+                  </div>
+                  <div className="role-meta-info">
+                    <span className="role-meta-label">Updated:</span>
+                    <span className="role-meta-value">{formatDate(role.updatedAt)}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -521,7 +557,7 @@ const Roles = () => {
                     name="roleName"
                     value={formData.roleName}
                     onChange={handleInputChange}
-                    placeholder="Enter role name"
+                    placeholder="e.g., Admin, Manager, User (letters, numbers, and spaces only)"
                     disabled={isSubmitting}
                     required
                   />
@@ -606,7 +642,7 @@ const Roles = () => {
                     name="roleName"
                     value={editFormData.roleName}
                     onChange={handleEditInputChange}
-                    placeholder="Enter role name"
+                    placeholder="e.g., Admin, Manager, User (letters, numbers, and spaces only)"
                     disabled={isUpdating}
                     required
                   />

@@ -71,7 +71,11 @@ class ApiService {
       const data = isJson ? await response.json() : await response.text();
 
       if (!response.ok) {
-        throw new Error(data.message || data || `HTTP error! status: ${response.status}`);
+        // Create error object with more details
+        const error = new Error(data.message || data.error || data || `HTTP error! status: ${response.status}`);
+        error.status = response.status;
+        error.data = data;
+        throw error;
       }
 
       return data;
@@ -297,8 +301,10 @@ class ApiService {
   /**
    * Update a role
    * PUT /api/v1/roles/{roleId}
+   * Includes x-user-id header automatically (authenticated user's UUID)
    */
   async updateRole(roleId, roleData) {
+    // x-user-id header is automatically included via getHeaders()
     return this.put(`/api/v1/roles/${roleId}`, roleData);
   }
 
@@ -326,6 +332,21 @@ class ApiService {
    */
   async getAllPermissions() {
     return this.get('/api/v1/permissions');
+  }
+
+  // ==================== Public APIs ====================
+
+  /**
+   * Get all public roles (roleId and roleName only)
+   * GET /api/v1/public/roles
+   * Requires x-user-id header (automatically included via getHeaders)
+   */
+  async getPublicRoles(roleName = null) {
+    const params = roleName ? `?roleName=${encodeURIComponent(roleName)}` : '';
+    // x-user-id header is automatically included via getHeaders() in the request method
+    return this.get(`/api/v1/public/roles${params}`, {
+      includeAuth: true // Ensure auth headers including x-user-id are included
+    });
   }
 }
 

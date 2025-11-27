@@ -41,15 +41,13 @@ const Login = () => {
           <div className="login-logo">
             <img src="/ebotics.png" alt="Ebotics Logo" />
           </div>
-          <h1>Welcome Back</h1>
-          <p>Sign in to your account to continue</p>
+         <p>Sign in to your account to continue</p>
         </div>
 
         <form onSubmit={handleSubmit} className="login-form">
           {error && <div className="error-message">{error}</div>}
 
           <div className="form-group">
-            <label htmlFor="email">Email Address</label>
             <input
               type="email"
               id="email"
@@ -62,7 +60,6 @@ const Login = () => {
           </div>
 
           <div className="form-group">
-            <label htmlFor="password">Password</label>
             <div className="password-input-wrapper">
               <input
                 type={showPassword ? 'text' : 'password'}

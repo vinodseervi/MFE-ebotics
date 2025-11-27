@@ -348,6 +348,88 @@ class ApiService {
       includeAuth: true // Ensure auth headers including x-user-id are included
     });
   }
+
+  // ==================== Practice Management APIs ====================
+
+  /**
+   * Get all practices
+   * GET /api/v1/practices
+   */
+  async getAllPractices() {
+    return this.get('/api/v1/practices');
+  }
+
+  /**
+   * Create a new practice
+   * POST /api/v1/practices
+   */
+  async createPractice(practiceData) {
+    return this.post('/api/v1/practices', practiceData);
+  }
+
+  /**
+   * Update a practice
+   * PATCH /api/v1/practices/{practiceId}
+   */
+  async updatePractice(practiceId, practiceData) {
+    return this.patch(`/api/v1/practices/${practiceId}`, practiceData);
+  }
+
+  /**
+   * Update practice status
+   * PATCH /api/v1/practices/{practiceId}/status
+   */
+  async updatePracticeStatus(practiceId, status) {
+    return this.patch(`/api/v1/practices/${practiceId}/status`, { status });
+  }
+
+  /**
+   * Check if practice code exists
+   * GET /api/v1/practices/code-exists?code={code}
+   */
+  async checkPracticeCodeExists(code) {
+    return this.get(`/api/v1/practices/code-exists?code=${encodeURIComponent(code)}`);
+  }
+
+  /**
+   * Get all locations for a practice
+   * GET /api/v1/practices/{practiceId}/locations
+   */
+  async getPracticeLocations(practiceId) {
+    return this.get(`/api/v1/practices/${practiceId}/locations`);
+  }
+
+  /**
+   * Create a new location for a practice
+   * POST /api/v1/practices/{practiceId}/locations
+   */
+  async createPracticeLocation(practiceId, locationData) {
+    return this.post(`/api/v1/practices/${practiceId}/locations`, locationData);
+  }
+
+  /**
+   * Update a location
+   * PATCH /api/v1/practices/{practiceId}/locations/{locationId}
+   */
+  async updatePracticeLocation(practiceId, locationId, locationData) {
+    return this.patch(`/api/v1/practices/${practiceId}/locations/${locationId}`, locationData);
+  }
+
+  /**
+   * Update location status
+   * PATCH /api/v1/practices/{practiceId}/locations/{locationId}/status
+   */
+  async updateLocationStatus(practiceId, locationId, isActive) {
+    return this.patch(`/api/v1/practices/${practiceId}/locations/${locationId}/status`, { isActive });
+  }
+
+  /**
+   * Check if location code exists
+   * GET /api/v1/practices/locations/code-exists?code={code}
+   */
+  async checkLocationCodeExists(code) {
+    return this.get(`/api/v1/practices/locations/code-exists?code=${encodeURIComponent(code)}`);
+  }
 }
 
 // Export singleton instance

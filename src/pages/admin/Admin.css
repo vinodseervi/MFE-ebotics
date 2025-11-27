@@ -2,10 +2,16 @@
   padding: 30px;
   background: #f9fafb;
   min-height: 100vh;
+  overflow-x: hidden;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .user-management-page {
   padding: 32px 40px;
+  overflow-x: hidden;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .page-header {
@@ -246,11 +252,19 @@
 .table-wrapper {
   overflow-x: auto;
   padding: 0 24px 24px 24px;
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.table-wrapper::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari, Opera */
 }
 
 .admin-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: auto;
+  min-width: fit-content;
 }
 
 .admin-table thead {
@@ -258,21 +272,24 @@
 }
 
 .admin-table th {
-  padding: 16px 24px;
+  padding: 12px 14px;
   text-align: left;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: #6b7280;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
 }
 
 .admin-table td {
-  padding: 16px 24px;
-  font-size: 14px;
+  padding: 12px 14px;
+  font-size: 13px;
   color: #374151;
   border-bottom: 1px solid #f3f4f6;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .admin-table tbody tr:hover {
@@ -1268,17 +1285,37 @@ textarea:disabled {
   }
 
   .table-wrapper {
-    padding: 0 16px 16px 16px;
+    padding: 0 8px 16px 8px;
+    overflow-x: auto;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .table-wrapper::-webkit-scrollbar {
+    display: none;
+  }
+
+  .admin-table {
+    min-width: 800px;
   }
 
   .admin-table th,
   .admin-table td {
-    padding: 12px 16px;
-    font-size: 13px;
+    padding: 10px 8px;
+    font-size: 12px;
+  }
+
+  .admin-table th {
+    font-size: 11px;
+  }
+
+  .admin-table td {
+    max-width: 120px;
+    word-wrap: break-word;
   }
 
   .user-id-cell {
-    font-size: 11px;
+    font-size: 10px;
     word-break: break-all;
   }
 

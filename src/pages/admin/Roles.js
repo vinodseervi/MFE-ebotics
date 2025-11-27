@@ -248,7 +248,16 @@ const Roles = () => {
     }
   };
 
+  // Check if role is Super Admin (non-editable)
+  const isSuperAdmin = (role) => {
+    return role.roleName && role.roleName.toUpperCase() === 'SUPER ADMIN';
+  };
+
   const handleEditClick = (role) => {
+    // Prevent editing Super Admin
+    if (isSuperAdmin(role)) {
+      return;
+    }
     setEditingRole(role);
     setEditFormData({
       roleName: role.roleName || '',
@@ -261,6 +270,11 @@ const Roles = () => {
 
   const handleUpdateRole = async (e) => {
     e.preventDefault();
+    
+    // Prevent updating Super Admin
+    if (editingRole && isSuperAdmin(editingRole)) {
+      return;
+    }
     
     if (!validateEditForm()) {
       return;
@@ -308,6 +322,10 @@ const Roles = () => {
   };
 
   const handleStatusToggle = (role) => {
+    // Prevent status toggle for Super Admin
+    if (isSuperAdmin(role)) {
+      return;
+    }
     const newStatusValue = role.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     setStatusUpdateRole(role);
     setNewStatus(newStatusValue);
@@ -477,20 +495,31 @@ const Roles = () => {
                 <div className="role-header">
                   <h3 className="role-name">{role.roleName || '-'}</h3>
                   <div className="role-header-actions">
-                    <span 
-                      className={`status-badge clickable ${role.status === 'ACTIVE' ? 'status-active' : 'status-inactive'}`}
-                      onClick={() => handleStatusToggle(role)}
-                      title={`Click to ${role.status === 'ACTIVE' ? 'deactivate' : 'activate'} role`}
-                    >
-                      {formatStatus(role.status)}
-                    </span>
-                    <button 
-                      className="icon-btn-small"
-                      onClick={() => handleEditClick(role)}
-                      title="Edit role"
-                    >
-                      <Edit size={18} style={{ color: '#3b82f6' }} />
-                    </button>
+                    {isSuperAdmin(role) ? (
+                      <span 
+                        className={`status-badge ${role.status === 'ACTIVE' ? 'status-active' : 'status-inactive'}`}
+                        title="Super Admin role (non-editable)"
+                      >
+                        {formatStatus(role.status)}
+                      </span>
+                    ) : (
+                      <>
+                        <span 
+                          className={`status-badge clickable ${role.status === 'ACTIVE' ? 'status-active' : 'status-inactive'}`}
+                          onClick={() => handleStatusToggle(role)}
+                          title={`Click to ${role.status === 'ACTIVE' ? 'deactivate' : 'activate'} role`}
+                        >
+                          {formatStatus(role.status)}
+                        </span>
+                        <button 
+                          className="icon-btn-small"
+                          onClick={() => handleEditClick(role)}
+                          title="Edit role"
+                        >
+                          <Edit size={18} style={{ color: '#3b82f6' }} />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
                 <p className="role-description">{role.description || '-'}</p>
@@ -634,6 +663,19 @@ const Roles = () => {
 
             <form onSubmit={handleUpdateRole} className="modal-form">
               <div className="modal-form-content">
+                {isSuperAdmin(editingRole) && (
+                  <div className="info-banner" style={{ 
+                    padding: '12px 16px', 
+                    background: '#fef3c7', 
+                    border: '1px solid #fbbf24', 
+                    borderRadius: '8px', 
+                    marginBottom: '16px',
+                    color: '#92400e',
+                    fontSize: '14px'
+                  }}>
+                    ⚠️ Super Admin role is read-only and cannot be edited.
+                  </div>
+                )}
                 <div className="form-group">
                   <label htmlFor="edit-roleName">Role Name *</label>
                   <input
@@ -643,7 +685,7 @@ const Roles = () => {
                     value={editFormData.roleName}
                     onChange={handleEditInputChange}
                     placeholder="e.g., Admin, Manager, User (letters, numbers, and spaces only)"
-                    disabled={isUpdating}
+                    disabled={isUpdating || isSuperAdmin(editingRole)}
                     required
                   />
                   {editFormErrors.roleName && <span className="error-text">{editFormErrors.roleName}</span>}
@@ -658,7 +700,7 @@ const Roles = () => {
                     value={editFormData.description}
                     onChange={handleEditInputChange}
                     placeholder="Enter role description"
-                    disabled={isUpdating}
+                    disabled={isUpdating || isSuperAdmin(editingRole)}
                     required
                   />
                   {editFormErrors.description && <span className="error-text">{editFormErrors.description}</span>}
@@ -666,7 +708,7 @@ const Roles = () => {
 
                 <div className="form-group permissions-form-group">
                   <label className="permissions-label">Permissions</label>
-                  <div className="permissions-scroll-container">
+                  <div className="permissions-scroll-container" style={isSuperAdmin(editingRole) ? { opacity: 0.6, pointerEvents: 'none' } : {}}>
                     {renderPermissionCheckboxes(true)}
                   </div>
                 </div>
@@ -685,15 +727,17 @@ const Roles = () => {
                   onClick={() => setShowEditModal(false)}
                   disabled={isUpdating}
                 >
-                  Cancel
+                  {isSuperAdmin(editingRole) ? 'Close' : 'Cancel'}
                 </button>
-                <button
-                  type="submit"
-                  className="btn-primary"
-                  disabled={isUpdating}
-                >
-                  {isUpdating ? 'Updating...' : 'Update Role'}
-                </button>
+                {!isSuperAdmin(editingRole) && (
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    disabled={isUpdating}
+                  >
+                    {isUpdating ? 'Updating...' : 'Update Role'}
+                  </button>
+                )}
               </div>
             </form>
           </div>

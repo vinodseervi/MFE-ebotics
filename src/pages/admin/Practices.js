@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-import { Edit, MapPin, Plus } from 'lucide-react';
+import { Edit, MapPin, Plus, Building2 } from 'lucide-react';
 import './Admin.css';
 
 const Practices = () => {
@@ -525,7 +525,7 @@ const Practices = () => {
       <div className="page-header">
         <div>
           <h1 className="page-title">Practice Management</h1>
-          <p className="page-subtitle">Manage practices and their locations. Control access and monitor activity.</p>
+          <p className="page-subtitle">Manage practices and locations.</p>
         </div>
         <button 
           className="btn-add-user"
@@ -542,7 +542,7 @@ const Practices = () => {
           <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
             <path d="M10 3V17M3 10H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
           </svg>
-          Add Practice
+          New Practice
         </button>
       </div>
 
@@ -589,165 +589,89 @@ const Practices = () => {
         </div>
       </div>
 
-      <div className="table-section">
+      <div className="practices-list">
         {loading ? (
           <div style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>
             Loading practices...
           </div>
-        ) : (
-          <div className="table-wrapper">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Code</th>
-                  <th>Status</th>
-                  <th>Locations</th>
-                  <th>Created At</th>
-                  <th>Updated At</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredPractices.length === 0 ? (
-                  <tr>
-                    <td colSpan="7" style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>
-                      No practices found
-                    </td>
-                  </tr>
-                ) : (
-                  filteredPractices.map((practice) => (
-                    <React.Fragment key={practice.practiceId}>
-                      <tr>
-                        <td style={{ fontWeight: 500 }}>{practice.name || '-'}</td>
-                        <td>
-                          <span style={{ 
-                            fontFamily: 'Courier New, monospace',
-                            fontSize: '13px',
-                            color: '#6b7280'
-                          }}>
-                            {practice.code || '-'}
-                          </span>
-                        </td>
-                        <td>
-                          <span 
-                            className={`status-badge clickable ${practice.status === 'ACTIVE' ? 'status-active' : 'status-inactive'}`}
-                            onClick={() => handleStatusToggle(practice)}
-                            title={`Click to ${practice.status === 'ACTIVE' ? 'deactivate' : 'activate'} practice`}
-                          >
-                            {formatStatus(practice.status)}
-                          </span>
-                        </td>
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <MapPin size={16} style={{ color: '#6b7280' }} />
-                            <span>{practice.locations?.length || 0}</span>
-                            <button
-                              onClick={() => handleAddLocationClick(practice)}
-                              style={{
-                                marginLeft: '8px',
-                                padding: '4px 8px',
-                                background: '#f3f4f6',
-                                border: '1px solid #e5e7eb',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
-                                fontSize: '11px',
-                                color: '#374151',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '4px'
-                              }}
-                              title="Add Location"
-                            >
-                              <Plus size={12} />
-                              Add
-                            </button>
-                          </div>
-                        </td>
-                        <td>{formatDate(practice.createdAt)}</td>
-                        <td>{formatDate(practice.updatedAt)}</td>
-                        <td>
-                          <Edit
-                            size={18}
-                            style={{
-                              color: '#3b82f6',
-                              cursor: 'pointer',
-                              transition: 'color 0.2s'
-                            }}
-                            onClick={() => handleEditClick(practice)}
-                            title="Edit practice"
-                          />
-                        </td>
-                      </tr>
-                      {practice.locations && practice.locations.length > 0 && (
-                        <tr style={{ background: '#f9fafb' }}>
-                          <td colSpan="7" style={{ padding: '16px 14px' }}>
-                            <div style={{ marginLeft: '24px' }}>
-                              <div style={{ 
-                                fontSize: '12px', 
-                                fontWeight: 600, 
-                                color: '#6b7280', 
-                                marginBottom: '12px',
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.5px'
-                              }}>
-                                Locations ({practice.locations.length})
-                              </div>
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-                                {practice.locations.map((location) => (
-                                  <div
-                                    key={location.locationId}
-                                    style={{
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: '8px',
-                                      padding: '8px 12px',
-                                      background: 'white',
-                                      border: '1px solid #e5e7eb',
-                                      borderRadius: '6px',
-                                      fontSize: '13px'
-                                    }}
-                                  >
-                                    <MapPin size={14} style={{ color: '#6b7280' }} />
-                                    <div>
-                                      <div style={{ fontWeight: 500, color: '#111827' }}>
-                                        {location.name}
-                                      </div>
-                                      <div style={{ fontSize: '11px', color: '#6b7280', fontFamily: 'Courier New, monospace' }}>
-                                        {location.code}
-                                      </div>
-                                    </div>
-                                    <span 
-                                      className={`status-badge clickable ${location.isActive ? 'status-active' : 'status-inactive'}`}
-                                      onClick={() => handleLocationStatusToggle(practice, location)}
-                                      title={`Click to ${location.isActive ? 'deactivate' : 'activate'} location`}
-                                      style={{ fontSize: '11px', padding: '4px 10px' }}
-                                    >
-                                      {location.isActive ? 'Active' : 'Inactive'}
-                                    </span>
-                                    <Edit
-                                      size={14}
-                                      style={{
-                                        color: '#3b82f6',
-                                        cursor: 'pointer',
-                                        marginLeft: '4px'
-                                      }}
-                                      onClick={() => handleEditLocationClick(practice, location)}
-                                      title="Edit location"
-                                    />
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
-                  ))
-                )}
-              </tbody>
-            </table>
+        ) : filteredPractices.length === 0 ? (
+          <div style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>
+            No practices found
           </div>
+        ) : (
+          filteredPractices.map((practice) => (
+            <div key={practice.practiceId} className="practice-card">
+              <div className="practice-header">
+                <div className="practice-info">
+                  <div className="practice-icon">
+                    <Building2 size={24} />
+                  </div>
+                  <div>
+                    <h3 className="practice-name">{practice.name || '-'}</h3>
+                    <p className="practice-code">Code: {practice.code || '-'}</p>
+                  </div>
+                </div>
+                <div className="practice-actions">
+                  <span 
+                    className={`status-badge clickable ${practice.status === 'ACTIVE' ? 'status-active' : 'status-inactive'}`}
+                    onClick={() => handleStatusToggle(practice)}
+                    title={`Click to ${practice.status === 'ACTIVE' ? 'deactivate' : 'activate'} practice`}
+                  >
+                    {formatStatus(practice.status)}
+                  </span>
+                  <button 
+                    className="btn-secondary"
+                    onClick={() => handleEditClick(practice)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <Edit size={16} />
+                    Edit
+                  </button>
+                  <button 
+                    className="btn-primary"
+                    onClick={() => handleAddLocationClick(practice)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <Plus size={16} />
+                    Add Location
+                  </button>
+                </div>
+              </div>
+              {practice.locations && practice.locations.length > 0 && (
+                <div className="locations-section">
+                  <p className="locations-count">{practice.locations.length} Locations:</p>
+                  <div className="locations-grid">
+                    {practice.locations.map((location) => (
+                      <div key={location.locationId} className="location-item">
+                        <MapPin size={18} style={{ color: '#6b7280', flexShrink: 0 }} />
+                        <div style={{ flex: 1 }}>
+                          <div className="location-name">{location.name || '-'}</div>
+                          <div className="location-code">Code: {location.code || '-'}</div>
+                        </div>
+                        <span 
+                          className={`status-badge clickable ${location.isActive ? 'status-active' : 'status-inactive'}`}
+                          onClick={() => handleLocationStatusToggle(practice, location)}
+                          title={`Click to ${location.isActive ? 'deactivate' : 'activate'} location`}
+                        >
+                          {location.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                        <Edit
+                          size={16}
+                          style={{
+                            color: '#3b82f6',
+                            cursor: 'pointer',
+                            flexShrink: 0
+                          }}
+                          onClick={() => handleEditLocationClick(practice, location)}
+                          title="Edit location"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))
         )}
       </div>
 

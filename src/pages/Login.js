@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import './Login.css';
@@ -9,8 +9,15 @@ const Login = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const { login } = useAuth();
+  const { login, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  
+  // Debug: Log error state changes
+  useEffect(() => {
+    if (error) {
+      console.log('Error state updated:', error);
+    }
+  }, [error]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,15 +30,60 @@ const Login = () => {
       return;
     }
 
-    const result = await login(email, password);
+    try {
+      const result = await login(email, password);
+      
+      console.log('=== LOGIN RESULT ===');
+      console.log('Full result:', JSON.stringify(result, null, 2));
+      console.log('Result success:', result?.success);
+      console.log('Result error:', result?.error);
+      console.log('Result errorData:', result?.errorData);
 
-    if (result.success) {
-      navigate('/');
-    } else {
-      setError(result.error || 'Login failed. Please try again.');
+      if (result && result.success === true) {
+        // Only navigate on success
+        console.log('Login successful, navigating...');
+        navigate('/');
+        return;
+      } 
+      
+      // Handle error
+      // Backend returns: { error: "UNAUTHORIZED", message: "Invalid credentials", ... }
+      let errorMessage = 'Invalid credentials. Please check your username and password.';
+      
+      if (result) {
+        // Priority 1: Check errorData.message (from backend response)
+        if (result.errorData && result.errorData.message) {
+          errorMessage = result.errorData.message;
+          console.log('Using errorData.message:', errorMessage);
+        }
+        // Priority 2: Check result.error (from AuthContext)
+        else if (result.error) {
+          errorMessage = result.error;
+          console.log('Using result.error:', errorMessage);
+        }
+        // Priority 3: Check errorData.error
+        else if (result.errorData && result.errorData.error === 'UNAUTHORIZED') {
+          errorMessage = 'Invalid credentials. Please check your username and password.';
+          console.log('Using UNAUTHORIZED fallback');
+        }
+      }
+      
+      console.log('=== SETTING ERROR ===');
+      console.log('Error message:', errorMessage);
+      
+      // Set error state
+      setError(errorMessage);
+      setIsLoading(false);
+      
+      console.log('Error state should be set. Check UI for error notification.');
+      
+    } catch (err) {
+      // Catch any unexpected errors
+      console.error('=== UNEXPECTED ERROR ===');
+      console.error('Error:', err);
+      setError('Invalid credentials. Please check your username and password.');
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   return (
@@ -94,7 +146,16 @@ const Login = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="login-form">
-              {error && <div className="error-message">{error}</div>}
+              {/* Always render error notification if error exists - for debugging */}
+              {error ? (
+                <div className="error-notification" role="alert" style={{ display: 'flex' }}>
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M10 18.3333C14.6024 18.3333 18.3333 14.6024 18.3333 10C18.3333 5.39763 14.6024 1.66667 10 1.66667C5.39763 1.66667 1.66667 5.39763 1.66667 10C1.66667 14.6024 5.39763 18.3333 10 18.3333Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M10 6.66667V10M10 13.3333H10.0083" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <span>{error || 'Error occurred'}</span>
+                </div>
+              ) : null}
 
               <div className="form-group">
                 <input

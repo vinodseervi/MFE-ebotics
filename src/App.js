@@ -47,7 +47,17 @@ function AppContent() {
     }
   }, [isAdminRoute]);
 
-  // Show loading state while checking authentication
+  // Don't show sidebar on login page - show login page immediately
+  // This prevents white screen during login attempts
+  if (isLoginPage) {
+    return (
+      <Routes>
+        <Route path="/login" element={<Login />} />
+      </Routes>
+    );
+  }
+
+  // Show loading state while checking authentication (but not on login page)
   if (loading) {
     return (
       <div style={{ 
@@ -61,15 +71,6 @@ function AppContent() {
           <div style={{ fontSize: '16px', color: '#6b7280' }}>Loading...</div>
         </div>
       </div>
-    );
-  }
-
-  // Don't show sidebar on login page
-  if (isLoginPage) {
-    return (
-      <Routes>
-        <Route path="/login" element={<Login />} />
-      </Routes>
     );
   }
 

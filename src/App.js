@@ -15,6 +15,7 @@ import DITDRLPayments from './pages/DITDRLPayments';
 import Users from './pages/admin/Users';
 import Practices from './pages/admin/Practices';
 import Roles from './pages/admin/Roles';
+import RoleForm from './pages/admin/RoleForm';
 import Profile from './pages/Profile';
 import './App.css';
 
@@ -123,6 +124,8 @@ function AppContent() {
           <Route path="/admin/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
           <Route path="/admin/practices" element={<ProtectedRoute><Practices /></ProtectedRoute>} />
           <Route path="/admin/roles" element={<ProtectedRoute><Roles /></ProtectedRoute>} />
+          <Route path="/admin/roles/new" element={<ProtectedRoute><RoleForm /></ProtectedRoute>} />
+          <Route path="/admin/roles/:id/edit" element={<ProtectedRoute><RoleForm /></ProtectedRoute>} />
         </Routes>
       </div>
     </div>

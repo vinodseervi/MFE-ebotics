@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-import { Edit, MapPin, Plus, Building2 } from 'lucide-react';
+import { Edit, MapPin, Plus, Building2, Phone, Mail, Search, Info } from 'lucide-react';
+import { countryCodes, parsePhoneNumber, formatPhoneNumber, getDefaultCountry } from '../../utils/countryCodes';
 import './Admin.css';
 
 const Practices = () => {
-  const { user } = useAuth();
   const [practices, setPractices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -17,31 +16,37 @@ const Practices = () => {
   const [editingPractice, setEditingPractice] = useState(null);
   const [selectedPractice, setSelectedPractice] = useState(null);
   const [editingLocation, setEditingLocation] = useState(null);
-  const [locations, setLocations] = useState([]);
-  const [loadingLocations, setLoadingLocations] = useState(false);
   
   const [formData, setFormData] = useState({
     name: '',
     code: '',
-    status: 'ACTIVE'
+    status: 'ACTIVE',
+    contactNumber: '',
+    email: ''
   });
   
   const [editFormData, setEditFormData] = useState({
     name: '',
     code: '',
-    status: 'ACTIVE'
+    status: 'ACTIVE',
+    contactNumber: '',
+    email: ''
   });
 
   const [locationFormData, setLocationFormData] = useState({
     name: '',
     code: '',
-    isActive: true
+    status: 'ACTIVE',
+    contactNumber: '',
+    email: ''
   });
 
   const [editLocationFormData, setEditLocationFormData] = useState({
     name: '',
     code: '',
-    isActive: true
+    status: 'ACTIVE',
+    contactNumber: '',
+    email: ''
   });
 
   const [formErrors, setFormErrors] = useState({});
@@ -62,9 +67,42 @@ const Practices = () => {
   const [isUpdatingLocationStatus, setIsUpdatingLocationStatus] = useState(false);
   const [checkingCode, setCheckingCode] = useState(false);
   const [checkingLocationCode, setCheckingLocationCode] = useState(false);
+  const [practiceCountryCode, setPracticeCountryCode] = useState(getDefaultCountry());
+  const [editPracticeCountryCode, setEditPracticeCountryCode] = useState(getDefaultCountry());
+  const [locationCountryCode, setLocationCountryCode] = useState(getDefaultCountry());
+  const [editLocationCountryCode, setEditLocationCountryCode] = useState(getDefaultCountry());
+  
+  // Search states for country code selectors
+  const [practiceCountrySearch, setPracticeCountrySearch] = useState('');
+  const [editPracticeCountrySearch, setEditPracticeCountrySearch] = useState('');
+  const [locationCountrySearch, setLocationCountrySearch] = useState('');
+  const [editLocationCountrySearch, setEditLocationCountrySearch] = useState('');
+  
+  // Dropdown open states
+  const [practiceCountryOpen, setPracticeCountryOpen] = useState(false);
+  const [editPracticeCountryOpen, setEditPracticeCountryOpen] = useState(false);
+  const [locationCountryOpen, setLocationCountryOpen] = useState(false);
+  const [editLocationCountryOpen, setEditLocationCountryOpen] = useState(false);
 
   useEffect(() => {
     fetchPractices();
+  }, []);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.country-code-select-wrapper')) {
+        setPracticeCountryOpen(false);
+        setEditPracticeCountryOpen(false);
+        setLocationCountryOpen(false);
+        setEditLocationCountryOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
 
   const fetchPractices = async () => {
@@ -80,18 +118,6 @@ const Practices = () => {
     }
   };
 
-  const fetchLocations = async (practiceId) => {
-    try {
-      setLoadingLocations(true);
-      const data = await api.getPracticeLocations(practiceId);
-      setLocations(data || []);
-    } catch (error) {
-      console.error('Error fetching locations:', error);
-      setLocations([]);
-    } finally {
-      setLoadingLocations(false);
-    }
-  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -253,10 +279,15 @@ const Practices = () => {
 
     try {
       setIsSubmitting(true);
+      const phoneNumber = formData.contactNumber || '';
+      const fullPhoneNumber = phoneNumber ? formatPhoneNumber(practiceCountryCode, phoneNumber) : '';
+      
       const practiceData = {
         name: formData.name.trim(),
         code: formData.code.trim(),
-        status: formData.status
+        status: formData.status,
+        contactNumber: fullPhoneNumber || null,
+        email: formData.email.trim() || null
       };
 
       await api.createPractice(practiceData);
@@ -265,9 +296,14 @@ const Practices = () => {
       setFormData({
         name: '',
         code: '',
-        status: 'ACTIVE'
+        status: 'ACTIVE',
+        contactNumber: '',
+        email: ''
       });
+      setPracticeCountryCode(getDefaultCountry());
       setFormErrors({});
+      setPracticeCountrySearch('');
+      setPracticeCountryOpen(false);
       
       await fetchPractices();
     } catch (error) {
@@ -281,10 +317,17 @@ const Practices = () => {
 
   const handleEditClick = (practice) => {
     setEditingPractice(practice);
+    // Parse phone number to extract country code
+    const phone = practice.contactNumber || '';
+    const parsed = parsePhoneNumber(phone);
+    setEditPracticeCountryCode(parsed.countryCode || getDefaultCountry());
+    
     setEditFormData({
       name: practice.name || '',
       code: practice.code || '',
-      status: practice.status || 'ACTIVE'
+      status: practice.status || 'ACTIVE',
+      contactNumber: parsed.phoneNumber,
+      email: practice.email || ''
     });
     setEditFormErrors({});
     setShowEditModal(true);
@@ -308,16 +351,24 @@ const Practices = () => {
 
     try {
       setIsUpdating(true);
+      const phoneNumber = editFormData.contactNumber || '';
+      const fullPhoneNumber = phoneNumber ? formatPhoneNumber(editPracticeCountryCode, phoneNumber) : '';
+      
       const updateData = {
         name: editFormData.name.trim(),
-        code: editFormData.code.trim()
+        code: editFormData.code.trim(),
+        contactNumber: fullPhoneNumber || null,
+        email: editFormData.email.trim() || null
       };
 
       await api.updatePractice(editingPractice.practiceId, updateData);
       
       setShowEditModal(false);
       setEditingPractice(null);
+      setEditPracticeCountryCode(getDefaultCountry());
       setEditFormErrors({});
+      setEditPracticeCountrySearch('');
+      setEditPracticeCountryOpen(false);
       
       await fetchPractices();
     } catch (error) {
@@ -350,7 +401,6 @@ const Practices = () => {
       setNewStatus(null);
     } catch (error) {
       console.error('Error updating practice status:', error);
-      const errorMessage = error.message || error.error || 'Failed to update practice status. Please try again.';
     } finally {
       setIsUpdatingStatus(false);
     }
@@ -361,8 +411,11 @@ const Practices = () => {
     setLocationFormData({
       name: '',
       code: '',
-      isActive: true
+      isActive: true,
+      contactNumber: '',
+      email: ''
     });
+    setLocationCountryCode(getDefaultCountry());
     setLocationFormErrors({});
     setShowLocationModal(true);
   };
@@ -383,10 +436,15 @@ const Practices = () => {
 
     try {
       setIsSubmittingLocation(true);
+      const phoneNumber = locationFormData.contactNumber || '';
+      const fullPhoneNumber = phoneNumber ? formatPhoneNumber(locationCountryCode, phoneNumber) : '';
+      
       const locationData = {
         name: locationFormData.name.trim(),
         code: locationFormData.code.trim(),
-        isActive: locationFormData.isActive
+        status: locationFormData.status,
+        contactNumber: fullPhoneNumber || null,
+        email: locationFormData.email.trim() || null
       };
 
       await api.createPracticeLocation(selectedPractice.practiceId, locationData);
@@ -396,9 +454,14 @@ const Practices = () => {
       setLocationFormData({
         name: '',
         code: '',
-        isActive: true
+        status: 'ACTIVE',
+        contactNumber: '',
+        email: ''
       });
+      setLocationCountryCode(getDefaultCountry());
       setLocationFormErrors({});
+      setLocationCountrySearch('');
+      setLocationCountryOpen(false);
       
       await fetchPractices();
     } catch (error) {
@@ -413,10 +476,17 @@ const Practices = () => {
   const handleEditLocationClick = async (practice, location) => {
     setSelectedPractice(practice);
     setEditingLocation(location);
+    // Parse phone number to extract country code
+    const phone = location.contactNumber || '';
+    const parsed = parsePhoneNumber(phone);
+    setEditLocationCountryCode(parsed.countryCode || getDefaultCountry());
+    
     setEditLocationFormData({
       name: location.name || '',
       code: location.code || '',
-      isActive: location.isActive !== undefined ? location.isActive : true
+      status: location.status || (location.isActive ? 'ACTIVE' : 'INACTIVE'),
+      contactNumber: parsed.phoneNumber,
+      email: location.email || ''
     });
     setEditLocationFormErrors({});
     setShowEditLocationModal(true);
@@ -440,9 +510,15 @@ const Practices = () => {
 
     try {
       setIsUpdatingLocation(true);
+      const phoneNumber = editLocationFormData.contactNumber || '';
+      const fullPhoneNumber = phoneNumber ? formatPhoneNumber(editLocationCountryCode, phoneNumber) : '';
+      
       const updateData = {
         name: editLocationFormData.name.trim(),
-        code: editLocationFormData.code.trim()
+        code: editLocationFormData.code.trim(),
+        status: editLocationFormData.status,
+        contactNumber: fullPhoneNumber || null,
+        email: editLocationFormData.email.trim() || null
       };
 
       await api.updatePracticeLocation(selectedPractice.practiceId, editingLocation.locationId, updateData);
@@ -450,7 +526,10 @@ const Practices = () => {
       setShowEditLocationModal(false);
       setSelectedPractice(null);
       setEditingLocation(null);
+      setEditLocationCountryCode(getDefaultCountry());
       setEditLocationFormErrors({});
+      setEditLocationCountrySearch('');
+      setEditLocationCountryOpen(false);
       
       await fetchPractices();
     } catch (error) {
@@ -485,7 +564,6 @@ const Practices = () => {
       setNewLocationStatus(null);
     } catch (error) {
       console.error('Error updating location status:', error);
-      const errorMessage = error.message || error.error || 'Failed to update location status. Please try again.';
     } finally {
       setIsUpdatingLocationStatus(false);
     }
@@ -498,18 +576,58 @@ const Practices = () => {
 
   const formatDate = (dateString) => {
     if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('en-US', {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const formatDateForTooltip = (dateString) => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    const dateStr = date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric'
     });
+    const timeStr = date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+    return `${dateStr} at ${timeStr}`;
+  };
+
+  // Filter countries based on search term
+  const filterCountries = (searchTerm) => {
+    if (!searchTerm) return countryCodes;
+    const lowerSearch = searchTerm.toLowerCase();
+    return countryCodes.filter(country => 
+      country.name.toLowerCase().includes(lowerSearch) ||
+      country.dialCode.includes(lowerSearch) ||
+      country.code.toLowerCase().includes(lowerSearch)
+    );
   };
 
   const filteredPractices = practices.filter(practice => {
-    const matchesSearch = !searchTerm || 
-      practice.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      practice.code?.toLowerCase().includes(searchTerm.toLowerCase());
+    const searchLower = searchTerm.toLowerCase();
     
+    // Check if practice matches
+    const practiceMatches = !searchTerm || 
+      practice.name?.toLowerCase().includes(searchLower) ||
+      practice.code?.toLowerCase().includes(searchLower);
+    
+    // Check if any location within the practice matches
+    const locationMatches = !searchTerm || (practice.locations && practice.locations.some(location =>
+      location.name?.toLowerCase().includes(searchLower) ||
+      location.code?.toLowerCase().includes(searchLower)
+    ));
+    
+    const matchesSearch = practiceMatches || locationMatches;
     const matchesStatus = selectedStatus === 'All Statuses' || formatStatus(practice.status) === selectedStatus;
     
     return matchesSearch && matchesStatus;
@@ -564,13 +682,10 @@ const Practices = () => {
       <div className="filters-section">
         <div className="search-bar-wrapper">
           <div className="search-bar">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <circle cx="9" cy="9" r="6" stroke="currentColor" strokeWidth="2"/>
-              <path d="M15 15L12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
+            <Search size={20} style={{ color: '#6b7280', flexShrink: 0 }} />
             <input
               type="text"
-              placeholder="Search practices..."
+              placeholder="Search practices and locations..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -601,14 +716,111 @@ const Practices = () => {
         ) : (
           filteredPractices.map((practice) => (
             <div key={practice.practiceId} className="practice-card">
+              <>
               <div className="practice-header">
                 <div className="practice-info">
                   <div className="practice-icon">
                     <Building2 size={24} />
                   </div>
-                  <div>
-                    <h3 className="practice-name">{practice.name || '-'}</h3>
-                    <p className="practice-code">Code: {practice.code || '-'}</p>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                      <h3 className="practice-name" style={{ margin: 0 }}>{practice.name || '-'}</h3>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <p className="practice-code" style={{ margin: 0, fontSize: '13px', color: '#6b7280' }}>
+                          Code: {practice.code || '-'}
+                        </p>
+                        {(practice.createdByMeta || practice.updatedByMeta) && (
+                          <div className="info-icon-wrapper" style={{ position: 'relative', display: 'inline-block' }}>
+                            <Info 
+                              size={16} 
+                              style={{ 
+                                color: '#374151', 
+                                cursor: 'pointer',
+                                transition: 'color 0.2s',
+                                fontWeight: 'bold',
+                                strokeWidth: 2.5
+                              }}
+                              onMouseEnter={(e) => e.target.style.color = '#0d9488'}
+                              onMouseLeave={(e) => e.target.style.color = '#374151'}
+                            />
+                            <div className="info-tooltip">
+                              {practice.createdByMeta && (
+                                <div className="tooltip-line">
+                                  Created by <strong>{practice.createdByMeta.fullName || 'N/A'}</strong> on {formatDateForTooltip(practice.createdAt)}
+                                </div>
+                              )}
+                              {practice.updatedByMeta && (
+                                <div className="tooltip-line">
+                                  Updated by <strong>{practice.updatedByMeta.fullName || 'N/A'}</strong> on {formatDateForTooltip(practice.updatedAt)}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                      {practice.contactNumber && (
+                        <a 
+                          href={`tel:${practice.contactNumber.replace(/\s/g, '')}`}
+                          className="practice-contact"
+                          style={{ 
+                            fontSize: '13px', 
+                            color: '#6b7280', 
+                            textDecoration: 'none',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            whiteSpace: 'nowrap',
+                            transition: 'color 0.2s',
+                            lineHeight: '1.5'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.color = '#0d9488';
+                            const svg = e.currentTarget.querySelector('svg');
+                            if (svg) svg.style.color = '#0d9488';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.color = '#6b7280';
+                            const svg = e.currentTarget.querySelector('svg');
+                            if (svg) svg.style.color = '#6b7280';
+                          }}
+                        >
+                          <Phone size={14} style={{ color: '#6b7280', transition: 'color 0.2s', flexShrink: 0, marginTop: '1px' }} />
+                          <span>{practice.contactNumber}</span>
+                        </a>
+                      )}
+                      {practice.email && (
+                        <a 
+                          href={`mailto:${practice.email}`}
+                          className="practice-email"
+                          style={{ 
+                            fontSize: '13px', 
+                            color: '#6b7280', 
+                            textDecoration: 'none',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            whiteSpace: 'nowrap',
+                            transition: 'color 0.2s',
+                            lineHeight: '1.5'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.color = '#0d9488';
+                            const svg = e.currentTarget.querySelector('svg');
+                            if (svg) svg.style.color = '#0d9488';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.color = '#6b7280';
+                            const svg = e.currentTarget.querySelector('svg');
+                            if (svg) svg.style.color = '#6b7280';
+                          }}
+                        >
+                          <Mail size={14} style={{ color: '#6b7280', transition: 'color 0.2s', flexShrink: 0, marginTop: '1px' }} />
+                          <span>{practice.email}</span>
+                        </a>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="practice-actions">
@@ -645,8 +857,101 @@ const Practices = () => {
                       <div key={location.locationId} className="location-item">
                         <MapPin size={18} style={{ color: '#6b7280', flexShrink: 0 }} />
                         <div style={{ flex: 1 }}>
-                          <div className="location-name">{location.name || '-'}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                            <span className="location-name" style={{ margin: 0, display: 'inline-block', verticalAlign: 'middle' }}>{location.name || '-'}</span>
+                            {(location.createdByMeta || location.updatedByMeta) && (
+                              <div className="info-icon-wrapper" style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle' }}>
+                                <Info 
+                                  size={16} 
+                                  style={{ 
+                                    color: '#374151', 
+                                    cursor: 'pointer',
+                                    transition: 'color 0.2s',
+                                    fontWeight: 'bold',
+                                    strokeWidth: 2.5,
+                                    display: 'block'
+                                  }}
+                                  onMouseEnter={(e) => e.target.style.color = '#0d9488'}
+                                  onMouseLeave={(e) => e.target.style.color = '#374151'}
+                                />
+                                <div className="info-tooltip">
+                                  {location.createdByMeta && (
+                                    <div className="tooltip-line">
+                                      Created by <strong>{location.createdByMeta.fullName || 'N/A'}</strong> on {formatDateForTooltip(location.createdAt)}
+                                    </div>
+                                  )}
+                                  {location.updatedByMeta && (
+                                    <div className="tooltip-line">
+                                      Updated by <strong>{location.updatedByMeta.fullName || 'N/A'}</strong> on {formatDateForTooltip(location.updatedAt)}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                           <div className="location-code">Code: {location.code || '-'}</div>
+                          {location.contactNumber && (
+                            <div style={{ marginTop: '4px' }}>
+                              <a 
+                                href={`tel:${location.contactNumber.replace(/\s/g, '')}`}
+                                style={{ 
+                                  fontSize: '12px', 
+                                  color: '#6b7280', 
+                                  textDecoration: 'none',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  whiteSpace: 'nowrap',
+                                  transition: 'color 0.2s',
+                                  lineHeight: '1.5'
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.color = '#0d9488';
+                                  const svg = e.currentTarget.querySelector('svg');
+                                  if (svg) svg.style.color = '#0d9488';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.color = '#6b7280';
+                                  const svg = e.currentTarget.querySelector('svg');
+                                  if (svg) svg.style.color = '#6b7280';
+                                }}
+                              >
+                                <Phone size={14} style={{ color: '#6b7280', transition: 'color 0.2s', flexShrink: 0, marginTop: '1px' }} />
+                                <span>{location.contactNumber}</span>
+                              </a>
+                            </div>
+                          )}
+                          {location.email && (
+                            <div style={{ marginTop: location.contactNumber ? '2px' : '4px' }}>
+                              <a 
+                                href={`mailto:${location.email}`}
+                                style={{ 
+                                  fontSize: '12px', 
+                                  color: '#6b7280', 
+                                  textDecoration: 'none',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  whiteSpace: 'nowrap',
+                                  transition: 'color 0.2s',
+                                  lineHeight: '1.5'
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.color = '#0d9488';
+                                  const svg = e.currentTarget.querySelector('svg');
+                                  if (svg) svg.style.color = '#0d9488';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.color = '#6b7280';
+                                  const svg = e.currentTarget.querySelector('svg');
+                                  if (svg) svg.style.color = '#6b7280';
+                                }}
+                              >
+                                <Mail size={14} style={{ color: '#6b7280', transition: 'color 0.2s', flexShrink: 0, marginTop: '1px' }} />
+                                <span>{location.email}</span>
+                              </a>
+                            </div>
+                          )}
                         </div>
                         <span 
                           className={`status-badge clickable ${location.isActive ? 'status-active' : 'status-inactive'}`}
@@ -670,6 +975,7 @@ const Practices = () => {
                   </div>
                 </div>
               )}
+              </>
             </div>
           ))
         )}
@@ -693,50 +999,134 @@ const Practices = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="modal-form">
-              <div className="form-group">
-                <label htmlFor="name">Name *</label>
-                <input
-                  type="text"
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  placeholder="Enter practice name"
-                  disabled={isSubmitting}
-                  required
-                />
-                {formErrors.name && <span className="error-text">{formErrors.name}</span>}
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="name">Name *</label>
+                  <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    placeholder="Enter practice name"
+                    disabled={isSubmitting}
+                    required
+                  />
+                  {formErrors.name && <span className="error-text">{formErrors.name}</span>}
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="code">Code *</label>
+                  <input
+                    type="text"
+                    id="code"
+                    name="code"
+                    value={formData.code}
+                    onChange={handleInputChange}
+                    placeholder="Enter practice code"
+                    disabled={isSubmitting || checkingCode}
+                    required
+                  />
+                  {formErrors.code && <span className="error-text">{formErrors.code}</span>}
+                  {checkingCode && <span className="error-text" style={{ color: '#6b7280' }}>Checking code...</span>}
+                </div>
               </div>
 
               <div className="form-group">
-                <label htmlFor="code">Code *</label>
-                <input
-                  type="text"
-                  id="code"
-                  name="code"
-                  value={formData.code}
-                  onChange={handleInputChange}
-                  placeholder="Enter practice code"
-                  disabled={isSubmitting || checkingCode}
-                  required
-                />
-                {formErrors.code && <span className="error-text">{formErrors.code}</span>}
-                {checkingCode && <span className="error-text" style={{ color: '#6b7280' }}>Checking code...</span>}
+                <label htmlFor="contactNumber">Phone</label>
+                <div className="phone-input-group">
+                  <div className="country-code-select-wrapper">
+                    <div 
+                      className="country-code-select"
+                      onClick={() => !isSubmitting && setPracticeCountryOpen(!practiceCountryOpen)}
+                      style={{ cursor: isSubmitting ? 'not-allowed' : 'pointer', position: 'relative' }}
+                    >
+                      <span>{practiceCountryCode.flag} {practiceCountryCode.dialCode}</span>
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ marginLeft: '8px' }}>
+                        <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                    {practiceCountryOpen && !isSubmitting && (
+                      <div className="country-code-dropdown">
+                        <input
+                          type="text"
+                          className="country-code-search"
+                          placeholder="Search country..."
+                          value={practiceCountrySearch}
+                          onChange={(e) => setPracticeCountrySearch(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          autoFocus
+                        />
+                        <div className="country-code-list">
+                          {filterCountries(practiceCountrySearch).map((country) => (
+                            <div
+                              key={country.code}
+                              className={`country-code-option ${practiceCountryCode.code === country.code ? 'selected' : ''}`}
+                              onClick={() => {
+                                setPracticeCountryCode(country);
+                                setPracticeCountrySearch('');
+                                setPracticeCountryOpen(false);
+                              }}
+                            >
+                              <span>{country.flag} {country.dialCode}</span>
+                              <span className="country-name">{country.name}</span>
+                            </div>
+                          ))}
+                          {filterCountries(practiceCountrySearch).length === 0 && (
+                            <div className="country-code-option no-results">No countries found</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    type="tel"
+                    id="contactNumber"
+                    name="contactNumber"
+                    value={formData.contactNumber || ''}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '');
+                      setFormData(prev => ({
+                        ...prev,
+                        contactNumber: value
+                      }));
+                    }}
+                    className="phone-input"
+                    placeholder="Phone number"
+                    disabled={isSubmitting}
+                  />
+                </div>
               </div>
 
-              <div className="form-group">
-                <label htmlFor="status">Status *</label>
-                <select
-                  id="status"
-                  name="status"
-                  value={formData.status}
-                  onChange={handleInputChange}
-                  disabled={isSubmitting}
-                  required
-                >
-                  <option value="ACTIVE">Active</option>
-                  <option value="INACTIVE">Inactive</option>
-                </select>
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="email">Email</label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    placeholder="Enter email address"
+                    disabled={isSubmitting}
+                  />
+                  {formErrors.email && <span className="error-text">{formErrors.email}</span>}
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="status">Status *</label>
+                  <select
+                    id="status"
+                    name="status"
+                    value={formData.status}
+                    onChange={handleInputChange}
+                    disabled={isSubmitting}
+                    required
+                  >
+                    <option value="ACTIVE">Active</option>
+                    <option value="INACTIVE">Inactive</option>
+                  </select>
+                </div>
               </div>
 
               {formErrors.submit && (
@@ -785,35 +1175,134 @@ const Practices = () => {
             </div>
 
             <form onSubmit={handleUpdatePractice} className="modal-form">
-              <div className="form-group">
-                <label htmlFor="edit-name">Name *</label>
-                <input
-                  type="text"
-                  id="edit-name"
-                  name="name"
-                  value={editFormData.name}
-                  onChange={handleEditInputChange}
-                  placeholder="Enter practice name"
-                  disabled={isUpdating}
-                  required
-                />
-                {editFormErrors.name && <span className="error-text">{editFormErrors.name}</span>}
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="edit-name">Name *</label>
+                  <input
+                    type="text"
+                    id="edit-name"
+                    name="name"
+                    value={editFormData.name}
+                    onChange={handleEditInputChange}
+                    placeholder="Enter practice name"
+                    disabled={isUpdating}
+                    required
+                  />
+                  {editFormErrors.name && <span className="error-text">{editFormErrors.name}</span>}
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="edit-code">Code *</label>
+                  <input
+                    type="text"
+                    id="edit-code"
+                    name="code"
+                    value={editFormData.code}
+                    onChange={handleEditInputChange}
+                    placeholder="Enter practice code"
+                    disabled={isUpdating || checkingCode}
+                    required
+                  />
+                  {editFormErrors.code && <span className="error-text">{editFormErrors.code}</span>}
+                  {checkingCode && <span className="error-text" style={{ color: '#6b7280' }}>Checking code...</span>}
+                </div>
               </div>
 
               <div className="form-group">
-                <label htmlFor="edit-code">Code *</label>
-                <input
-                  type="text"
-                  id="edit-code"
-                  name="code"
-                  value={editFormData.code}
-                  onChange={handleEditInputChange}
-                  placeholder="Enter practice code"
-                  disabled={isUpdating || checkingCode}
-                  required
-                />
-                {editFormErrors.code && <span className="error-text">{editFormErrors.code}</span>}
-                {checkingCode && <span className="error-text" style={{ color: '#6b7280' }}>Checking code...</span>}
+                <label htmlFor="edit-contactNumber">Phone</label>
+                <div className="phone-input-group">
+                  <div className="country-code-select-wrapper">
+                    <div 
+                      className="country-code-select"
+                      onClick={() => !isUpdating && setEditPracticeCountryOpen(!editPracticeCountryOpen)}
+                      style={{ cursor: isUpdating ? 'not-allowed' : 'pointer', position: 'relative' }}
+                    >
+                      <span>{editPracticeCountryCode.flag} {editPracticeCountryCode.dialCode}</span>
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ marginLeft: '8px' }}>
+                        <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                    {editPracticeCountryOpen && !isUpdating && (
+                      <div className="country-code-dropdown">
+                        <input
+                          type="text"
+                          className="country-code-search"
+                          placeholder="Search country..."
+                          value={editPracticeCountrySearch}
+                          onChange={(e) => setEditPracticeCountrySearch(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          autoFocus
+                        />
+                        <div className="country-code-list">
+                          {filterCountries(editPracticeCountrySearch).map((country) => (
+                            <div
+                              key={country.code}
+                              className={`country-code-option ${editPracticeCountryCode.code === country.code ? 'selected' : ''}`}
+                              onClick={() => {
+                                setEditPracticeCountryCode(country);
+                                setEditPracticeCountrySearch('');
+                                setEditPracticeCountryOpen(false);
+                              }}
+                            >
+                              <span>{country.flag} {country.dialCode}</span>
+                              <span className="country-name">{country.name}</span>
+                            </div>
+                          ))}
+                          {filterCountries(editPracticeCountrySearch).length === 0 && (
+                            <div className="country-code-option no-results">No countries found</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    type="tel"
+                    id="edit-contactNumber"
+                    name="contactNumber"
+                    value={editFormData.contactNumber || ''}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '');
+                      setEditFormData(prev => ({
+                        ...prev,
+                        contactNumber: value
+                      }));
+                    }}
+                    className="phone-input"
+                    placeholder="Phone number"
+                    disabled={isUpdating}
+                  />
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="edit-email">Email</label>
+                  <input
+                    type="email"
+                    id="edit-email"
+                    name="email"
+                    value={editFormData.email}
+                    onChange={handleEditInputChange}
+                    placeholder="Enter email address"
+                    disabled={isUpdating}
+                  />
+                  {editFormErrors.email && <span className="error-text">{editFormErrors.email}</span>}
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="edit-status">Status *</label>
+                  <select
+                    id="edit-status"
+                    name="status"
+                    value={editFormData.status}
+                    onChange={handleEditInputChange}
+                    disabled={isUpdating}
+                    required
+                  >
+                    <option value="ACTIVE">Active</option>
+                    <option value="INACTIVE">Inactive</option>
+                  </select>
+                </div>
               </div>
 
               {editFormErrors.submit && (
@@ -862,48 +1351,134 @@ const Practices = () => {
             </div>
 
             <form onSubmit={handleLocationSubmit} className="modal-form">
-              <div className="form-group">
-                <label htmlFor="location-name">Name *</label>
-                <input
-                  type="text"
-                  id="location-name"
-                  name="name"
-                  value={locationFormData.name}
-                  onChange={handleLocationInputChange}
-                  placeholder="Enter location name"
-                  disabled={isSubmittingLocation}
-                  required
-                />
-                {locationFormErrors.name && <span className="error-text">{locationFormErrors.name}</span>}
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="location-code">Code *</label>
-                <input
-                  type="text"
-                  id="location-code"
-                  name="code"
-                  value={locationFormData.code}
-                  onChange={handleLocationInputChange}
-                  placeholder="Enter location code"
-                  disabled={isSubmittingLocation || checkingLocationCode}
-                  required
-                />
-                {locationFormErrors.code && <span className="error-text">{locationFormErrors.code}</span>}
-                {checkingLocationCode && <span className="error-text" style={{ color: '#6b7280' }}>Checking code...</span>}
-              </div>
-
-              <div className="form-group">
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="location-name">Name *</label>
                   <input
-                    type="checkbox"
-                    name="isActive"
-                    checked={locationFormData.isActive}
+                    type="text"
+                    id="location-name"
+                    name="name"
+                    value={locationFormData.name}
                     onChange={handleLocationInputChange}
+                    placeholder="Enter location name"
+                    disabled={isSubmittingLocation}
+                    required
+                  />
+                  {locationFormErrors.name && <span className="error-text">{locationFormErrors.name}</span>}
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="location-code">Code *</label>
+                  <input
+                    type="text"
+                    id="location-code"
+                    name="code"
+                    value={locationFormData.code}
+                    onChange={handleLocationInputChange}
+                    placeholder="Enter location code"
+                    disabled={isSubmittingLocation || checkingLocationCode}
+                    required
+                  />
+                  {locationFormErrors.code && <span className="error-text">{locationFormErrors.code}</span>}
+                  {checkingLocationCode && <span className="error-text" style={{ color: '#6b7280' }}>Checking code...</span>}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="location-contactNumber">Phone</label>
+                <div className="phone-input-group">
+                  <div className="country-code-select-wrapper">
+                    <div 
+                      className="country-code-select"
+                      onClick={() => !isSubmittingLocation && setLocationCountryOpen(!locationCountryOpen)}
+                      style={{ cursor: isSubmittingLocation ? 'not-allowed' : 'pointer', position: 'relative' }}
+                    >
+                      <span>{locationCountryCode.flag} {locationCountryCode.dialCode}</span>
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ marginLeft: '8px' }}>
+                        <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                    {locationCountryOpen && !isSubmittingLocation && (
+                      <div className="country-code-dropdown">
+                        <input
+                          type="text"
+                          className="country-code-search"
+                          placeholder="Search country..."
+                          value={locationCountrySearch}
+                          onChange={(e) => setLocationCountrySearch(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          autoFocus
+                        />
+                        <div className="country-code-list">
+                          {filterCountries(locationCountrySearch).map((country) => (
+                            <div
+                              key={country.code}
+                              className={`country-code-option ${locationCountryCode.code === country.code ? 'selected' : ''}`}
+                              onClick={() => {
+                                setLocationCountryCode(country);
+                                setLocationCountrySearch('');
+                                setLocationCountryOpen(false);
+                              }}
+                            >
+                              <span>{country.flag} {country.dialCode}</span>
+                              <span className="country-name">{country.name}</span>
+                            </div>
+                          ))}
+                          {filterCountries(locationCountrySearch).length === 0 && (
+                            <div className="country-code-option no-results">No countries found</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    type="tel"
+                    id="location-contactNumber"
+                    name="contactNumber"
+                    value={locationFormData.contactNumber || ''}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '');
+                      setLocationFormData(prev => ({
+                        ...prev,
+                        contactNumber: value
+                      }));
+                    }}
+                    className="phone-input"
+                    placeholder="Phone number"
                     disabled={isSubmittingLocation}
                   />
-                  <span>Active</span>
-                </label>
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="location-email">Email</label>
+                  <input
+                    type="email"
+                    id="location-email"
+                    name="email"
+                    value={locationFormData.email}
+                    onChange={handleLocationInputChange}
+                    placeholder="Enter email address"
+                    disabled={isSubmittingLocation}
+                  />
+                  {locationFormErrors.email && <span className="error-text">{locationFormErrors.email}</span>}
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="location-status">Status *</label>
+                  <select
+                    id="location-status"
+                    name="status"
+                    value={locationFormData.status}
+                    onChange={handleLocationInputChange}
+                    disabled={isSubmittingLocation}
+                    required
+                  >
+                    <option value="ACTIVE">Active</option>
+                    <option value="INACTIVE">Inactive</option>
+                  </select>
+                </div>
               </div>
 
               {locationFormErrors.submit && (
@@ -952,35 +1527,134 @@ const Practices = () => {
             </div>
 
             <form onSubmit={handleUpdateLocation} className="modal-form">
-              <div className="form-group">
-                <label htmlFor="edit-location-name">Name *</label>
-                <input
-                  type="text"
-                  id="edit-location-name"
-                  name="name"
-                  value={editLocationFormData.name}
-                  onChange={handleEditLocationInputChange}
-                  placeholder="Enter location name"
-                  disabled={isUpdatingLocation}
-                  required
-                />
-                {editLocationFormErrors.name && <span className="error-text">{editLocationFormErrors.name}</span>}
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="edit-location-name">Name *</label>
+                  <input
+                    type="text"
+                    id="edit-location-name"
+                    name="name"
+                    value={editLocationFormData.name}
+                    onChange={handleEditLocationInputChange}
+                    placeholder="Enter location name"
+                    disabled={isUpdatingLocation}
+                    required
+                  />
+                  {editLocationFormErrors.name && <span className="error-text">{editLocationFormErrors.name}</span>}
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="edit-location-code">Code *</label>
+                  <input
+                    type="text"
+                    id="edit-location-code"
+                    name="code"
+                    value={editLocationFormData.code}
+                    onChange={handleEditLocationInputChange}
+                    placeholder="Enter location code"
+                    disabled={isUpdatingLocation || checkingLocationCode}
+                    required
+                  />
+                  {editLocationFormErrors.code && <span className="error-text">{editLocationFormErrors.code}</span>}
+                  {checkingLocationCode && <span className="error-text" style={{ color: '#6b7280' }}>Checking code...</span>}
+                </div>
               </div>
 
               <div className="form-group">
-                <label htmlFor="edit-location-code">Code *</label>
-                <input
-                  type="text"
-                  id="edit-location-code"
-                  name="code"
-                  value={editLocationFormData.code}
-                  onChange={handleEditLocationInputChange}
-                  placeholder="Enter location code"
-                  disabled={isUpdatingLocation || checkingLocationCode}
-                  required
-                />
-                {editLocationFormErrors.code && <span className="error-text">{editLocationFormErrors.code}</span>}
-                {checkingLocationCode && <span className="error-text" style={{ color: '#6b7280' }}>Checking code...</span>}
+                <label htmlFor="edit-location-contactNumber">Phone</label>
+                <div className="phone-input-group">
+                  <div className="country-code-select-wrapper">
+                    <div 
+                      className="country-code-select"
+                      onClick={() => !isUpdatingLocation && setEditLocationCountryOpen(!editLocationCountryOpen)}
+                      style={{ cursor: isUpdatingLocation ? 'not-allowed' : 'pointer', position: 'relative' }}
+                    >
+                      <span>{editLocationCountryCode.flag} {editLocationCountryCode.dialCode}</span>
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ marginLeft: '8px' }}>
+                        <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                    {editLocationCountryOpen && !isUpdatingLocation && (
+                      <div className="country-code-dropdown">
+                        <input
+                          type="text"
+                          className="country-code-search"
+                          placeholder="Search country..."
+                          value={editLocationCountrySearch}
+                          onChange={(e) => setEditLocationCountrySearch(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          autoFocus
+                        />
+                        <div className="country-code-list">
+                          {filterCountries(editLocationCountrySearch).map((country) => (
+                            <div
+                              key={country.code}
+                              className={`country-code-option ${editLocationCountryCode.code === country.code ? 'selected' : ''}`}
+                              onClick={() => {
+                                setEditLocationCountryCode(country);
+                                setEditLocationCountrySearch('');
+                                setEditLocationCountryOpen(false);
+                              }}
+                            >
+                              <span>{country.flag} {country.dialCode}</span>
+                              <span className="country-name">{country.name}</span>
+                            </div>
+                          ))}
+                          {filterCountries(editLocationCountrySearch).length === 0 && (
+                            <div className="country-code-option no-results">No countries found</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    type="tel"
+                    id="edit-location-contactNumber"
+                    name="contactNumber"
+                    value={editLocationFormData.contactNumber || ''}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '');
+                      setEditLocationFormData(prev => ({
+                        ...prev,
+                        contactNumber: value
+                      }));
+                    }}
+                    className="phone-input"
+                    placeholder="Phone number"
+                    disabled={isUpdatingLocation}
+                  />
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="edit-location-email">Email</label>
+                  <input
+                    type="email"
+                    id="edit-location-email"
+                    name="email"
+                    value={editLocationFormData.email}
+                    onChange={handleEditLocationInputChange}
+                    placeholder="Enter email address"
+                    disabled={isUpdatingLocation}
+                  />
+                  {editLocationFormErrors.email && <span className="error-text">{editLocationFormErrors.email}</span>}
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="edit-location-status">Status *</label>
+                  <select
+                    id="edit-location-status"
+                    name="status"
+                    value={editLocationFormData.status}
+                    onChange={handleEditLocationInputChange}
+                    disabled={isUpdatingLocation}
+                    required
+                  >
+                    <option value="ACTIVE">Active</option>
+                    <option value="INACTIVE">Inactive</option>
+                  </select>
+                </div>
               </div>
 
               {editLocationFormErrors.submit && (

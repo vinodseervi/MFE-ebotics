@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-import { Edit } from 'lucide-react';
+import { Edit, Info } from 'lucide-react';
 import { countryCodes, parsePhoneNumber, formatPhoneNumber, getDefaultCountry } from '../../utils/countryCodes';
 import './Admin.css';
 
@@ -315,6 +315,22 @@ const Users = () => {
     });
   };
 
+  const formatDateForTooltip = (dateString) => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    const dateStr = date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+    const timeStr = date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+    return `${dateStr} at ${timeStr}`;
+  };
+
 
   const handleEditClick = (user) => {
     setEditingUser(user);
@@ -518,15 +534,13 @@ const Users = () => {
                   <th>Phone</th>
                   <th>Status</th>
                   <th>Last Login</th>
-                  <th>Created At</th>
-                  <th>Updated At</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan="11" style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>
+                    <td colSpan="9" style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>
                       No users found
                     </td>
                   </tr>
@@ -606,19 +620,50 @@ const Users = () => {
                         </span>
                       </td>
                       <td>{formatLastLogin(user.lastLogin)}</td>
-                      <td>{formatDate(user.createdAt)}</td>
-                      <td>{formatDate(user.updatedAt)}</td>
                       <td>
-                        <Edit
-                          size={18}
-                          style={{
-                            color: '#3b82f6',
-                            cursor: 'pointer',
-                            transition: 'color 0.2s'
-                          }}
-                          onClick={() => handleEditClick(user)}
-                          title="Edit user"
-                        />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'flex-end' }}>
+                          {(user.createdByMeta || user.updatedByMeta) && (
+                            <div 
+                              className="info-icon-wrapper info-icon-last-column" 
+                              style={{ position: 'relative', display: 'inline-block' }}
+                            >
+                              <Info 
+                                size={16} 
+                                style={{ 
+                                  color: '#374151', 
+                                  cursor: 'pointer',
+                                  transition: 'color 0.2s',
+                                  fontWeight: 'bold',
+                                  strokeWidth: 2.5
+                                }}
+                                onMouseEnter={(e) => e.target.style.color = '#0d9488'}
+                                onMouseLeave={(e) => e.target.style.color = '#374151'}
+                              />
+                              <div className="info-tooltip info-tooltip-right">
+                                {user.createdByMeta && (
+                                  <div className="tooltip-line">
+                                    Created by <strong>{user.createdByMeta.fullName || 'N/A'}</strong> on {formatDateForTooltip(user.createdAt)}
+                                  </div>
+                                )}
+                                {user.updatedByMeta && (
+                                  <div className="tooltip-line">
+                                    Updated by <strong>{user.updatedByMeta.fullName || 'N/A'}</strong> on {formatDateForTooltip(user.updatedAt)}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                          <Edit
+                            size={18}
+                            style={{
+                              color: '#3b82f6',
+                              cursor: 'pointer',
+                              transition: 'color 0.2s'
+                            }}
+                            onClick={() => handleEditClick(user)}
+                            title="Edit user"
+                          />
+                        </div>
                       </td>
                     </tr>
                   ))

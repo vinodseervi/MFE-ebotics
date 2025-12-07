@@ -4,6 +4,8 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Sidebar from './components/Sidebar';
 import AdminSidebar from './components/AdminSidebar';
 import ProtectedRoute from './components/ProtectedRoute';
+import PermissionRoute from './components/PermissionRoute';
+import { PERMISSIONS } from './hooks/usePermissions';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Checks from './pages/Checks';
@@ -112,20 +114,96 @@ function AppContent() {
       )}
       <div className={`main-content ${isSidebarCollapsed ? 'sidebar-collapsed' : ''} ${showAdminSidebar ? 'admin-sidebar-open' : ''}`}>
         <Routes>
+          {/* Dashboard - Available to all authenticated users */}
           <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/checks" element={<ProtectedRoute><Checks /></ProtectedRoute>} />
-          <Route path="/checks/:id" element={<ProtectedRoute><CheckDetails /></ProtectedRoute>} />
-          <Route path="/check-upload" element={<ProtectedRoute><CheckUpload /></ProtectedRoute>} />
-          <Route path="/clarifications" element={<ProtectedRoute><Clarifications /></ProtectedRoute>} />
-          <Route path="/unknown" element={<ProtectedRoute><Unknown /></ProtectedRoute>} />
-          <Route path="/dit-drl-payments" element={<ProtectedRoute><DITDRLPayments /></ProtectedRoute>} />
+          
+          {/* Checks - Requires PAYMENT_CHECK_LIST permission */}
+          <Route path="/checks" element={
+            <PermissionRoute permission={PERMISSIONS.PAYMENT_CHECK_LIST}>
+              <Checks />
+            </PermissionRoute>
+          } />
+          <Route path="/checks/:id" element={
+            <PermissionRoute permission={PERMISSIONS.PAYMENT_CHECK_GET}>
+              <CheckDetails />
+            </PermissionRoute>
+          } />
+          
+          {/* Check Upload - Requires PAYMENT_CHECK_CREATE permission */}
+          <Route path="/check-upload" element={
+            <PermissionRoute permission={PERMISSIONS.PAYMENT_CHECK_CREATE}>
+              <CheckUpload />
+            </PermissionRoute>
+          } />
+          
+          {/* Clarifications - Requires PAYMENT_ALLOCATION_LIST permission */}
+          <Route path="/clarifications" element={
+            <PermissionRoute permission={PERMISSIONS.PAYMENT_ALLOCATION_LIST}>
+              <Clarifications />
+            </PermissionRoute>
+          } />
+          
+          {/* Unknown - Requires PAYMENT_CHECK_LIST permission */}
+          <Route path="/unknown" element={
+            <PermissionRoute permission={PERMISSIONS.PAYMENT_CHECK_LIST}>
+              <Unknown />
+            </PermissionRoute>
+          } />
+          
+          {/* DIT/DRL Payments - Requires PAYMENT_BATCH_LIST permission */}
+          <Route path="/dit-drl-payments" element={
+            <PermissionRoute permission={PERMISSIONS.PAYMENT_BATCH_LIST}>
+              <DITDRLPayments />
+            </PermissionRoute>
+          } />
+          
+          {/* Profile - Available to all authenticated users */}
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-          <Route path="/admin" element={<ProtectedRoute><Navigate to="/admin/users" replace /></ProtectedRoute>} />
-          <Route path="/admin/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
-          <Route path="/admin/practices" element={<ProtectedRoute><Practices /></ProtectedRoute>} />
-          <Route path="/admin/roles" element={<ProtectedRoute><Roles /></ProtectedRoute>} />
-          <Route path="/admin/roles/new" element={<ProtectedRoute><RoleForm /></ProtectedRoute>} />
-          <Route path="/admin/roles/:id/edit" element={<ProtectedRoute><RoleForm /></ProtectedRoute>} />
+          
+          {/* Admin Portal Routes */}
+          <Route path="/admin" element={
+            <PermissionRoute permission={[
+              PERMISSIONS.ADMIN_PORTAL_DASHBOARD_VIEW,
+              PERMISSIONS.USER_LIST,
+              PERMISSIONS.ROLE_LIST,
+              PERMISSIONS.PRACTICE_LIST
+            ]} fallbackPath="/">
+              <Navigate to="/admin/users" replace />
+            </PermissionRoute>
+          } />
+          
+          {/* Users Management - Requires USER_LIST permission */}
+          <Route path="/admin/users" element={
+            <PermissionRoute permission={PERMISSIONS.USER_LIST}>
+              <Users />
+            </PermissionRoute>
+          } />
+          
+          {/* Practices Management - Requires PRACTICE_LIST permission */}
+          <Route path="/admin/practices" element={
+            <PermissionRoute permission={PERMISSIONS.PRACTICE_LIST}>
+              <Practices />
+            </PermissionRoute>
+          } />
+          
+          {/* Roles Management - Requires ROLE_LIST permission */}
+          <Route path="/admin/roles" element={
+            <PermissionRoute permission={PERMISSIONS.ROLE_LIST}>
+              <Roles />
+            </PermissionRoute>
+          } />
+          
+          {/* Role Form - Create/Edit - Requires ROLE_CREATE or ROLE_UPDATE permission */}
+          <Route path="/admin/roles/new" element={
+            <PermissionRoute permission={PERMISSIONS.ROLE_CREATE}>
+              <RoleForm />
+            </PermissionRoute>
+          } />
+          <Route path="/admin/roles/:id/edit" element={
+            <PermissionRoute permission={PERMISSIONS.ROLE_UPDATE}>
+              <RoleForm />
+            </PermissionRoute>
+          } />
         </Routes>
       </div>
     </div>

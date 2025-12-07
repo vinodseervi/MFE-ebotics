@@ -250,6 +250,7 @@
   border: 1px solid #e5e7eb;
   border-radius: 6px;
   font-size: 15px;
+  font-weight: 500;
   color: #111827;
   background: white;
   transition: all 0.2s;
@@ -260,6 +261,7 @@
   background-repeat: no-repeat;
   background-position: right 12px center;
   padding-right: 40px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
 }
 
 .country-code-select:focus {
@@ -299,6 +301,141 @@
   background: #f3f4f6;
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+/* Custom Country Code Dropdown Styles */
+.country-code-select-wrapper {
+  position: relative;
+}
+
+.country-code-select-wrapper .country-code-select {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #111827;
+  background: white;
+  transition: all 0.2s;
+  cursor: pointer;
+  min-width: 140px;
+  background-image: none;
+  appearance: none;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+}
+
+.country-code-select-wrapper .country-code-select span,
+.country-code-display {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif !important;
+  font-weight: 500 !important;
+  font-size: 15px !important;
+}
+
+.country-code-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  bottom: auto;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 10000;
+  min-width: 280px;
+  max-height: 300px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.country-code-dropdown.show-top {
+  top: auto;
+  bottom: calc(100% + 4px);
+}
+
+.country-code-search {
+  padding: 10px 12px;
+  border: none;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 14px;
+  color: #111827;
+  background: white;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.country-code-search::placeholder {
+  color: #9ca3af;
+}
+
+.country-code-list {
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.country-code-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.country-code-list::-webkit-scrollbar-track {
+  background: #f9fafb;
+}
+
+.country-code-list::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+.country-code-list::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+.country-code-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+}
+
+.country-code-option:hover {
+  background-color: #f3f4f6;
+}
+
+.country-code-option.selected {
+  background-color: #ecfdf5;
+  color: #0d9488;
+  font-weight: 500;
+}
+
+.country-code-option.no-results {
+  color: #9ca3af;
+  cursor: default;
+  font-style: italic;
+}
+
+.country-code-option.no-results:hover {
+  background-color: transparent;
+}
+
+.country-code-option .country-name {
+  color: #6b7280;
+  font-size: 13px;
+  margin-left: 8px;
+}
+
+.country-code-option.selected .country-name {
+  color: #0d9488;
 }
 
 .edit-actions {

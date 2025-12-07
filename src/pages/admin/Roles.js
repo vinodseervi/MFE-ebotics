@@ -3,12 +3,15 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { Edit, Info } from 'lucide-react';
+import { usePermissions, PERMISSIONS } from '../../hooks/usePermissions';
+import PermissionGuard from '../../components/PermissionGuard';
 import './Admin.css';
 
 const Roles = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const { can } = usePermissions();
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -136,15 +139,17 @@ const Roles = () => {
           <h1 className="page-title">Roles & Permissions</h1>
           <p className="page-subtitle">Manage role-based access control and permissions</p>
         </div>
-        <button 
-          className="btn-add-user"
-          onClick={() => navigate('/admin/roles/new')}
-        >
-          <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-            <path d="M10 3V17M3 10H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-          </svg>
-          Create Role
-        </button>
+        <PermissionGuard permission={PERMISSIONS.ROLE_CREATE}>
+          <button 
+            className="btn-add-user"
+            onClick={() => navigate('/admin/roles/new')}
+          >
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+              <path d="M10 3V17M3 10H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+            Create Role
+          </button>
+        </PermissionGuard>
       </div>
 
       <div className="filters-section">
@@ -265,20 +270,31 @@ const Roles = () => {
                       </span>
                     ) : (
                       <>
-                        <span 
-                          className={`status-badge clickable ${role.status === 'ACTIVE' ? 'status-active' : 'status-inactive'}`}
-                          onClick={() => handleStatusToggle(role)}
-                          title={`Click to ${role.status === 'ACTIVE' ? 'deactivate' : 'activate'} role`}
-                        >
-                          {formatStatus(role.status)}
-                        </span>
-                        <button 
-                          className="icon-btn-small"
-                          onClick={() => handleEditClick(role)}
-                          title="Edit role"
-                        >
-                          <Edit size={18} style={{ color: '#3b82f6' }} />
-                        </button>
+                        <PermissionGuard permission={PERMISSIONS.ROLE_UPDATE_STATUS}>
+                          <span 
+                            className={`status-badge clickable ${role.status === 'ACTIVE' ? 'status-active' : 'status-inactive'}`}
+                            onClick={() => handleStatusToggle(role)}
+                            title={`Click to ${role.status === 'ACTIVE' ? 'deactivate' : 'activate'} role`}
+                          >
+                            {formatStatus(role.status)}
+                          </span>
+                        </PermissionGuard>
+                        {!can(PERMISSIONS.ROLE_UPDATE_STATUS) && (
+                          <span 
+                            className={`status-badge ${role.status === 'ACTIVE' ? 'status-active' : 'status-inactive'}`}
+                          >
+                            {formatStatus(role.status)}
+                          </span>
+                        )}
+                        <PermissionGuard permission={PERMISSIONS.ROLE_UPDATE}>
+                          <button 
+                            className="icon-btn-small"
+                            onClick={() => handleEditClick(role)}
+                            title="Edit role"
+                          >
+                            <Edit size={18} style={{ color: '#3b82f6' }} />
+                          </button>
+                        </PermissionGuard>
                       </>
                     )}
                   </div>

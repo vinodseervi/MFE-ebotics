@@ -2,6 +2,8 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { GrUserAdmin } from 'react-icons/gr';
 import { MdOutlinePeople, MdOutlineGrid3X3, MdOutlineSecurity } from 'react-icons/md';
+import PermissionGuard from './PermissionGuard';
+import { PERMISSIONS } from '../hooks/usePermissions';
 import './AdminSidebar.css';
 
 const AdminSidebar = ({ onClose, isMainSidebarCollapsed }) => {
@@ -28,29 +30,38 @@ const AdminSidebar = ({ onClose, isMainSidebarCollapsed }) => {
       </div>
 
       <nav className="admin-sidebar-nav">
-        <Link 
-          to="/admin/users" 
-          className={`admin-nav-item ${isActive('/admin/users') ? 'active' : ''}`}
-        >
-          <MdOutlinePeople size={20} />
-          <span>Users</span>
-        </Link>
+        {/* Users - Requires USER_LIST permission */}
+        <PermissionGuard permission={PERMISSIONS.USER_LIST}>
+          <Link 
+            to="/admin/users" 
+            className={`admin-nav-item ${isActive('/admin/users') ? 'active' : ''}`}
+          >
+            <MdOutlinePeople size={20} />
+            <span>Users</span>
+          </Link>
+        </PermissionGuard>
 
-        <Link 
-          to="/admin/practices" 
-          className={`admin-nav-item ${isActive('/admin/practices') ? 'active' : ''}`}
-        >
-          <MdOutlineGrid3X3 size={20} />
-          <span>Practices</span>
-        </Link>
+        {/* Practices - Requires PRACTICE_LIST permission */}
+        <PermissionGuard permission={PERMISSIONS.PRACTICE_LIST}>
+          <Link 
+            to="/admin/practices" 
+            className={`admin-nav-item ${isActive('/admin/practices') ? 'active' : ''}`}
+          >
+            <MdOutlineGrid3X3 size={20} />
+            <span>Practices</span>
+          </Link>
+        </PermissionGuard>
 
-        <Link 
-          to="/admin/roles" 
-          className={`admin-nav-item ${isActive('/admin/roles') ? 'active' : ''}`}
-        >
-          <MdOutlineSecurity size={20} />
-          <span>Roles & Permissions</span>
-        </Link>
+        {/* Roles & Permissions - Requires ROLE_LIST permission */}
+        <PermissionGuard permission={PERMISSIONS.ROLE_LIST}>
+          <Link 
+            to="/admin/roles" 
+            className={`admin-nav-item ${isActive('/admin/roles') ? 'active' : ''}`}
+          >
+            <MdOutlineSecurity size={20} />
+            <span>Roles & Permissions</span>
+          </Link>
+        </PermissionGuard>
       </nav>
     </div>
   );

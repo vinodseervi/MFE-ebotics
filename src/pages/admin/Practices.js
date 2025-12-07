@@ -1,10 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import api from '../../services/api';
 import { Edit, MapPin, Plus, Building2, Phone, Mail, Search, Info } from 'lucide-react';
-import { countryCodes, parsePhoneNumber, formatPhoneNumber, getDefaultCountry } from '../../utils/countryCodes';
+import { countryCodes, parsePhoneNumber, formatPhoneNumber, getDefaultCountry, validatePhoneInput, getPhoneMaxLength, getPhonePlaceholder } from '../../utils/countryCodes';
+import { usePermissions, PERMISSIONS } from '../../hooks/usePermissions';
+import PermissionGuard from '../../components/PermissionGuard';
 import './Admin.css';
 
 const Practices = () => {
+  const { can } = usePermissions();
   const [practices, setPractices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -83,6 +87,32 @@ const Practices = () => {
   const [editPracticeCountryOpen, setEditPracticeCountryOpen] = useState(false);
   const [locationCountryOpen, setLocationCountryOpen] = useState(false);
   const [editLocationCountryOpen, setEditLocationCountryOpen] = useState(false);
+  
+  // Refs for dropdown triggers
+  const practiceCountryRef = useRef(null);
+  const editPracticeCountryRef = useRef(null);
+  const locationCountryRef = useRef(null);
+  const editLocationCountryRef = useRef(null);
+  
+  // Dropdown positions for portals
+  const [practiceCountryPos, setPracticeCountryPos] = useState(null);
+  const [editPracticeCountryPos, setEditPracticeCountryPos] = useState(null);
+  const [locationCountryPos, setLocationCountryPos] = useState(null);
+  const [editLocationCountryPos, setEditLocationCountryPos] = useState(null);
+  
+  // Function to calculate dropdown position
+  const calculateDropdownPosition = (ref, setPosition) => {
+    if (!ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    const scrollY = window.scrollY || window.pageYOffset;
+    const scrollX = window.scrollX || window.pageXOffset;
+    
+    setPosition({
+      top: rect.bottom + scrollY + 4,
+      left: rect.left + scrollX,
+      width: Math.max(rect.width, 280) // Ensure minimum width of 280px
+    });
+  };
 
   useEffect(() => {
     fetchPractices();
@@ -91,19 +121,55 @@ const Practices = () => {
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (!event.target.closest('.country-code-select-wrapper')) {
+      const countryWrapper = event.target.closest('.country-code-select-wrapper');
+      const countryDropdown = event.target.closest('.country-code-dropdown');
+      if (!countryWrapper && !countryDropdown) {
         setPracticeCountryOpen(false);
         setEditPracticeCountryOpen(false);
         setLocationCountryOpen(false);
         setEditLocationCountryOpen(false);
+        setPracticeCountryPos(null);
+        setEditPracticeCountryPos(null);
+        setLocationCountryPos(null);
+        setEditLocationCountryPos(null);
       }
     };
-
-    document.addEventListener('mousedown', handleClickOutside);
+    
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+    }, 0);
+    
     return () => {
+      clearTimeout(timeoutId);
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+  
+  // Update dropdown positions on scroll/resize
+  useEffect(() => {
+    const updatePositions = () => {
+      if (practiceCountryOpen && practiceCountryRef.current) {
+        calculateDropdownPosition(practiceCountryRef, setPracticeCountryPos);
+      }
+      if (editPracticeCountryOpen && editPracticeCountryRef.current) {
+        calculateDropdownPosition(editPracticeCountryRef, setEditPracticeCountryPos);
+      }
+      if (locationCountryOpen && locationCountryRef.current) {
+        calculateDropdownPosition(locationCountryRef, setLocationCountryPos);
+      }
+      if (editLocationCountryOpen && editLocationCountryRef.current) {
+        calculateDropdownPosition(editLocationCountryRef, setEditLocationCountryPos);
+      }
+    };
+    
+    window.addEventListener('scroll', updatePositions, true);
+    window.addEventListener('resize', updatePositions);
+    
+    return () => {
+      window.removeEventListener('scroll', updatePositions, true);
+      window.removeEventListener('resize', updatePositions);
+    };
+  }, [practiceCountryOpen, editPracticeCountryOpen, locationCountryOpen, editLocationCountryOpen]);
 
   const fetchPractices = async () => {
     try {
@@ -304,6 +370,7 @@ const Practices = () => {
       setFormErrors({});
       setPracticeCountrySearch('');
       setPracticeCountryOpen(false);
+      setPracticeCountryPos(null);
       
       await fetchPractices();
     } catch (error) {
@@ -369,6 +436,7 @@ const Practices = () => {
       setEditFormErrors({});
       setEditPracticeCountrySearch('');
       setEditPracticeCountryOpen(false);
+      setEditPracticeCountryPos(null);
       
       await fetchPractices();
     } catch (error) {
@@ -462,6 +530,7 @@ const Practices = () => {
       setLocationFormErrors({});
       setLocationCountrySearch('');
       setLocationCountryOpen(false);
+      setLocationCountryPos(null);
       
       await fetchPractices();
     } catch (error) {
@@ -530,6 +599,7 @@ const Practices = () => {
       setEditLocationFormErrors({});
       setEditLocationCountrySearch('');
       setEditLocationCountryOpen(false);
+      setEditLocationCountryPos(null);
       
       await fetchPractices();
     } catch (error) {
@@ -645,23 +715,25 @@ const Practices = () => {
           <h1 className="page-title">Practice Management</h1>
           <p className="page-subtitle">Manage practices and locations.</p>
         </div>
-        <button 
-          className="btn-add-user"
-          onClick={() => {
-            setFormData({
-              name: '',
-              code: '',
-              status: 'ACTIVE'
-            });
-            setFormErrors({});
-            setShowAddModal(true);
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-            <path d="M10 3V17M3 10H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-          </svg>
-          New Practice
-        </button>
+        <PermissionGuard permission={PERMISSIONS.PRACTICE_CREATE}>
+          <button 
+            className="btn-add-user"
+            onClick={() => {
+              setFormData({
+                name: '',
+                code: '',
+                status: 'ACTIVE'
+              });
+              setFormErrors({});
+              setShowAddModal(true);
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+              <path d="M10 3V17M3 10H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+            New Practice
+          </button>
+        </PermissionGuard>
       </div>
 
       <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
@@ -824,29 +896,42 @@ const Practices = () => {
                   </div>
                 </div>
                 <div className="practice-actions">
-                  <span 
-                    className={`status-badge clickable ${practice.status === 'ACTIVE' ? 'status-active' : 'status-inactive'}`}
-                    onClick={() => handleStatusToggle(practice)}
-                    title={`Click to ${practice.status === 'ACTIVE' ? 'deactivate' : 'activate'} practice`}
-                  >
-                    {formatStatus(practice.status)}
-                  </span>
-                  <button 
-                    className="btn-secondary"
-                    onClick={() => handleEditClick(practice)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-                  >
-                    <Edit size={16} />
-                    Edit
-                  </button>
-                  <button 
-                    className="btn-primary"
-                    onClick={() => handleAddLocationClick(practice)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-                  >
-                    <Plus size={16} />
-                    Add Location
-                  </button>
+                  <PermissionGuard permission={PERMISSIONS.PRACTICE_UPDATE_STATUS}>
+                    <span 
+                      className={`status-badge clickable ${practice.status === 'ACTIVE' ? 'status-active' : 'status-inactive'}`}
+                      onClick={() => handleStatusToggle(practice)}
+                      title={`Click to ${practice.status === 'ACTIVE' ? 'deactivate' : 'activate'} practice`}
+                    >
+                      {formatStatus(practice.status)}
+                    </span>
+                  </PermissionGuard>
+                  {!can(PERMISSIONS.PRACTICE_UPDATE_STATUS) && (
+                    <span 
+                      className={`status-badge ${practice.status === 'ACTIVE' ? 'status-active' : 'status-inactive'}`}
+                    >
+                      {formatStatus(practice.status)}
+                    </span>
+                  )}
+                  <PermissionGuard permission={PERMISSIONS.PRACTICE_UPDATE}>
+                    <button 
+                      className="btn-secondary"
+                      onClick={() => handleEditClick(practice)}
+                      style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <Edit size={16} />
+                      Edit
+                    </button>
+                  </PermissionGuard>
+                  <PermissionGuard permission={PERMISSIONS.PRACTICE_LOCATION_CREATE}>
+                    <button 
+                      className="btn-primary"
+                      onClick={() => handleAddLocationClick(practice)}
+                      style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <Plus size={16} />
+                      Add Location
+                    </button>
+                  </PermissionGuard>
                 </div>
               </div>
               {practice.locations && practice.locations.length > 0 && (
@@ -953,23 +1038,34 @@ const Practices = () => {
                             </div>
                           )}
                         </div>
-                        <span 
-                          className={`status-badge clickable ${location.isActive ? 'status-active' : 'status-inactive'}`}
-                          onClick={() => handleLocationStatusToggle(practice, location)}
-                          title={`Click to ${location.isActive ? 'deactivate' : 'activate'} location`}
-                        >
-                          {location.isActive ? 'Active' : 'Inactive'}
-                        </span>
-                        <Edit
-                          size={16}
-                          style={{
-                            color: '#3b82f6',
-                            cursor: 'pointer',
-                            flexShrink: 0
-                          }}
-                          onClick={() => handleEditLocationClick(practice, location)}
-                          title="Edit location"
-                        />
+                        <PermissionGuard permission={PERMISSIONS.PRACTICE_LOCATION_STATUS_UPDATE}>
+                          <span 
+                            className={`status-badge clickable ${location.isActive ? 'status-active' : 'status-inactive'}`}
+                            onClick={() => handleLocationStatusToggle(practice, location)}
+                            title={`Click to ${location.isActive ? 'deactivate' : 'activate'} location`}
+                          >
+                            {location.isActive ? 'Active' : 'Inactive'}
+                          </span>
+                        </PermissionGuard>
+                        {!can(PERMISSIONS.PRACTICE_LOCATION_STATUS_UPDATE) && (
+                          <span 
+                            className={`status-badge ${location.isActive ? 'status-active' : 'status-inactive'}`}
+                          >
+                            {location.isActive ? 'Active' : 'Inactive'}
+                          </span>
+                        )}
+                        <PermissionGuard permission={PERMISSIONS.PRACTICE_LOCATION_UPDATE}>
+                          <Edit
+                            size={16}
+                            style={{
+                              color: '#3b82f6',
+                              cursor: 'pointer',
+                              flexShrink: 0
+                            }}
+                            onClick={() => handleEditLocationClick(practice, location)}
+                            title="Edit location"
+                          />
+                        </PermissionGuard>
                       </div>
                     ))}
                   </div>
@@ -983,13 +1079,23 @@ const Practices = () => {
 
       {/* Add Practice Modal */}
       {showAddModal && (
-        <div className="modal-overlay" onClick={() => !isSubmitting && setShowAddModal(false)}>
+        <div className="modal-overlay" onClick={(e) => {
+          if (!isSubmitting && !e.target.closest('.country-code-dropdown')) {
+            setShowAddModal(false);
+            setPracticeCountryOpen(false);
+            setPracticeCountryPos(null);
+          }
+        }}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Add New Practice</h2>
               <button 
                 className="modal-close"
-                onClick={() => setShowAddModal(false)}
+                onClick={() => {
+                  setShowAddModal(false);
+                  setPracticeCountryOpen(false);
+                  setPracticeCountryPos(null);
+                }}
                 disabled={isSubmitting}
               >
                 <svg width="24" height="24" viewBox="0 0 20 20" fill="none">
@@ -1037,62 +1143,104 @@ const Practices = () => {
                 <div className="phone-input-group">
                   <div className="country-code-select-wrapper">
                     <div 
+                      ref={practiceCountryRef}
                       className="country-code-select"
-                      onClick={() => !isSubmitting && setPracticeCountryOpen(!practiceCountryOpen)}
-                      style={{ cursor: isSubmitting ? 'not-allowed' : 'pointer', position: 'relative' }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (!isSubmitting) {
+                          const isOpening = !practiceCountryOpen;
+                          setPracticeCountryOpen(prev => !prev);
+                          if (isOpening) {
+                            setTimeout(() => calculateDropdownPosition(practiceCountryRef, setPracticeCountryPos), 0);
+                          } else {
+                            setPracticeCountryPos(null);
+                          }
+                        }
+                      }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                      }}
+                      style={{ cursor: isSubmitting ? 'not-allowed' : 'pointer', position: 'relative', pointerEvents: 'auto' }}
                     >
-                      <span>{practiceCountryCode.flag} {practiceCountryCode.dialCode}</span>
+                      <span style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", sans-serif', fontWeight: '500', fontSize: '14px' }}>
+                        {practiceCountryCode.flag} {practiceCountryCode.dialCode}
+                      </span>
                       <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ marginLeft: '8px' }}>
                         <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </div>
-                    {practiceCountryOpen && !isSubmitting && (
-                      <div className="country-code-dropdown">
-                        <input
-                          type="text"
-                          className="country-code-search"
-                          placeholder="Search country..."
-                          value={practiceCountrySearch}
-                          onChange={(e) => setPracticeCountrySearch(e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          autoFocus
-                        />
-                        <div className="country-code-list">
-                          {filterCountries(practiceCountrySearch).map((country) => (
-                            <div
-                              key={country.code}
-                              className={`country-code-option ${practiceCountryCode.code === country.code ? 'selected' : ''}`}
-                              onClick={() => {
-                                setPracticeCountryCode(country);
-                                setPracticeCountrySearch('');
-                                setPracticeCountryOpen(false);
-                              }}
-                            >
-                              <span>{country.flag} {country.dialCode}</span>
-                              <span className="country-name">{country.name}</span>
-                            </div>
-                          ))}
-                          {filterCountries(practiceCountrySearch).length === 0 && (
-                            <div className="country-code-option no-results">No countries found</div>
-                          )}
-                        </div>
-                      </div>
-                    )}
                   </div>
+                  {practiceCountryOpen && !isSubmitting && practiceCountryPos && createPortal(
+                    <div 
+                      className="country-code-dropdown portal-dropdown" 
+                      style={{
+                        position: 'fixed',
+                        top: `${practiceCountryPos.top}px`,
+                        left: `${practiceCountryPos.left}px`,
+                        width: `${practiceCountryPos.width}px`,
+                        zIndex: 10050
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        className="country-code-search"
+                        placeholder="Search country..."
+                        value={practiceCountrySearch}
+                        onChange={(e) => setPracticeCountrySearch(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        autoFocus
+                      />
+                      <div className="country-code-list">
+                        {filterCountries(practiceCountrySearch).map((country) => (
+                          <div
+                            key={country.code}
+                            className={`country-code-option ${practiceCountryCode.code === country.code ? 'selected' : ''}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPracticeCountryCode(country);
+                              setPracticeCountrySearch('');
+                              setPracticeCountryOpen(false);
+                              setPracticeCountryPos(null);
+                              // Validate existing phone number when country changes
+                              if (formData.contactNumber) {
+                                const validated = validatePhoneInput(formData.contactNumber, country);
+                                setFormData(prev => ({
+                                  ...prev,
+                                  contactNumber: validated
+                                }));
+                              }
+                            }}
+                          >
+                            <span style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", sans-serif', fontWeight: '500', fontSize: '14px' }}>
+                              {country.flag} {country.dialCode}
+                            </span>
+                            <span className="country-name">{country.name}</span>
+                          </div>
+                        ))}
+                        {filterCountries(practiceCountrySearch).length === 0 && (
+                          <div className="country-code-option no-results">No countries found</div>
+                        )}
+                      </div>
+                    </div>,
+                    document.body
+                  )}
                   <input
                     type="tel"
                     id="contactNumber"
                     name="contactNumber"
                     value={formData.contactNumber || ''}
                     onChange={(e) => {
-                      const value = e.target.value.replace(/\D/g, '');
+                      const validated = validatePhoneInput(e.target.value, practiceCountryCode);
                       setFormData(prev => ({
                         ...prev,
-                        contactNumber: value
+                        contactNumber: validated
                       }));
                     }}
                     className="phone-input"
-                    placeholder="Phone number"
+                    placeholder={getPhonePlaceholder(practiceCountryCode)}
+                    maxLength={getPhoneMaxLength(practiceCountryCode)}
                     disabled={isSubmitting}
                   />
                 </div>
@@ -1139,7 +1287,11 @@ const Practices = () => {
                 <button
                   type="button"
                   className="btn-secondary"
-                  onClick={() => setShowAddModal(false)}
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setPracticeCountryOpen(false);
+                    setPracticeCountryPos(null);
+                  }}
                   disabled={isSubmitting}
                 >
                   Cancel
@@ -1159,13 +1311,23 @@ const Practices = () => {
 
       {/* Edit Practice Modal */}
       {showEditModal && editingPractice && (
-        <div className="modal-overlay" onClick={() => !isUpdating && setShowEditModal(false)}>
+        <div className="modal-overlay" onClick={(e) => {
+          if (!isUpdating && !e.target.closest('.country-code-dropdown')) {
+            setShowEditModal(false);
+            setEditPracticeCountryOpen(false);
+            setEditPracticeCountryPos(null);
+          }
+        }}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Edit Practice</h2>
               <button 
                 className="modal-close"
-                onClick={() => setShowEditModal(false)}
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditPracticeCountryOpen(false);
+                  setEditPracticeCountryPos(null);
+                }}
                 disabled={isUpdating}
               >
                 <svg width="24" height="24" viewBox="0 0 20 20" fill="none">
@@ -1213,62 +1375,104 @@ const Practices = () => {
                 <div className="phone-input-group">
                   <div className="country-code-select-wrapper">
                     <div 
+                      ref={editPracticeCountryRef}
                       className="country-code-select"
-                      onClick={() => !isUpdating && setEditPracticeCountryOpen(!editPracticeCountryOpen)}
-                      style={{ cursor: isUpdating ? 'not-allowed' : 'pointer', position: 'relative' }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (!isUpdating) {
+                          const isOpening = !editPracticeCountryOpen;
+                          setEditPracticeCountryOpen(prev => !prev);
+                          if (isOpening) {
+                            setTimeout(() => calculateDropdownPosition(editPracticeCountryRef, setEditPracticeCountryPos), 0);
+                          } else {
+                            setEditPracticeCountryPos(null);
+                          }
+                        }
+                      }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                      }}
+                      style={{ cursor: isUpdating ? 'not-allowed' : 'pointer', position: 'relative', pointerEvents: 'auto' }}
                     >
-                      <span>{editPracticeCountryCode.flag} {editPracticeCountryCode.dialCode}</span>
+                      <span style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", sans-serif', fontWeight: '500', fontSize: '14px' }}>
+                        {editPracticeCountryCode.flag} {editPracticeCountryCode.dialCode}
+                      </span>
                       <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ marginLeft: '8px' }}>
                         <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </div>
-                    {editPracticeCountryOpen && !isUpdating && (
-                      <div className="country-code-dropdown">
-                        <input
-                          type="text"
-                          className="country-code-search"
-                          placeholder="Search country..."
-                          value={editPracticeCountrySearch}
-                          onChange={(e) => setEditPracticeCountrySearch(e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          autoFocus
-                        />
-                        <div className="country-code-list">
-                          {filterCountries(editPracticeCountrySearch).map((country) => (
-                            <div
-                              key={country.code}
-                              className={`country-code-option ${editPracticeCountryCode.code === country.code ? 'selected' : ''}`}
-                              onClick={() => {
-                                setEditPracticeCountryCode(country);
-                                setEditPracticeCountrySearch('');
-                                setEditPracticeCountryOpen(false);
-                              }}
-                            >
-                              <span>{country.flag} {country.dialCode}</span>
-                              <span className="country-name">{country.name}</span>
-                            </div>
-                          ))}
-                          {filterCountries(editPracticeCountrySearch).length === 0 && (
-                            <div className="country-code-option no-results">No countries found</div>
-                          )}
-                        </div>
-                      </div>
-                    )}
                   </div>
+                  {editPracticeCountryOpen && !isUpdating && editPracticeCountryPos && createPortal(
+                    <div 
+                      className="country-code-dropdown portal-dropdown" 
+                      style={{
+                        position: 'fixed',
+                        top: `${editPracticeCountryPos.top}px`,
+                        left: `${editPracticeCountryPos.left}px`,
+                        width: `${editPracticeCountryPos.width}px`,
+                        zIndex: 10050
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        className="country-code-search"
+                        placeholder="Search country..."
+                        value={editPracticeCountrySearch}
+                        onChange={(e) => setEditPracticeCountrySearch(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        autoFocus
+                      />
+                      <div className="country-code-list">
+                        {filterCountries(editPracticeCountrySearch).map((country) => (
+                          <div
+                            key={country.code}
+                            className={`country-code-option ${editPracticeCountryCode.code === country.code ? 'selected' : ''}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditPracticeCountryCode(country);
+                              setEditPracticeCountrySearch('');
+                              setEditPracticeCountryOpen(false);
+                              setEditPracticeCountryPos(null);
+                              // Validate existing phone number when country changes
+                              if (editFormData.contactNumber) {
+                                const validated = validatePhoneInput(editFormData.contactNumber, country);
+                                setEditFormData(prev => ({
+                                  ...prev,
+                                  contactNumber: validated
+                                }));
+                              }
+                            }}
+                          >
+                            <span style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", sans-serif', fontWeight: '500', fontSize: '14px' }}>
+                              {country.flag} {country.dialCode}
+                            </span>
+                            <span className="country-name">{country.name}</span>
+                          </div>
+                        ))}
+                        {filterCountries(editPracticeCountrySearch).length === 0 && (
+                          <div className="country-code-option no-results">No countries found</div>
+                        )}
+                      </div>
+                    </div>,
+                    document.body
+                  )}
                   <input
                     type="tel"
                     id="edit-contactNumber"
                     name="contactNumber"
                     value={editFormData.contactNumber || ''}
                     onChange={(e) => {
-                      const value = e.target.value.replace(/\D/g, '');
+                      const validated = validatePhoneInput(e.target.value, editPracticeCountryCode);
                       setEditFormData(prev => ({
                         ...prev,
-                        contactNumber: value
+                        contactNumber: validated
                       }));
                     }}
                     className="phone-input"
-                    placeholder="Phone number"
+                    placeholder={getPhonePlaceholder(editPracticeCountryCode)}
+                    maxLength={getPhoneMaxLength(editPracticeCountryCode)}
                     disabled={isUpdating}
                   />
                 </div>
@@ -1315,7 +1519,11 @@ const Practices = () => {
                 <button
                   type="button"
                   className="btn-secondary"
-                  onClick={() => setShowEditModal(false)}
+                  onClick={() => {
+                  setShowEditModal(false);
+                  setEditPracticeCountryOpen(false);
+                  setEditPracticeCountryPos(null);
+                }}
                   disabled={isUpdating}
                 >
                   Cancel
@@ -1335,13 +1543,23 @@ const Practices = () => {
 
       {/* Add Location Modal */}
       {showLocationModal && selectedPractice && (
-        <div className="modal-overlay" onClick={() => !isSubmittingLocation && setShowLocationModal(false)}>
+        <div className="modal-overlay" onClick={(e) => {
+          if (!isSubmittingLocation && !e.target.closest('.country-code-dropdown')) {
+            setShowLocationModal(false);
+            setLocationCountryOpen(false);
+            setLocationCountryPos(null);
+          }
+        }}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Add Location to {selectedPractice.name}</h2>
               <button 
                 className="modal-close"
-                onClick={() => setShowLocationModal(false)}
+                onClick={() => {
+                  setShowLocationModal(false);
+                  setLocationCountryOpen(false);
+                  setLocationCountryPos(null);
+                }}
                 disabled={isSubmittingLocation}
               >
                 <svg width="24" height="24" viewBox="0 0 20 20" fill="none">
@@ -1389,62 +1607,104 @@ const Practices = () => {
                 <div className="phone-input-group">
                   <div className="country-code-select-wrapper">
                     <div 
+                      ref={locationCountryRef}
                       className="country-code-select"
-                      onClick={() => !isSubmittingLocation && setLocationCountryOpen(!locationCountryOpen)}
-                      style={{ cursor: isSubmittingLocation ? 'not-allowed' : 'pointer', position: 'relative' }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (!isSubmittingLocation) {
+                          const isOpening = !locationCountryOpen;
+                          setLocationCountryOpen(prev => !prev);
+                          if (isOpening) {
+                            setTimeout(() => calculateDropdownPosition(locationCountryRef, setLocationCountryPos), 0);
+                          } else {
+                            setLocationCountryPos(null);
+                          }
+                        }
+                      }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                      }}
+                      style={{ cursor: isSubmittingLocation ? 'not-allowed' : 'pointer', position: 'relative', pointerEvents: 'auto' }}
                     >
-                      <span>{locationCountryCode.flag} {locationCountryCode.dialCode}</span>
+                      <span style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", sans-serif', fontWeight: '500', fontSize: '14px' }}>
+                        {locationCountryCode.flag} {locationCountryCode.dialCode}
+                      </span>
                       <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ marginLeft: '8px' }}>
                         <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </div>
-                    {locationCountryOpen && !isSubmittingLocation && (
-                      <div className="country-code-dropdown">
-                        <input
-                          type="text"
-                          className="country-code-search"
-                          placeholder="Search country..."
-                          value={locationCountrySearch}
-                          onChange={(e) => setLocationCountrySearch(e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          autoFocus
-                        />
-                        <div className="country-code-list">
-                          {filterCountries(locationCountrySearch).map((country) => (
-                            <div
-                              key={country.code}
-                              className={`country-code-option ${locationCountryCode.code === country.code ? 'selected' : ''}`}
-                              onClick={() => {
-                                setLocationCountryCode(country);
-                                setLocationCountrySearch('');
-                                setLocationCountryOpen(false);
-                              }}
-                            >
-                              <span>{country.flag} {country.dialCode}</span>
-                              <span className="country-name">{country.name}</span>
-                            </div>
-                          ))}
-                          {filterCountries(locationCountrySearch).length === 0 && (
-                            <div className="country-code-option no-results">No countries found</div>
-                          )}
-                        </div>
-                      </div>
-                    )}
                   </div>
+                  {locationCountryOpen && !isSubmittingLocation && locationCountryPos && createPortal(
+                    <div 
+                      className="country-code-dropdown portal-dropdown" 
+                      style={{
+                        position: 'fixed',
+                        top: `${locationCountryPos.top}px`,
+                        left: `${locationCountryPos.left}px`,
+                        width: `${locationCountryPos.width}px`,
+                        zIndex: 10050
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        className="country-code-search"
+                        placeholder="Search country..."
+                        value={locationCountrySearch}
+                        onChange={(e) => setLocationCountrySearch(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        autoFocus
+                      />
+                      <div className="country-code-list">
+                        {filterCountries(locationCountrySearch).map((country) => (
+                          <div
+                            key={country.code}
+                            className={`country-code-option ${locationCountryCode.code === country.code ? 'selected' : ''}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setLocationCountryCode(country);
+                              setLocationCountrySearch('');
+                              setLocationCountryOpen(false);
+                              setLocationCountryPos(null);
+                              // Validate existing phone number when country changes
+                              if (locationFormData.contactNumber) {
+                                const validated = validatePhoneInput(locationFormData.contactNumber, country);
+                                setLocationFormData(prev => ({
+                                  ...prev,
+                                  contactNumber: validated
+                                }));
+                              }
+                            }}
+                          >
+                            <span style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", sans-serif', fontWeight: '500', fontSize: '14px' }}>
+                              {country.flag} {country.dialCode}
+                            </span>
+                            <span className="country-name">{country.name}</span>
+                          </div>
+                        ))}
+                        {filterCountries(locationCountrySearch).length === 0 && (
+                          <div className="country-code-option no-results">No countries found</div>
+                        )}
+                      </div>
+                    </div>,
+                    document.body
+                  )}
                   <input
                     type="tel"
                     id="location-contactNumber"
                     name="contactNumber"
                     value={locationFormData.contactNumber || ''}
                     onChange={(e) => {
-                      const value = e.target.value.replace(/\D/g, '');
+                      const validated = validatePhoneInput(e.target.value, locationCountryCode);
                       setLocationFormData(prev => ({
                         ...prev,
-                        contactNumber: value
+                        contactNumber: validated
                       }));
                     }}
                     className="phone-input"
-                    placeholder="Phone number"
+                    placeholder={getPhonePlaceholder(locationCountryCode)}
+                    maxLength={getPhoneMaxLength(locationCountryCode)}
                     disabled={isSubmittingLocation}
                   />
                 </div>
@@ -1491,7 +1751,11 @@ const Practices = () => {
                 <button
                   type="button"
                   className="btn-secondary"
-                  onClick={() => setShowLocationModal(false)}
+                  onClick={() => {
+                  setShowLocationModal(false);
+                  setLocationCountryOpen(false);
+                  setLocationCountryPos(null);
+                }}
                   disabled={isSubmittingLocation}
                 >
                   Cancel
@@ -1511,13 +1775,23 @@ const Practices = () => {
 
       {/* Edit Location Modal */}
       {showEditLocationModal && selectedPractice && editingLocation && (
-        <div className="modal-overlay" onClick={() => !isUpdatingLocation && setShowEditLocationModal(false)}>
+        <div className="modal-overlay" onClick={(e) => {
+          if (!isUpdatingLocation && !e.target.closest('.country-code-dropdown')) {
+            setShowEditLocationModal(false);
+            setEditLocationCountryOpen(false);
+            setEditLocationCountryPos(null);
+          }
+        }}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Edit Location</h2>
               <button 
                 className="modal-close"
-                onClick={() => setShowEditLocationModal(false)}
+                onClick={() => {
+                  setShowEditLocationModal(false);
+                  setEditLocationCountryOpen(false);
+                  setEditLocationCountryPos(null);
+                }}
                 disabled={isUpdatingLocation}
               >
                 <svg width="24" height="24" viewBox="0 0 20 20" fill="none">
@@ -1565,62 +1839,104 @@ const Practices = () => {
                 <div className="phone-input-group">
                   <div className="country-code-select-wrapper">
                     <div 
+                      ref={editLocationCountryRef}
                       className="country-code-select"
-                      onClick={() => !isUpdatingLocation && setEditLocationCountryOpen(!editLocationCountryOpen)}
-                      style={{ cursor: isUpdatingLocation ? 'not-allowed' : 'pointer', position: 'relative' }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (!isUpdatingLocation) {
+                          const isOpening = !editLocationCountryOpen;
+                          setEditLocationCountryOpen(prev => !prev);
+                          if (isOpening) {
+                            setTimeout(() => calculateDropdownPosition(editLocationCountryRef, setEditLocationCountryPos), 0);
+                          } else {
+                            setEditLocationCountryPos(null);
+                          }
+                        }
+                      }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                      }}
+                      style={{ cursor: isUpdatingLocation ? 'not-allowed' : 'pointer', position: 'relative', pointerEvents: 'auto' }}
                     >
-                      <span>{editLocationCountryCode.flag} {editLocationCountryCode.dialCode}</span>
+                      <span style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", sans-serif', fontWeight: '500', fontSize: '14px' }}>
+                        {editLocationCountryCode.flag} {editLocationCountryCode.dialCode}
+                      </span>
                       <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ marginLeft: '8px' }}>
                         <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </div>
-                    {editLocationCountryOpen && !isUpdatingLocation && (
-                      <div className="country-code-dropdown">
-                        <input
-                          type="text"
-                          className="country-code-search"
-                          placeholder="Search country..."
-                          value={editLocationCountrySearch}
-                          onChange={(e) => setEditLocationCountrySearch(e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          autoFocus
-                        />
-                        <div className="country-code-list">
-                          {filterCountries(editLocationCountrySearch).map((country) => (
-                            <div
-                              key={country.code}
-                              className={`country-code-option ${editLocationCountryCode.code === country.code ? 'selected' : ''}`}
-                              onClick={() => {
-                                setEditLocationCountryCode(country);
-                                setEditLocationCountrySearch('');
-                                setEditLocationCountryOpen(false);
-                              }}
-                            >
-                              <span>{country.flag} {country.dialCode}</span>
-                              <span className="country-name">{country.name}</span>
-                            </div>
-                          ))}
-                          {filterCountries(editLocationCountrySearch).length === 0 && (
-                            <div className="country-code-option no-results">No countries found</div>
-                          )}
-                        </div>
-                      </div>
-                    )}
                   </div>
+                  {editLocationCountryOpen && !isUpdatingLocation && editLocationCountryPos && createPortal(
+                    <div 
+                      className="country-code-dropdown portal-dropdown" 
+                      style={{
+                        position: 'fixed',
+                        top: `${editLocationCountryPos.top}px`,
+                        left: `${editLocationCountryPos.left}px`,
+                        width: `${editLocationCountryPos.width}px`,
+                        zIndex: 10050
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        className="country-code-search"
+                        placeholder="Search country..."
+                        value={editLocationCountrySearch}
+                        onChange={(e) => setEditLocationCountrySearch(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        autoFocus
+                      />
+                      <div className="country-code-list">
+                        {filterCountries(editLocationCountrySearch).map((country) => (
+                          <div
+                            key={country.code}
+                            className={`country-code-option ${editLocationCountryCode.code === country.code ? 'selected' : ''}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditLocationCountryCode(country);
+                              setEditLocationCountrySearch('');
+                              setEditLocationCountryOpen(false);
+                              setEditLocationCountryPos(null);
+                              // Validate existing phone number when country changes
+                              if (editLocationFormData.contactNumber) {
+                                const validated = validatePhoneInput(editLocationFormData.contactNumber, country);
+                                setEditLocationFormData(prev => ({
+                                  ...prev,
+                                  contactNumber: validated
+                                }));
+                              }
+                            }}
+                          >
+                            <span style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", sans-serif', fontWeight: '500', fontSize: '14px' }}>
+                              {country.flag} {country.dialCode}
+                            </span>
+                            <span className="country-name">{country.name}</span>
+                          </div>
+                        ))}
+                        {filterCountries(editLocationCountrySearch).length === 0 && (
+                          <div className="country-code-option no-results">No countries found</div>
+                        )}
+                      </div>
+                    </div>,
+                    document.body
+                  )}
                   <input
                     type="tel"
                     id="edit-location-contactNumber"
                     name="contactNumber"
                     value={editLocationFormData.contactNumber || ''}
                     onChange={(e) => {
-                      const value = e.target.value.replace(/\D/g, '');
+                      const validated = validatePhoneInput(e.target.value, editLocationCountryCode);
                       setEditLocationFormData(prev => ({
                         ...prev,
-                        contactNumber: value
+                        contactNumber: validated
                       }));
                     }}
                     className="phone-input"
-                    placeholder="Phone number"
+                    placeholder={getPhonePlaceholder(editLocationCountryCode)}
+                    maxLength={getPhoneMaxLength(editLocationCountryCode)}
                     disabled={isUpdatingLocation}
                   />
                 </div>
@@ -1667,7 +1983,11 @@ const Practices = () => {
                 <button
                   type="button"
                   className="btn-secondary"
-                  onClick={() => setShowEditLocationModal(false)}
+                  onClick={() => {
+                  setShowEditLocationModal(false);
+                  setEditLocationCountryOpen(false);
+                  setEditLocationCountryPos(null);
+                }}
                   disabled={isUpdatingLocation}
                 >
                   Cancel

@@ -1,12 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { Edit, Info } from 'lucide-react';
-import { countryCodes, parsePhoneNumber, formatPhoneNumber, getDefaultCountry } from '../../utils/countryCodes';
+import { countryCodes, parsePhoneNumber, formatPhoneNumber, getDefaultCountry, validatePhoneInput, getPhoneMaxLength, getPhonePlaceholder } from '../../utils/countryCodes';
+import { usePermissions, PERMISSIONS } from '../../hooks/usePermissions';
+import PermissionGuard from '../../components/PermissionGuard';
 import './Admin.css';
 
 const Users = () => {
   const { user } = useAuth();
+  const { can } = usePermissions();
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,12 +31,27 @@ const Users = () => {
   });
   const [editCountryCode, setEditCountryCode] = useState(getDefaultCountry());
   const [addCountryCode, setAddCountryCode] = useState(getDefaultCountry());
+  // Country code dropdown states
+  const [editCountryOpen, setEditCountryOpen] = useState(false);
+  const [editCountrySearch, setEditCountrySearch] = useState('');
+  const [addCountryOpen, setAddCountryOpen] = useState(false);
+  const [addCountrySearch, setAddCountrySearch] = useState('');
+  const [editCountryDropdownTop, setEditCountryDropdownTop] = useState(false);
+  // Role dropdown states
+  const [addRoleOpen, setAddRoleOpen] = useState(false);
+  const [addRoleSearch, setAddRoleSearch] = useState('');
+  const [addRoleDropdownTop, setAddRoleDropdownTop] = useState(false);
+  const [editRoleOpen, setEditRoleOpen] = useState(false);
+  const [editRoleSearch, setEditRoleSearch] = useState('');
+  const [editRoleDropdownTop, setEditRoleDropdownTop] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     firstName: '',
     lastName: '',
     roleId: '',
-    status: 'ACTIVE'
+    status: 'ACTIVE',
+    phone: '',
+    phoneNumber: ''
   });
   const [formErrors, setFormErrors] = useState({});
   const [editFormErrors, setEditFormErrors] = useState({});
@@ -44,11 +63,137 @@ const Users = () => {
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [selectedRole, setSelectedRole] = useState('All Roles');
   const [selectedStatus, setSelectedStatus] = useState('All Statuses');
+  
+  // Refs for dropdown triggers
+  const addCountryRef = useRef(null);
+  const addRoleRef = useRef(null);
+  const editCountryRef = useRef(null);
+  const editRoleRef = useRef(null);
+  
+  // Dropdown positions for portals
+  const [addCountryPos, setAddCountryPos] = useState(null);
+  const [addRolePos, setAddRolePos] = useState(null);
+  const [editCountryPos, setEditCountryPos] = useState(null);
+  const [editRolePos, setEditRolePos] = useState(null);
+  
+  // Function to calculate dropdown position
+  const calculateDropdownPosition = (ref, setPosition) => {
+    if (!ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    const scrollY = window.scrollY || window.pageYOffset;
+    const scrollX = window.scrollX || window.pageXOffset;
+    
+    setPosition({
+      top: rect.bottom + scrollY + 4,
+      left: rect.left + scrollX,
+      width: Math.max(rect.width, 280) // Ensure minimum width of 280px
+    });
+  };
 
   useEffect(() => {
     fetchUsers();
     fetchRoles();
   }, []);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Check if click is outside country code dropdowns (including portal dropdowns)
+      const countryWrapper = event.target.closest('.country-code-select-wrapper');
+      const countryDropdown = event.target.closest('.country-code-dropdown');
+      if (!countryWrapper && !countryDropdown) {
+        setEditCountryOpen(false);
+        setAddCountryOpen(false);
+        setEditCountryPos(null);
+        setAddCountryPos(null);
+      }
+      
+      // Check if click is outside role dropdowns (including portal dropdowns)
+      const roleWrapper = event.target.closest('.role-select-wrapper');
+      const roleDropdown = event.target.closest('.role-dropdown');
+      if (!roleWrapper && !roleDropdown) {
+        setAddRoleOpen(false);
+        setEditRoleOpen(false);
+        setAddRolePos(null);
+        setEditRolePos(null);
+      }
+    };
+    
+    // Use a small delay to allow React state updates to complete
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+    }, 0);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+  
+  // Update dropdown positions on scroll/resize
+  useEffect(() => {
+    const updatePositions = () => {
+      if (addCountryOpen && addCountryRef.current) {
+        calculateDropdownPosition(addCountryRef, setAddCountryPos);
+      }
+      if (addRoleOpen && addRoleRef.current) {
+        calculateDropdownPosition(addRoleRef, setAddRolePos);
+      }
+      if (editCountryOpen && editCountryRef.current) {
+        calculateDropdownPosition(editCountryRef, setEditCountryPos);
+      }
+      if (editRoleOpen && editRoleRef.current) {
+        calculateDropdownPosition(editRoleRef, setEditRolePos);
+      }
+    };
+    
+    window.addEventListener('scroll', updatePositions, true);
+    window.addEventListener('resize', updatePositions);
+    
+    return () => {
+      window.removeEventListener('scroll', updatePositions, true);
+      window.removeEventListener('resize', updatePositions);
+    };
+  }, [addCountryOpen, addRoleOpen, editCountryOpen, editRoleOpen]);
+
+  // Filter countries based on search term
+  const filterCountries = (searchTerm) => {
+    if (!searchTerm) return countryCodes;
+    const lowerSearch = searchTerm.toLowerCase();
+    return countryCodes.filter(country => 
+      country.name.toLowerCase().includes(lowerSearch) ||
+      country.dialCode.includes(lowerSearch) ||
+      country.code.toLowerCase().includes(lowerSearch)
+    );
+  };
+
+  // Filter roles based on search term
+  const filterRoles = (searchTerm, rolesList) => {
+    if (!searchTerm) return rolesList;
+    const lowerSearch = searchTerm.toLowerCase();
+    return rolesList.filter(role => 
+      role.roleName?.toLowerCase().includes(lowerSearch) ||
+      role.roleId?.toString().toLowerCase().includes(lowerSearch)
+    );
+  };
+
+  // Check if dropdown should show at top
+  const checkDropdownPosition = (elementId, setShowTop) => {
+    if (!elementId) return;
+    const element = document.getElementById(elementId);
+    if (!element) return;
+    
+    const rect = element.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const dropdownHeight = 300; // max-height of dropdown
+    
+    // If not enough space below, show at top
+    if (spaceBelow < dropdownHeight + 10) {
+      setShowTop(true);
+    } else {
+      setShowTop(false);
+    }
+  };
 
   const fetchUsers = async () => {
     try {
@@ -152,6 +297,9 @@ const Users = () => {
     try {
       setIsSubmitting(true);
       const password = generatePassword();
+      const phoneNumber = formData.phone || formData.phoneNumber || '';
+      const fullPhoneNumber = phoneNumber ? formatPhoneNumber(addCountryCode, phoneNumber) : '';
+      
       // Send roleId to API (API should accept roleId)
       const userData = {
         email: formData.email,
@@ -159,7 +307,9 @@ const Users = () => {
         lastName: formData.lastName,
         roleId: formData.roleId,
         status: formData.status,
-        password
+        password,
+        phone: fullPhoneNumber,
+        phoneNumber: fullPhoneNumber
       };
 
       const response = await api.createUser(userData);
@@ -179,8 +329,17 @@ const Users = () => {
         firstName: '',
         lastName: '',
         roleId: '',
-        status: 'ACTIVE'
+        status: 'ACTIVE',
+        phone: '',
+        phoneNumber: ''
       });
+      setAddCountryCode(getDefaultCountry());
+      setAddRoleOpen(false);
+      setAddCountryOpen(false);
+      setAddRoleSearch('');
+      setAddCountrySearch('');
+      setAddRolePos(null);
+      setAddCountryPos(null);
       
       // Refresh users list
       await fetchUsers();
@@ -420,6 +579,12 @@ const Users = () => {
       setShowEditModal(false);
       setEditingUser(null);
       setEditCountryCode(getDefaultCountry());
+      setEditRoleOpen(false);
+      setEditCountryOpen(false);
+      setEditRoleSearch('');
+      setEditCountrySearch('');
+      setEditRolePos(null);
+      setEditCountryPos(null);
       
       // Refresh users list
       await fetchUsers();
@@ -467,15 +632,17 @@ const Users = () => {
           <h1 className="page-title">User Management</h1>
           <p className="page-subtitle">Manage all users in one place. Control access, assign roles, and monitor activity.</p>
         </div>
-        <button 
-          className="btn-add-user"
-          onClick={() => setShowAddModal(true)}
-        >
-          <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-            <path d="M10 3V17M3 10H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-          </svg>
-          Add User
-        </button>
+        <PermissionGuard permission={PERMISSIONS.USER_CREATE}>
+          <button 
+            className="btn-add-user"
+            onClick={() => setShowAddModal(true)}
+          >
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+              <path d="M10 3V17M3 10H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+            Add User
+          </button>
+        </PermissionGuard>
       </div>
 
       <div className="filters-section">
@@ -611,21 +778,30 @@ const Users = () => {
                       </td>
                       <td>{user.phone || user.phoneNumber || '-'}</td>
                       <td>
-                        <span 
-                          className={`status-badge clickable ${user.status === 'ACTIVE' ? 'status-active' : 'status-inactive'}`}
-                          onClick={() => handleStatusToggle(user)}
-                          title={`Click to ${user.status === 'ACTIVE' ? 'deactivate' : 'activate'} user`}
-                        >
-                          {formatStatus(user.status)}
-                        </span>
+                        <PermissionGuard permission={PERMISSIONS.USER_UPDATE_STATUS}>
+                          <span 
+                            className={`status-badge clickable ${user.status === 'ACTIVE' ? 'status-active' : 'status-inactive'}`}
+                            onClick={() => handleStatusToggle(user)}
+                            title={`Click to ${user.status === 'ACTIVE' ? 'deactivate' : 'activate'} user`}
+                          >
+                            {formatStatus(user.status)}
+                          </span>
+                        </PermissionGuard>
+                        {!can(PERMISSIONS.USER_UPDATE_STATUS) && (
+                          <span 
+                            className={`status-badge ${user.status === 'ACTIVE' ? 'status-active' : 'status-inactive'}`}
+                          >
+                            {formatStatus(user.status)}
+                          </span>
+                        )}
                       </td>
                       <td>{formatLastLogin(user.lastLogin)}</td>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'flex-end' }}>
+                      <td style={{ textAlign: 'right', paddingRight: '16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
                           {(user.createdByMeta || user.updatedByMeta) && (
                             <div 
                               className="info-icon-wrapper info-icon-last-column" 
-                              style={{ position: 'relative', display: 'inline-block' }}
+                              style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}
                             >
                               <Info 
                                 size={16} 
@@ -653,16 +829,20 @@ const Users = () => {
                               </div>
                             </div>
                           )}
-                          <Edit
-                            size={18}
-                            style={{
-                              color: '#3b82f6',
-                              cursor: 'pointer',
-                              transition: 'color 0.2s'
-                            }}
-                            onClick={() => handleEditClick(user)}
-                            title="Edit user"
-                          />
+                          <PermissionGuard permission={PERMISSIONS.USER_UPDATE}>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
+                              <Edit
+                                size={18}
+                                style={{
+                                  color: '#3b82f6',
+                                  cursor: 'pointer',
+                                  transition: 'color 0.2s'
+                                }}
+                                onClick={() => handleEditClick(user)}
+                                title="Edit user"
+                              />
+                            </div>
+                          </PermissionGuard>
                         </div>
                       </td>
                     </tr>
@@ -676,13 +856,31 @@ const Users = () => {
 
       {/* Add User Modal */}
       {showAddModal && (
-        <div className="modal-overlay" onClick={() => !isSubmitting && setShowAddModal(false)}>
+        <div className="modal-overlay" onClick={(e) => {
+          if (!isSubmitting && !e.target.closest('.country-code-dropdown') && !e.target.closest('.role-dropdown')) {
+            setShowAddModal(false);
+            setAddRoleOpen(false);
+            setAddCountryOpen(false);
+            setAddCountryCode(getDefaultCountry());
+            setAddRoleSearch('');
+            setAddCountrySearch('');
+            setAddRolePos(null);
+            setAddCountryPos(null);
+          }
+        }}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Add New User</h2>
               <button 
                 className="modal-close"
-                onClick={() => setShowAddModal(false)}
+                onClick={() => {
+                  setShowAddModal(false);
+                  setAddRoleOpen(false);
+                  setAddCountryOpen(false);
+                  setAddCountryCode(getDefaultCountry());
+                  setAddRoleSearch('');
+                  setAddCountrySearch('');
+                }}
                 disabled={isSubmitting}
               >
                 <svg width="24" height="24" viewBox="0 0 20 20" fill="none">
@@ -739,24 +937,197 @@ const Users = () => {
                 </div>
               </div>
 
+              <div className="form-group">
+                <label htmlFor="phone">Phone</label>
+                <div className="phone-input-group">
+                  <div className="country-code-select-wrapper">
+                    <div 
+                      ref={addCountryRef}
+                      className="country-code-select"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (!isSubmitting) {
+                          const isOpening = !addCountryOpen;
+                          setAddCountryOpen(prev => !prev);
+                          setAddRoleOpen(false);
+                          if (isOpening) {
+                            setTimeout(() => calculateDropdownPosition(addCountryRef, setAddCountryPos), 0);
+                          } else {
+                            setAddCountryPos(null);
+                          }
+                        }
+                      }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                      }}
+                      style={{ cursor: isSubmitting ? 'not-allowed' : 'pointer', position: 'relative', pointerEvents: 'auto' }}
+                    >
+                      <span className="country-code-display">
+                        {addCountryCode.flag} {addCountryCode.dialCode}
+                      </span>
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ marginLeft: '8px' }}>
+                        <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                  </div>
+                  {addCountryOpen && !isSubmitting && addCountryPos && createPortal(
+                    <div 
+                      className="country-code-dropdown portal-dropdown" 
+                      style={{
+                        position: 'fixed',
+                        top: `${addCountryPos.top}px`,
+                        left: `${addCountryPos.left}px`,
+                        width: `${addCountryPos.width}px`,
+                        zIndex: 10050
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        className="country-code-search"
+                        placeholder="Search country..."
+                        value={addCountrySearch}
+                        onChange={(e) => setAddCountrySearch(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        autoFocus
+                      />
+                      <div className="country-code-list">
+                        {filterCountries(addCountrySearch).map((country) => (
+                          <div
+                            key={country.code}
+                            className={`country-code-option ${addCountryCode.code === country.code ? 'selected' : ''}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setAddCountryCode(country);
+                              setAddCountrySearch('');
+                              setAddCountryOpen(false);
+                              setAddCountryPos(null);
+                              // Validate existing phone number when country changes
+                              if (formData.phone) {
+                                const validated = validatePhoneInput(formData.phone, country);
+                                setFormData(prev => ({
+                                  ...prev,
+                                  phone: validated,
+                                  phoneNumber: validated
+                                }));
+                              }
+                            }}
+                          >
+                            <span className="country-code-display">
+                              {country.flag} {country.dialCode}
+                            </span>
+                            <span className="country-name">{country.name}</span>
+                          </div>
+                        ))}
+                        {filterCountries(addCountrySearch).length === 0 && (
+                          <div className="country-code-option no-results">No countries found</div>
+                        )}
+                      </div>
+                    </div>,
+                    document.body
+                  )}
+                  <input
+                    type="tel"
+                    id="phone"
+                    name="phone"
+                    value={formData.phone || ''}
+                    onChange={(e) => {
+                      const validated = validatePhoneInput(e.target.value, addCountryCode);
+                      setFormData(prev => ({
+                        ...prev,
+                        phone: validated,
+                        phoneNumber: validated
+                      }));
+                    }}
+                    className="phone-input"
+                    placeholder={getPhonePlaceholder(addCountryCode)}
+                    maxLength={getPhoneMaxLength(addCountryCode)}
+                    disabled={isSubmitting}
+                  />
+                </div>
+              </div>
+
               <div className="form-row">
                 <div className="form-group">
                   <label htmlFor="roleId">Role *</label>
-                  <select
-                    id="roleId"
-                    name="roleId"
-                    value={formData.roleId}
-                    onChange={handleInputChange}
-                    disabled={isSubmitting}
-                    required
-                  >
-                    <option value="">Select a role</option>
-                    {roles.map((role) => (
-                      <option key={role.roleId} value={role.roleId}>
-                        {role.roleName}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="role-select-wrapper">
+                    <div
+                      ref={addRoleRef}
+                      className="role-select"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (!isSubmitting) {
+                          const isOpening = !addRoleOpen;
+                          setAddRoleOpen(prev => !prev);
+                          setAddCountryOpen(false);
+                          if (isOpening) {
+                            setTimeout(() => calculateDropdownPosition(addRoleRef, setAddRolePos), 0);
+                          } else {
+                            setAddRolePos(null);
+                          }
+                        }
+                      }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                      }}
+                      style={{ cursor: isSubmitting ? 'not-allowed' : 'pointer', position: 'relative', pointerEvents: 'auto' }}
+                    >
+                      <span>
+                        {formData.roleId 
+                          ? roles.find(r => r.roleId === formData.roleId)?.roleName || 'Select a role'
+                          : 'Select a role'}
+                      </span>
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ marginLeft: '8px' }}>
+                        <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                  </div>
+                  {addRoleOpen && !isSubmitting && addRolePos && createPortal(
+                    <div 
+                      className="role-dropdown portal-dropdown" 
+                      style={{
+                        position: 'fixed',
+                        top: `${addRolePos.top}px`,
+                        left: `${addRolePos.left}px`,
+                        width: `${addRolePos.width}px`,
+                        zIndex: 10050
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        className="role-search"
+                        placeholder="Search role..."
+                        value={addRoleSearch}
+                        onChange={(e) => setAddRoleSearch(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        autoFocus
+                      />
+                      <div className="role-list">
+                        {filterRoles(addRoleSearch, roles).map((role) => (
+                          <div
+                            key={role.roleId}
+                            className={`role-option ${formData.roleId === role.roleId ? 'selected' : ''}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleInputChange({ target: { name: 'roleId', value: role.roleId } });
+                              setAddRoleSearch('');
+                              setAddRoleOpen(false);
+                              setAddRolePos(null);
+                            }}
+                          >
+                            {role.roleName}
+                          </div>
+                        ))}
+                        {filterRoles(addRoleSearch, roles).length === 0 && (
+                          <div className="role-option no-results">No roles found</div>
+                        )}
+                      </div>
+                    </div>,
+                    document.body
+                  )}
                   {formErrors.roleId && <span className="error-text">{formErrors.roleId}</span>}
                 </div>
 
@@ -780,7 +1151,16 @@ const Users = () => {
                 <button
                   type="button"
                   className="btn-secondary"
-                  onClick={() => setShowAddModal(false)}
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setAddRoleOpen(false);
+                    setAddCountryOpen(false);
+                    setAddCountryCode(getDefaultCountry());
+                    setAddRoleSearch('');
+                    setAddCountrySearch('');
+                    setAddRolePos(null);
+                    setAddCountryPos(null);
+                  }}
                   disabled={isSubmitting}
                 >
                   Cancel
@@ -800,10 +1180,16 @@ const Users = () => {
 
       {/* Edit User Modal */}
       {showEditModal && editingUser && (
-        <div className="modal-overlay" onClick={() => {
-          if (!isUpdating) {
+        <div className="modal-overlay" onClick={(e) => {
+          if (!isUpdating && !e.target.closest('.country-code-dropdown') && !e.target.closest('.role-dropdown')) {
             setShowEditModal(false);
             setEditCountryCode(getDefaultCountry());
+            setEditRoleOpen(false);
+            setEditCountryOpen(false);
+            setEditRoleSearch('');
+            setEditCountrySearch('');
+            setEditRolePos(null);
+            setEditCountryPos(null);
           }
         }}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -814,6 +1200,10 @@ const Users = () => {
                 onClick={() => {
                   setShowEditModal(false);
                   setEditCountryCode(getDefaultCountry());
+                  setEditRoleOpen(false);
+                  setEditCountryOpen(false);
+                  setEditRoleSearch('');
+                  setEditCountrySearch('');
                 }}
                 disabled={isUpdating}
               >
@@ -874,36 +1264,109 @@ const Users = () => {
               <div className="form-group">
                 <label htmlFor="edit-phone">Phone</label>
                 <div className="phone-input-group">
-                  <select
-                    className="country-code-select"
-                    value={editCountryCode.code}
-                    onChange={(e) => {
-                      const country = countryCodes.find(c => c.code === e.target.value);
-                      if (country) setEditCountryCode(country);
-                    }}
-                    disabled={isUpdating}
-                  >
-                    {countryCodes.map((country) => (
-                      <option key={country.code} value={country.code}>
-                        {country.flag} {country.dialCode}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="country-code-select-wrapper">
+                    <div 
+                      ref={editCountryRef}
+                      className="country-code-select"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (!isUpdating) {
+                          const isOpening = !editCountryOpen;
+                          setEditCountryOpen(prev => !prev);
+                          setEditRoleOpen(false);
+                          if (isOpening) {
+                            setTimeout(() => calculateDropdownPosition(editCountryRef, setEditCountryPos), 0);
+                          } else {
+                            setEditCountryPos(null);
+                          }
+                        }
+                      }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                      }}
+                      style={{ cursor: isUpdating ? 'not-allowed' : 'pointer', position: 'relative', pointerEvents: 'auto' }}
+                    >
+                      <span className="country-code-display">
+                        {editCountryCode.flag} {editCountryCode.dialCode}
+                      </span>
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ marginLeft: '8px' }}>
+                        <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                  </div>
+                  {editCountryOpen && !isUpdating && editCountryPos && createPortal(
+                    <div 
+                      className="country-code-dropdown portal-dropdown" 
+                      style={{
+                        position: 'fixed',
+                        top: `${editCountryPos.top}px`,
+                        left: `${editCountryPos.left}px`,
+                        width: `${editCountryPos.width}px`,
+                        zIndex: 10050
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        className="country-code-search"
+                        placeholder="Search country..."
+                        value={editCountrySearch}
+                        onChange={(e) => setEditCountrySearch(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        autoFocus
+                      />
+                      <div className="country-code-list">
+                        {filterCountries(editCountrySearch).map((country) => (
+                          <div
+                            key={country.code}
+                            className={`country-code-option ${editCountryCode.code === country.code ? 'selected' : ''}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditCountryCode(country);
+                              setEditCountrySearch('');
+                              setEditCountryOpen(false);
+                              setEditCountryPos(null);
+                              // Validate existing phone number when country changes
+                              if (editFormData.phone) {
+                                const validated = validatePhoneInput(editFormData.phone, country);
+                                setEditFormData(prev => ({
+                                  ...prev,
+                                  phone: validated,
+                                  phoneNumber: validated
+                                }));
+                              }
+                            }}
+                          >
+                            <span className="country-code-display">
+                              {country.flag} {country.dialCode}
+                            </span>
+                            <span className="country-name">{country.name}</span>
+                          </div>
+                        ))}
+                        {filterCountries(editCountrySearch).length === 0 && (
+                          <div className="country-code-option no-results">No countries found</div>
+                        )}
+                      </div>
+                    </div>,
+                    document.body
+                  )}
                   <input
                     type="tel"
                     id="edit-phone"
                     name="phone"
                     value={editFormData.phone || ''}
                     onChange={(e) => {
-                      const value = e.target.value.replace(/\D/g, '');
+                      const validated = validatePhoneInput(e.target.value, editCountryCode);
                       setEditFormData(prev => ({
                         ...prev,
-                        phone: value,
-                        phoneNumber: value
+                        phone: validated,
+                        phoneNumber: validated
                       }));
                     }}
                     className="phone-input"
-                    placeholder="Phone number"
+                    placeholder={getPhonePlaceholder(editCountryCode)}
+                    maxLength={getPhoneMaxLength(editCountryCode)}
                     disabled={isUpdating}
                   />
                 </div>
@@ -912,21 +1375,83 @@ const Users = () => {
               <div className="form-row">
                 <div className="form-group">
                   <label htmlFor="edit-roleId">Role *</label>
-                  <select
-                    id="edit-roleId"
-                    name="roleId"
-                    value={editFormData.roleId}
-                    onChange={handleEditInputChange}
-                    disabled={isUpdating}
-                    required
-                  >
-                    <option value="">Select a role</option>
-                    {roles.map((role) => (
-                      <option key={role.roleId} value={role.roleId}>
-                        {role.roleName}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="role-select-wrapper">
+                    <div
+                      ref={editRoleRef}
+                      className="role-select"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (!isUpdating) {
+                          const isOpening = !editRoleOpen;
+                          setEditRoleOpen(prev => !prev);
+                          setEditCountryOpen(false);
+                          if (isOpening) {
+                            setTimeout(() => calculateDropdownPosition(editRoleRef, setEditRolePos), 0);
+                          } else {
+                            setEditRolePos(null);
+                          }
+                        }
+                      }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                      }}
+                      style={{ cursor: isUpdating ? 'not-allowed' : 'pointer', position: 'relative', pointerEvents: 'auto' }}
+                    >
+                      <span>
+                        {editFormData.roleId 
+                          ? roles.find(r => r.roleId === editFormData.roleId)?.roleName || 'Select a role'
+                          : 'Select a role'}
+                      </span>
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ marginLeft: '8px' }}>
+                        <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                  </div>
+                  {editRoleOpen && !isUpdating && editRolePos && createPortal(
+                    <div 
+                      className="role-dropdown portal-dropdown" 
+                      style={{
+                        position: 'fixed',
+                        top: `${editRolePos.top}px`,
+                        left: `${editRolePos.left}px`,
+                        width: `${editRolePos.width}px`,
+                        zIndex: 10050
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="text"
+                        className="role-search"
+                        placeholder="Search role..."
+                        value={editRoleSearch}
+                        onChange={(e) => setEditRoleSearch(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        autoFocus
+                      />
+                      <div className="role-list">
+                        {filterRoles(editRoleSearch, roles).map((role) => (
+                          <div
+                            key={role.roleId}
+                            className={`role-option ${editFormData.roleId === role.roleId ? 'selected' : ''}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditInputChange({ target: { name: 'roleId', value: role.roleId } });
+                              setEditRoleSearch('');
+                              setEditRoleOpen(false);
+                              setEditRolePos(null);
+                            }}
+                          >
+                            {role.roleName}
+                          </div>
+                        ))}
+                        {filterRoles(editRoleSearch, roles).length === 0 && (
+                          <div className="role-option no-results">No roles found</div>
+                        )}
+                      </div>
+                    </div>,
+                    document.body
+                  )}
                   {editFormErrors.roleId && <span className="error-text">{editFormErrors.roleId}</span>}
                 </div>
 
@@ -956,7 +1481,16 @@ const Users = () => {
                 <button
                   type="button"
                   className="btn-secondary"
-                  onClick={() => setShowEditModal(false)}
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setEditCountryCode(getDefaultCountry());
+                    setEditRoleOpen(false);
+                    setEditCountryOpen(false);
+                    setEditRoleSearch('');
+                    setEditCountrySearch('');
+                    setEditRolePos(null);
+                    setEditCountryPos(null);
+                  }}
                   disabled={isUpdating}
                 >
                   Cancel

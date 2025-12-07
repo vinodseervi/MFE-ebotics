@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { Edit } from 'lucide-react';
-import { countryCodes, parsePhoneNumber, formatPhoneNumber, getDefaultCountry } from '../utils/countryCodes';
+import { countryCodes, parsePhoneNumber, formatPhoneNumber, getDefaultCountry, validatePhoneInput, getPhoneMaxLength, getPhonePlaceholder } from '../utils/countryCodes';
 import './Profile.css';
 
 const Profile = () => {
@@ -17,6 +18,25 @@ const Profile = () => {
   const [selectedCountryCode, setSelectedCountryCode] = useState(getDefaultCountry());
   const [updatingPhone, setUpdatingPhone] = useState(false);
   const [phoneError, setPhoneError] = useState('');
+  // Country code dropdown states
+  const [countryOpen, setCountryOpen] = useState(false);
+  const [countrySearch, setCountrySearch] = useState('');
+  const countryRef = useRef(null);
+  const [countryPos, setCountryPos] = useState(null);
+  
+  // Function to calculate dropdown position
+  const calculateDropdownPosition = (ref, setPosition) => {
+    if (!ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    const scrollY = window.scrollY || window.pageYOffset;
+    const scrollX = window.scrollX || window.pageXOffset;
+    
+    setPosition({
+      top: rect.bottom + scrollY + 4,
+      left: rect.left + scrollX,
+      width: Math.max(rect.width, 280) // Ensure minimum width of 280px
+    });
+  };
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
@@ -26,6 +46,55 @@ const Profile = () => {
   const [changingPassword, setChangingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState(false);
+
+  // Close country code dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      const countryWrapper = event.target.closest('.country-code-select-wrapper');
+      const countryDropdown = event.target.closest('.country-code-dropdown');
+      if (!countryWrapper && !countryDropdown) {
+        setCountryOpen(false);
+        setCountryPos(null);
+      }
+    };
+    
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+    }, 0);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+  
+  // Update dropdown positions on scroll/resize
+  useEffect(() => {
+    const updatePositions = () => {
+      if (countryOpen && countryRef.current) {
+        calculateDropdownPosition(countryRef, setCountryPos);
+      }
+    };
+    
+    window.addEventListener('scroll', updatePositions, true);
+    window.addEventListener('resize', updatePositions);
+    
+    return () => {
+      window.removeEventListener('scroll', updatePositions, true);
+      window.removeEventListener('resize', updatePositions);
+    };
+  }, [countryOpen]);
+
+  // Filter countries based on search term
+  const filterCountries = (searchTerm) => {
+    if (!searchTerm) return countryCodes;
+    const lowerSearch = searchTerm.toLowerCase();
+    return countryCodes.filter(country => 
+      country.name.toLowerCase().includes(lowerSearch) ||
+      country.dialCode.includes(lowerSearch) ||
+      country.code.toLowerCase().includes(lowerSearch)
+    );
+  };
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -86,6 +155,9 @@ const Profile = () => {
       setSelectedCountryCode(getDefaultCountry());
     }
     setPhoneError('');
+    setCountryOpen(false);
+    setCountryPos(null);
+    setCountrySearch('');
   };
 
   const handleSavePhone = async () => {
@@ -105,6 +177,9 @@ const Profile = () => {
       const updatedData = await api.getUserById(userId);
       setUserData(updatedData);
       setEditingPhone(false);
+      setCountryOpen(false);
+      setCountryPos(null);
+      setCountrySearch('');
     } catch (err) {
       console.error('Error updating phone:', err);
       setPhoneError(err.message || 'Failed to update phone number. Please try again.');
@@ -295,27 +370,98 @@ const Profile = () => {
                 {editingPhone ? (
                   <div className="edit-phone-container">
                     <div className="phone-input-group">
-                      <select
-                        className="country-code-select"
-                        value={selectedCountryCode.code}
-                        onChange={(e) => {
-                          const country = countryCodes.find(c => c.code === e.target.value);
-                          if (country) setSelectedCountryCode(country);
-                        }}
-                        disabled={updatingPhone}
-                      >
-                        {countryCodes.map((country) => (
-                          <option key={country.code} value={country.code}>
-                            {country.flag} {country.dialCode}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="country-code-select-wrapper">
+                        <div 
+                          ref={countryRef}
+                          className="country-code-select"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (!updatingPhone) {
+                              const isOpening = !countryOpen;
+                              setCountryOpen(prev => !prev);
+                              if (isOpening) {
+                                setTimeout(() => calculateDropdownPosition(countryRef, setCountryPos), 0);
+                              } else {
+                                setCountryPos(null);
+                              }
+                            }
+                          }}
+                          onMouseDown={(e) => {
+                            e.stopPropagation();
+                          }}
+                          style={{ cursor: updatingPhone ? 'not-allowed' : 'pointer', position: 'relative', pointerEvents: 'auto' }}
+                        >
+                          <span className="country-code-display">
+                            {selectedCountryCode.flag} {selectedCountryCode.dialCode}
+                          </span>
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ marginLeft: '8px' }}>
+                            <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </div>
+                      </div>
+                      {countryOpen && !updatingPhone && countryPos && createPortal(
+                        <div 
+                          className="country-code-dropdown portal-dropdown" 
+                          style={{
+                            position: 'fixed',
+                            top: `${countryPos.top}px`,
+                            left: `${countryPos.left}px`,
+                            width: `${countryPos.width}px`,
+                            zIndex: 10050
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <input
+                            type="text"
+                            className="country-code-search"
+                            placeholder="Search country..."
+                            value={countrySearch}
+                            onChange={(e) => setCountrySearch(e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            autoFocus
+                          />
+                          <div className="country-code-list">
+                            {filterCountries(countrySearch).map((country) => (
+                              <div
+                                key={country.code}
+                                className={`country-code-option ${selectedCountryCode.code === country.code ? 'selected' : ''}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedCountryCode(country);
+                                  setCountrySearch('');
+                                  setCountryOpen(false);
+                                  setCountryPos(null);
+                                  // Validate existing phone number when country changes
+                                  if (phoneValue) {
+                                    const validated = validatePhoneInput(phoneValue, country);
+                                    setPhoneValue(validated);
+                                  }
+                                }}
+                              >
+                                <span className="country-code-display">
+                                  {country.flag} {country.dialCode}
+                                </span>
+                                <span className="country-name">{country.name}</span>
+                              </div>
+                            ))}
+                            {filterCountries(countrySearch).length === 0 && (
+                              <div className="country-code-option no-results">No countries found</div>
+                            )}
+                          </div>
+                        </div>,
+                        document.body
+                      )}
                       <input
                         type="tel"
                         value={phoneValue}
-                        onChange={(e) => setPhoneValue(e.target.value.replace(/\D/g, ''))}
+                        onChange={(e) => {
+                          const validated = validatePhoneInput(e.target.value, selectedCountryCode);
+                          setPhoneValue(validated);
+                        }}
                         className="phone-input"
-                        placeholder="Phone number"
+                        placeholder={getPhonePlaceholder(selectedCountryCode)}
+                        maxLength={getPhoneMaxLength(selectedCountryCode)}
                         disabled={updatingPhone}
                       />
                     </div>

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { usePermissions, PERMISSIONS } from '../hooks/usePermissions';
+import PermissionGuard from './PermissionGuard';
 import { 
   MdOutlineHome,
   MdOutlineDescription,
@@ -18,6 +20,7 @@ const Sidebar = ({ showAdminSubmenu, onAdminClick, isCollapsed, onToggleCollapse
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { can } = usePermissions();
   const isAdminRoute = location.pathname.startsWith('/admin');
   const [adminExpanded, setAdminExpanded] = useState(isAdminRoute || showAdminSubmenu || false);
 
@@ -111,49 +114,73 @@ const Sidebar = ({ showAdminSubmenu, onAdminClick, isCollapsed, onToggleCollapse
       </div>
 
       <nav className="sidebar-nav">
+        {/* Dashboard - Available to all authenticated users */}
         <Link to="/" className={`nav-item ${isActive('/') ? 'active' : ''}`} title={isCollapsed ? 'Dashboard' : ''}>
           <MdOutlineHome className="nav-icon" size={22} />
           {!isCollapsed && <span>Dashboard</span>}
         </Link>
 
-        <Link to="/checks" className={`nav-item ${isActive('/checks') ? 'active' : ''}`} title={isCollapsed ? 'Checks' : ''}>
-          <MdOutlineDescription className="nav-icon" size={22} />
-          {!isCollapsed && <span>Checks</span>}
-        </Link>
+        {/* Checks - Requires PAYMENT_CHECK_LIST permission */}
+        <PermissionGuard permission={PERMISSIONS.PAYMENT_CHECK_LIST}>
+          <Link to="/checks" className={`nav-item ${isActive('/checks') ? 'active' : ''}`} title={isCollapsed ? 'Checks' : ''}>
+            <MdOutlineDescription className="nav-icon" size={22} />
+            {!isCollapsed && <span>Checks</span>}
+          </Link>
+        </PermissionGuard>
 
-        <Link to="/check-upload" className={`nav-item ${isActive('/check-upload') ? 'active' : ''}`} title={isCollapsed ? 'Check Upload' : ''}>
-          <MdOutlineCloudUpload className="nav-icon" size={22} />
-          {!isCollapsed && <span>Check Upload</span>}
-        </Link>
+        {/* Check Upload - Requires PAYMENT_CHECK_CREATE permission */}
+        <PermissionGuard permission={PERMISSIONS.PAYMENT_CHECK_CREATE}>
+          <Link to="/check-upload" className={`nav-item ${isActive('/check-upload') ? 'active' : ''}`} title={isCollapsed ? 'Check Upload' : ''}>
+            <MdOutlineCloudUpload className="nav-icon" size={22} />
+            {!isCollapsed && <span>Check Upload</span>}
+          </Link>
+        </PermissionGuard>
 
-        <Link to="/clarifications" className={`nav-item ${isActive('/clarifications') ? 'active' : ''}`} title={isCollapsed ? 'Clarifications' : ''}>
-          <MdOutlineHelpOutline className="nav-icon" size={22} />
-          {!isCollapsed && <span>Clarifications</span>}
-        </Link>
+        {/* Clarifications - Requires PAYMENT_ALLOCATION_LIST permission (assuming clarifications are related to allocations) */}
+        <PermissionGuard permission={PERMISSIONS.PAYMENT_ALLOCATION_LIST}>
+          <Link to="/clarifications" className={`nav-item ${isActive('/clarifications') ? 'active' : ''}`} title={isCollapsed ? 'Clarifications' : ''}>
+            <MdOutlineHelpOutline className="nav-icon" size={22} />
+            {!isCollapsed && <span>Clarifications</span>}
+          </Link>
+        </PermissionGuard>
 
-        <Link to="/unknown" className={`nav-item ${isActive('/unknown') ? 'active' : ''}`} title={isCollapsed ? 'Unknown' : ''}>
-          <MdOutlineHelp className="nav-icon" size={22} />
-          {!isCollapsed && <span>Unknown</span>}
-        </Link>
+        {/* Unknown - Requires PAYMENT_CHECK_LIST permission */}
+        <PermissionGuard permission={PERMISSIONS.PAYMENT_CHECK_LIST}>
+          <Link to="/unknown" className={`nav-item ${isActive('/unknown') ? 'active' : ''}`} title={isCollapsed ? 'Unknown' : ''}>
+            <MdOutlineHelp className="nav-icon" size={22} />
+            {!isCollapsed && <span>Unknown</span>}
+          </Link>
+        </PermissionGuard>
 
-        <Link to="/dit-drl-payments" className={`nav-item ${isActive('/dit-drl-payments') ? 'active' : ''}`} title={isCollapsed ? 'DIT/DRL Payments' : ''}>
-          <MdOutlinePayment className="nav-icon" size={22} />
-          {!isCollapsed && <span>DIT/DRL Payments</span>}
-        </Link>
+        {/* DIT/DRL Payments - Requires PAYMENT_BATCH_LIST permission */}
+        <PermissionGuard permission={PERMISSIONS.PAYMENT_BATCH_LIST}>
+          <Link to="/dit-drl-payments" className={`nav-item ${isActive('/dit-drl-payments') ? 'active' : ''}`} title={isCollapsed ? 'DIT/DRL Payments' : ''}>
+            <MdOutlinePayment className="nav-icon" size={22} />
+            {!isCollapsed && <span>DIT/DRL Payments</span>}
+          </Link>
+        </PermissionGuard>
       </nav>
 
       <div className="sidebar-divider"></div>
 
-      <div className="admin-section">
-        <button 
-          className={`nav-item admin-portal ${isActive('/admin') ? 'active' : ''}`}
-          onClick={handleAdminClick}
-          title={isCollapsed ? 'Admin Portal' : ''}
-        >
-          <GrUserAdmin className="nav-icon" size={22} />
-          {!isCollapsed && <span>Admin Portal</span>}
-        </button>
-      </div>
+      {/* Admin Portal - Requires any admin portal permission */}
+      <PermissionGuard permission={[
+        PERMISSIONS.ADMIN_PORTAL_DASHBOARD_VIEW,
+        PERMISSIONS.USER_LIST,
+        PERMISSIONS.ROLE_LIST,
+        PERMISSIONS.PRACTICE_LIST
+      ]}>
+        <div className="admin-section">
+          <button 
+            className={`nav-item admin-portal ${isActive('/admin') ? 'active' : ''}`}
+            onClick={handleAdminClick}
+            title={isCollapsed ? 'Admin Portal' : ''}
+          >
+            <GrUserAdmin className="nav-icon" size={22} />
+            {!isCollapsed && <span>Admin Portal</span>}
+          </button>
+        </div>
+      </PermissionGuard>
 
       <div className="sidebar-footer">
         {!isCollapsed && (

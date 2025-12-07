@@ -250,7 +250,7 @@ const Profile = () => {
       const firstName = userData.firstName || '';
       const lastName = userData.lastName || '';
       if (firstName && lastName) {
-        return `${firstName[0]}${lastName[0]}`.toUpperCase();
+        return `${firstName[0].toUpperCase()}${lastName[0].toUpperCase()}`;
       }
       if (userData.email) {
         return userData.email[0].toUpperCase();

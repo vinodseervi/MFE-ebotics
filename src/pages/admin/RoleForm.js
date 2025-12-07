@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react';
 import './Admin.css';
@@ -8,7 +7,6 @@ import './Admin.css';
 const RoleForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
   const isEditMode = !!id;
   
   const [permissions, setPermissions] = useState([]);
@@ -28,6 +26,7 @@ const RoleForm = () => {
     if (isEditMode) {
       fetchRoleData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const fetchRoleData = async () => {

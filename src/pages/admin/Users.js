@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { Edit, Info } from 'lucide-react';
 import { countryCodes, parsePhoneNumber, formatPhoneNumber, getDefaultCountry, validatePhoneInput, getPhoneMaxLength, getPhonePlaceholder } from '../../utils/countryCodes';
@@ -9,7 +8,6 @@ import PermissionGuard from '../../components/PermissionGuard';
 import './Admin.css';
 
 const Users = () => {
-  const { user } = useAuth();
   const { can } = usePermissions();
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
@@ -36,14 +34,11 @@ const Users = () => {
   const [editCountrySearch, setEditCountrySearch] = useState('');
   const [addCountryOpen, setAddCountryOpen] = useState(false);
   const [addCountrySearch, setAddCountrySearch] = useState('');
-  const [editCountryDropdownTop, setEditCountryDropdownTop] = useState(false);
   // Role dropdown states
   const [addRoleOpen, setAddRoleOpen] = useState(false);
   const [addRoleSearch, setAddRoleSearch] = useState('');
-  const [addRoleDropdownTop, setAddRoleDropdownTop] = useState(false);
   const [editRoleOpen, setEditRoleOpen] = useState(false);
   const [editRoleSearch, setEditRoleSearch] = useState('');
-  const [editRoleDropdownTop, setEditRoleDropdownTop] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     firstName: '',
@@ -177,23 +172,6 @@ const Users = () => {
     );
   };
 
-  // Check if dropdown should show at top
-  const checkDropdownPosition = (elementId, setShowTop) => {
-    if (!elementId) return;
-    const element = document.getElementById(elementId);
-    if (!element) return;
-    
-    const rect = element.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const dropdownHeight = 300; // max-height of dropdown
-    
-    // If not enough space below, show at top
-    if (spaceBelow < dropdownHeight + 10) {
-      setShowTop(true);
-    } else {
-      setShowTop(false);
-    }
-  };
 
   const fetchUsers = async () => {
     try {
@@ -385,36 +363,30 @@ const Users = () => {
     return status.charAt(0) + status.slice(1).toLowerCase();
   };
 
-  const getRoleColor = (role, roleMeta) => {
-    // Use roleMeta.name if available, otherwise use role string
-    const roleName = roleMeta?.name || role || '';
-    const roleColors = {
-      'ADMIN': '#a855f7',
-      'USER': '#3b82f6',
-      'SUPER_ADMIN': '#ef4444',
-      'SUPER ADMIN': '#ef4444',
-      'MANAGER': '#c084fc',
-    };
-    return roleColors[roleName] || roleColors[roleName.toUpperCase()] || '#6b7280';
+  const getRoleColor = () => {
+    // Single background color for all roles
+    return { bg: 'rgb(243, 244, 246)', text: '#374151', border: '#e5e7eb' };
   };
 
   const getAvatarColor = (firstName, lastName) => {
     // Generate a consistent color based on user's initials
     const name = `${firstName || ''}${lastName || ''}`.toLowerCase();
-    if (!name) return '#6b7280';
+    if (!name) return { bg: '#6b7280', text: '#ffffff' };
     
-    // Use a professional color palette
+    // Professional, muted color palette - inspired by modern SaaS applications
     const colors = [
-      { bg: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', text: '#ffffff' },
-      { bg: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', text: '#ffffff' },
-      { bg: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', text: '#ffffff' },
-      { bg: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', text: '#ffffff' },
-      { bg: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', text: '#ffffff' },
-      { bg: 'linear-gradient(135deg, #30cfd0 0%, #330867 100%)', text: '#ffffff' },
-      { bg: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)', text: '#374151' },
-      { bg: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)', text: '#374151' },
-      { bg: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)', text: '#374151' },
-      { bg: 'linear-gradient(135deg, #ff6a88 0%, #ee5a6f 100%)', text: '#ffffff' },
+      { bg: '#0d9488', text: '#ffffff' }, // Teal
+      { bg: '#3b82f6', text: '#ffffff' }, // Blue
+      { bg: '#6366f1', text: '#ffffff' }, // Indigo
+      { bg: '#8b5cf6', text: '#ffffff' }, // Purple
+      { bg: '#06b6d4', text: '#ffffff' }, // Cyan
+      { bg: '#14b8a6', text: '#ffffff' }, // Teal-500
+      { bg: '#0ea5e9', text: '#ffffff' }, // Sky
+      { bg: '#5b21b6', text: '#ffffff' }, // Purple-700
+      { bg: '#0891b2', text: '#ffffff' }, // Cyan-600
+      { bg: '#2563eb', text: '#ffffff' }, // Blue-600
+      { bg: '#4f46e5', text: '#ffffff' }, // Indigo-600
+      { bg: '#7c3aed', text: '#ffffff' }, // Violet-600
     ];
     
     // Simple hash function to consistently pick a color
@@ -463,15 +435,6 @@ const Users = () => {
       }
       return 'Just now';
     }
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
   };
 
   const formatDateForTooltip = (dateString) => {
@@ -619,7 +582,6 @@ const Users = () => {
       setNewStatus(null);
     } catch (error) {
       console.error('Error updating user status:', error);
-      const errorMessage = error.message || error.error || 'Failed to update user status. Please try again.';
     } finally {
       setIsUpdatingStatus(false);
     }
@@ -739,7 +701,7 @@ const Users = () => {
                                       display: 'none'
                                     }}
                                   >
-                                    {user.firstName?.[0] || ''}{user.lastName?.[0] || ''}
+                                    {(user.firstName?.[0] || '').toUpperCase()}{(user.lastName?.[0] || '').toUpperCase()}
                                   </div>
                                 );
                               })()}
@@ -755,7 +717,7 @@ const Users = () => {
                                     color: avatarColor.text
                                   }}
                                 >
-                                  {user.firstName?.[0] || ''}{user.lastName?.[0] || ''}
+                                  {(user.firstName?.[0] || '').toUpperCase()}{(user.lastName?.[0] || '').toUpperCase()}
                                 </div>
                               );
                             })()
@@ -766,15 +728,22 @@ const Users = () => {
                       <td>{user.lastName || '-'}</td>
                       <td>{user.email || '-'}</td>
                       <td>
-                        <span 
-                          className="role-badge"
-                          style={{ 
-                            backgroundColor: getRoleColor(user.role, user.roleMeta) + '20', 
-                            color: getRoleColor(user.role, user.roleMeta) 
-                          }}
-                        >
-                          {formatRole(user.role, user.roleMeta)}
-                        </span>
+                        {(() => {
+                          const roleColor = getRoleColor();
+                          return (
+                            <span 
+                              className="role-badge"
+                              style={{ 
+                                backgroundColor: roleColor.bg,
+                                color: roleColor.text,
+                                border: `1px solid ${roleColor.border}`,
+                                fontWeight: '700'
+                              }}
+                            >
+                              {formatRole(user.role, user.roleMeta)}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td>{user.phone || user.phoneNumber || '-'}</td>
                       <td>

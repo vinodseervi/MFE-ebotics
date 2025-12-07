@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { usePermissions, PERMISSIONS } from '../hooks/usePermissions';
+import { PERMISSIONS } from '../hooks/usePermissions';
 import PermissionGuard from './PermissionGuard';
 import { 
   MdOutlineHome,
@@ -10,8 +10,7 @@ import {
   MdOutlineHelpOutline,
   MdOutlineHelp,
   MdOutlinePayment,
-  MdOutlineLogout,
-  MdOutlinePerson
+  MdOutlineLogout
 } from 'react-icons/md';
 import { GrUserAdmin } from 'react-icons/gr';
 import './Sidebar.css';
@@ -20,7 +19,6 @@ const Sidebar = ({ showAdminSubmenu, onAdminClick, isCollapsed, onToggleCollapse
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { can } = usePermissions();
   const isAdminRoute = location.pathname.startsWith('/admin');
   const [adminExpanded, setAdminExpanded] = useState(isAdminRoute || showAdminSubmenu || false);
 
@@ -59,7 +57,7 @@ const Sidebar = ({ showAdminSubmenu, onAdminClick, isCollapsed, onToggleCollapse
       const firstName = user.firstName || '';
       const lastName = user.lastName || '';
       if (firstName && lastName) {
-        return `${firstName[0]}${lastName[0]}`.toUpperCase();
+        return `${firstName[0].toUpperCase()}${lastName[0].toUpperCase()}`;
       }
       if (user.email) {
         return user.email[0].toUpperCase();

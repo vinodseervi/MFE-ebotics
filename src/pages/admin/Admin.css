@@ -589,8 +589,8 @@
 }
 
 .user-avatar-small {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -599,8 +599,8 @@
   font-weight: 600;
   font-size: 13px;
   flex-shrink: 0;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
   transition: all 0.2s ease;
 }
 
@@ -610,26 +610,28 @@
 }
 
 .user-profile-image {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 .role-badge {
-  padding: 4px 12px;
-  border-radius: 12px;
+  padding: 5px 12px;
+  border-radius: 6px;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 700;
   display: inline-block;
   white-space: normal;
   word-break: break-word;
   line-height: 1.4;
   max-width: 100%;
   text-align: center;
+  border: 1px solid #e5e7eb;
+  transition: all 0.2s ease;
 }
 
 .status-badge {

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { Edit, Info } from 'lucide-react';
 import { usePermissions, PERMISSIONS } from '../../hooks/usePermissions';
@@ -10,7 +9,6 @@ import './Admin.css';
 const Roles = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
   const { can } = usePermissions();
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -23,6 +21,7 @@ const Roles = () => {
 
   useEffect(() => {
     fetchRoles();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Refresh roles when returning from form page
@@ -30,6 +29,7 @@ const Roles = () => {
     if (location.pathname === '/admin/roles') {
       fetchRoles();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname]);
 
   const fetchRoles = async () => {
@@ -84,7 +84,6 @@ const Roles = () => {
       setNewStatus(null);
     } catch (error) {
       console.error('Error updating role status:', error);
-      const errorMessage = error.message || error.error || 'Failed to update role status. Please try again.';
     } finally {
       setIsUpdatingStatus(false);
     }

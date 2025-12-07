@@ -644,17 +644,6 @@ const Practices = () => {
     return status.charAt(0) + status.slice(1).toLowerCase();
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
 
   const formatDateForTooltip = (dateString) => {
     if (!dateString) return '-';

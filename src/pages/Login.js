@@ -9,7 +9,7 @@ const Login = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const { login, loading: authLoading } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
   
   // Debug: Log error state changes

@@ -18,7 +18,7 @@ const PermissionRoute = ({
   fallbackPath = '/' 
 }) => {
   const { isAuthenticated, loading } = useAuth();
-  const { can, canAll, canAny } = usePermissions();
+  const { can, canAll, canAny, isSuperAdmin } = usePermissions();
 
   // Show loading while checking auth
   if (loading) {
@@ -41,6 +41,11 @@ const PermissionRoute = ({
 
   // If no permission specified, allow access (just check authentication)
   if (!permission) {
+    return children;
+  }
+
+  // SUPER ADMIN has access to everything (checked in usePermissions hook)
+  if (isSuperAdmin) {
     return children;
   }
 

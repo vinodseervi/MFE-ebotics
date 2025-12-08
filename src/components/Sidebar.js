@@ -118,45 +118,35 @@ const Sidebar = ({ showAdminSubmenu, onAdminClick, isCollapsed, onToggleCollapse
           {!isCollapsed && <span>Dashboard</span>}
         </Link>
 
-        {/* Checks - Requires PAYMENT_CHECK_LIST permission */}
-        <PermissionGuard permission={PERMISSIONS.PAYMENT_CHECK_LIST}>
-          <Link to="/checks" className={`nav-item ${isActive('/checks') ? 'active' : ''}`} title={isCollapsed ? 'Checks' : ''}>
-            <MdOutlineDescription className="nav-icon" size={22} />
-            {!isCollapsed && <span>Checks</span>}
-          </Link>
-        </PermissionGuard>
+        {/* Checks - Always visible in sidebar */}
+        <Link to="/checks" className={`nav-item ${isActive('/checks') ? 'active' : ''}`} title={isCollapsed ? 'Checks' : ''}>
+          <MdOutlineDescription className="nav-icon" size={22} />
+          {!isCollapsed && <span>Checks</span>}
+        </Link>
 
-        {/* Check Upload - Requires PAYMENT_CHECK_CREATE permission */}
-        <PermissionGuard permission={PERMISSIONS.PAYMENT_CHECK_CREATE}>
-          <Link to="/check-upload" className={`nav-item ${isActive('/check-upload') ? 'active' : ''}`} title={isCollapsed ? 'Check Upload' : ''}>
-            <MdOutlineCloudUpload className="nav-icon" size={22} />
-            {!isCollapsed && <span>Check Upload</span>}
-          </Link>
-        </PermissionGuard>
+        {/* Check Upload - Always visible in sidebar */}
+        <Link to="/check-upload" className={`nav-item ${isActive('/check-upload') ? 'active' : ''}`} title={isCollapsed ? 'Check Upload' : ''}>
+          <MdOutlineCloudUpload className="nav-icon" size={22} />
+          {!isCollapsed && <span>Check Upload</span>}
+        </Link>
 
-        {/* Clarifications - Requires PAYMENT_ALLOCATION_LIST permission (assuming clarifications are related to allocations) */}
-        <PermissionGuard permission={PERMISSIONS.PAYMENT_ALLOCATION_LIST}>
-          <Link to="/clarifications" className={`nav-item ${isActive('/clarifications') ? 'active' : ''}`} title={isCollapsed ? 'Clarifications' : ''}>
-            <MdOutlineHelpOutline className="nav-icon" size={22} />
-            {!isCollapsed && <span>Clarifications</span>}
-          </Link>
-        </PermissionGuard>
+        {/* Clarifications - Always visible in sidebar */}
+        <Link to="/clarifications" className={`nav-item ${isActive('/clarifications') ? 'active' : ''}`} title={isCollapsed ? 'Clarifications' : ''}>
+          <MdOutlineHelpOutline className="nav-icon" size={22} />
+          {!isCollapsed && <span>Clarifications</span>}
+        </Link>
 
-        {/* Unknown - Requires PAYMENT_CHECK_LIST permission */}
-        <PermissionGuard permission={PERMISSIONS.PAYMENT_CHECK_LIST}>
-          <Link to="/unknown" className={`nav-item ${isActive('/unknown') ? 'active' : ''}`} title={isCollapsed ? 'Unknown' : ''}>
-            <MdOutlineHelp className="nav-icon" size={22} />
-            {!isCollapsed && <span>Unknown</span>}
-          </Link>
-        </PermissionGuard>
+        {/* Unknown - Always visible in sidebar */}
+        <Link to="/unknown" className={`nav-item ${isActive('/unknown') ? 'active' : ''}`} title={isCollapsed ? 'Unknown' : ''}>
+          <MdOutlineHelp className="nav-icon" size={22} />
+          {!isCollapsed && <span>Unknown</span>}
+        </Link>
 
-        {/* DIT/DRL Payments - Requires PAYMENT_BATCH_LIST permission */}
-        <PermissionGuard permission={PERMISSIONS.PAYMENT_BATCH_LIST}>
-          <Link to="/dit-drl-payments" className={`nav-item ${isActive('/dit-drl-payments') ? 'active' : ''}`} title={isCollapsed ? 'DIT/DRL Payments' : ''}>
-            <MdOutlinePayment className="nav-icon" size={22} />
-            {!isCollapsed && <span>DIT/DRL Payments</span>}
-          </Link>
-        </PermissionGuard>
+        {/* DIT/DRL Payments - Always visible in sidebar */}
+        <Link to="/dit-drl-payments" className={`nav-item ${isActive('/dit-drl-payments') ? 'active' : ''}`} title={isCollapsed ? 'DIT/DRL Payments' : ''}>
+          <MdOutlinePayment className="nav-icon" size={22} />
+          {!isCollapsed && <span>DIT/DRL Payments</span>}
+        </Link>
       </nav>
 
       <div className="sidebar-divider"></div>

@@ -16,12 +16,23 @@ export const usePermissions = () => {
     return user?.perms || [];
   }, [user?.perms]);
 
+  // Check if user is SUPER ADMIN
+  const isSuperAdmin = useMemo(() => {
+    if (!user?.roleMeta?.name) return false;
+    const roleName = user.roleMeta.name.toUpperCase();
+    return roleName === 'SUPER ADMIN' || roleName === 'SUPER_ADMIN' || roleName.includes('SUPER ADMIN');
+  }, [user?.roleMeta?.name]);
+
   /**
    * Check if user has a specific permission
    * @param {string|Array<string>} permission - Permission code(s) to check
    * @returns {boolean}
    */
   const can = (permission) => {
+    // SUPER ADMIN has access to everything
+    if (isSuperAdmin) {
+      return true;
+    }
     return hasPermission(userPermissions, permission);
   };
 
@@ -31,6 +42,10 @@ export const usePermissions = () => {
    * @returns {boolean}
    */
   const canAll = (permissions) => {
+    // SUPER ADMIN has access to everything
+    if (isSuperAdmin) {
+      return true;
+    }
     return hasAllPermissions(userPermissions, permissions);
   };
 
@@ -40,6 +55,10 @@ export const usePermissions = () => {
    * @returns {boolean}
    */
   const canAny = (permissions) => {
+    // SUPER ADMIN has access to everything
+    if (isSuperAdmin) {
+      return true;
+    }
     return hasAnyPermission(userPermissions, permissions);
   };
 
@@ -57,6 +76,7 @@ export const usePermissions = () => {
     canAny,
     getPermissions,
     userPermissions,
+    isSuperAdmin,
     PERMISSIONS, // Export constants for easy access
   };
 };

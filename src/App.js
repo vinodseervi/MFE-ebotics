@@ -11,6 +11,7 @@ import Dashboard from './pages/Dashboard';
 import Checks from './pages/Checks';
 import CheckDetails from './pages/CheckDetails';
 import CheckUpload from './pages/CheckUpload';
+import CreateCheck from './pages/CreateCheck';
 import Clarifications from './pages/Clarifications';
 import Unknown from './pages/Unknown';
 import DITDRLPayments from './pages/DITDRLPayments';
@@ -133,6 +134,13 @@ function AppContent() {
           <Route path="/check-upload" element={
             <PermissionRoute permission={PERMISSIONS.PAYMENT_CHECK_CREATE}>
               <CheckUpload />
+            </PermissionRoute>
+          } />
+          
+          {/* Create Check - Requires PAYMENT_CHECK_CREATE permission */}
+          <Route path="/checks/new" element={
+            <PermissionRoute permission={PERMISSIONS.PAYMENT_CHECK_CREATE}>
+              <CreateCheck />
             </PermissionRoute>
           } />
           

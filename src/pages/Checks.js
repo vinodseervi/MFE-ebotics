@@ -388,13 +388,7 @@ const Checks = () => {
               />
             )}
           </div>
-          <button className="btn-export">
-            <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-              <path d="M3 15V17H17V15M10 3V13M10 13L6 9M10 13L14 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            Export
-          </button>
-          <button className="btn-primary" onClick={() => navigate('/check-upload')}>
+          <button className="btn-primary" onClick={() => navigate('/checks/new')}>
             <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
               <path d="M10 3V17M3 10H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
             </svg>

@@ -37,13 +37,32 @@
   align-items: center;
 }
 
-.date-range {
+.date-range-container {
+  position: relative;
+}
+
+.date-range-btn {
   padding: 8px 16px;
   background: white;
   border: 1px solid #e5e7eb;
   border-radius: 6px;
   font-size: 14px;
   color: #374151;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s;
+}
+
+.date-range-btn:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.date-range-btn:focus {
+  outline: none;
+  border-color: #14b8a6;
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.1);
 }
 
 .btn-export {

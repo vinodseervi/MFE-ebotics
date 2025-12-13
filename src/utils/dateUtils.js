@@ -73,6 +73,36 @@ export const getCurrentMonthRange = () => {
 };
 
 /**
+ * Get month range for a specific month and year
+ * @param {number} month - Month (1-12)
+ * @param {number} year - Year
+ * @returns {Object} Object with startDate and endDate in YYYY-MM-DD format
+ */
+export const getMonthRange = (month, year) => {
+  const monthStr = String(month).padStart(2, '0');
+  const firstDay = `${year}-${monthStr}-01`;
+  const lastDay = new Date(year, month, 0).getDate();
+  const lastDayStr = `${year}-${monthStr}-${String(lastDay).padStart(2, '0')}`;
+  
+  return {
+    startDate: firstDay,
+    endDate: lastDayStr
+  };
+};
+
+/**
+ * Get current month and year
+ * @returns {Object} Object with month (1-12) and year
+ */
+export const getCurrentMonthYear = () => {
+  const now = new Date();
+  return {
+    month: now.getMonth() + 1,
+    year: now.getFullYear()
+  };
+};
+
+/**
  * Format date range for display (MM/DD/YYYY - MM/DD/YYYY)
  * @param {string} startDate - Start date in YYYY-MM-DD format
  * @param {string} endDate - End date in YYYY-MM-DD format

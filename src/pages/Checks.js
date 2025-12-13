@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import AdvancedFilterDrawer from '../components/AdvancedFilterDrawer';
-import { getCurrentMonthRange, formatDateUS, formatDateRange } from '../utils/dateUtils';
+import MonthYearPicker from '../components/MonthYearPicker';
+import { getCurrentMonthRange, formatDateUS, formatDateRange, getMonthRange, getCurrentMonthYear } from '../utils/dateUtils';
 import './Checks.css';
 
 const Checks = () => {
@@ -51,8 +52,24 @@ const Checks = () => {
   const [bulkAssigneeId, setBulkAssigneeId] = useState('');
   const [bulkReporterId, setBulkReporterId] = useState('');
 
-  // Get current month range for default filters
-  const currentMonthRange = getCurrentMonthRange();
+  // Month/Year selection
+  const currentMonthYear = getCurrentMonthYear();
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthYear.month);
+  const [selectedYear, setSelectedYear] = useState(currentMonthYear.year);
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
+  
+  // Get selected month range
+  const getSelectedMonthRange = () => {
+    return getMonthRange(selectedMonth, selectedYear);
+  };
+  
+  const selectedMonthRange = getSelectedMonthRange();
+
+  const handleMonthYearSelect = (month, year) => {
+    setSelectedMonth(month);
+    setSelectedYear(year);
+    setShowMonthPicker(false);
+  };
 
   // Fetch practices on mount
   useEffect(() => {
@@ -135,10 +152,10 @@ const Checks = () => {
         params.year = advancedFilters.year;
       }
 
-      // Default to current month if no date filters
+      // Default to selected month if no date filters
       if (!params.startDate && !params.endDate && !params.month && !params.year) {
-        params.startDate = currentMonthRange.startDate;
-        params.endDate = currentMonthRange.endDate;
+        params.month = selectedMonth;
+        params.year = selectedYear;
       }
 
       // Note: Sorting would typically be handled by backend, but for now we'll sort client-side
@@ -192,13 +209,13 @@ const Checks = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedStatus, selectedPractice, searchTerm, advancedFilters, sortField, sortDirection, currentMonthRange]);
+  }, [selectedStatus, selectedPractice, searchTerm, advancedFilters, sortField, sortDirection, selectedMonth, selectedYear]);
 
   // Fetch checks when filters change (reset to page 0)
   useEffect(() => {
     setCurrentPage(0);
     fetchChecks(0);
-  }, [selectedStatus, selectedPractice, searchTerm, advancedFilters, sortField, sortDirection]);
+  }, [selectedStatus, selectedPractice, searchTerm, advancedFilters, sortField, sortDirection, selectedMonth, selectedYear]);
 
   const handleLoadMore = () => {
     if (!loading && hasMore) {
@@ -322,8 +339,9 @@ const Checks = () => {
     if (advancedFilters.startDate && advancedFilters.endDate) {
       return formatDateRange(advancedFilters.startDate, advancedFilters.endDate);
     }
-    return formatDateRange(currentMonthRange.startDate, currentMonthRange.endDate);
+    return formatDateRange(selectedMonthRange.startDate, selectedMonthRange.endDate);
   };
+
 
   const totals = checks.reduce((acc, check) => ({
     totalAmount: acc.totalAmount + (check.totalAmount || 0),
@@ -351,7 +369,25 @@ const Checks = () => {
           <p className="page-subtitle">Manage and reconcile payment checks</p>
         </div>
         <div className="header-actions">
-          <div className="date-range">{getDateRangeDisplay()}</div>
+          <div className="date-range-container">
+            <button 
+              className="date-range-btn"
+              onClick={() => setShowMonthPicker(!showMonthPicker)}
+            >
+              {getDateRangeDisplay()}
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" style={{ marginLeft: '8px' }}>
+                <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+            {showMonthPicker && (
+              <MonthYearPicker
+                selectedMonth={selectedMonth}
+                selectedYear={selectedYear}
+                onSelect={handleMonthYearSelect}
+                onClose={() => setShowMonthPicker(false)}
+              />
+            )}
+          </div>
           <button className="btn-export">
             <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
               <path d="M3 15V17H17V15M10 3V13M10 13L6 9M10 13L14 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>

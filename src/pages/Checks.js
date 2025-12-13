@@ -1,50 +1,343 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { mockChecks } from '../data/mockData';
+import api from '../services/api';
+import AdvancedFilterDrawer from '../components/AdvancedFilterDrawer';
+import { getCurrentMonthRange, formatDateUS, formatDateRange } from '../utils/dateUtils';
 import './Checks.css';
 
 const Checks = () => {
   const navigate = useNavigate();
-  const [checks] = useState(mockChecks);
-  const [selectedStatus, setSelectedStatus] = useState('All Statuses');
-  const [selectedPractice, setSelectedPractice] = useState('All Practices');
+  
+  // State management
+  const [checks, setChecks] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  
+  // Default filters
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('');
+  const [selectedPractice, setSelectedPractice] = useState('');
+  const [practices, setPractices] = useState([]);
+  
+  // Advanced filters
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState({
+    status: '',
+    practiceCode: '',
+    locationCode: '',
+    assigneeId: '',
+    reporterId: '',
+    checkNumber: '',
+    startDate: '',
+    endDate: '',
+    month: null,
+    year: null
+  });
+  
+  // Sorting
+  const [sortField, setSortField] = useState('depositDate');
+  const [sortDirection, setSortDirection] = useState('desc'); // Default: newest first
+  
+  // Bulk actions
+  const [selectedChecks, setSelectedChecks] = useState(new Set());
+  const [showBulkActions, setShowBulkActions] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [bulkAssigneeId, setBulkAssigneeId] = useState('');
+  const [bulkReporterId, setBulkReporterId] = useState('');
+
+  // Get current month range for default filters
+  const currentMonthRange = getCurrentMonthRange();
+
+  // Fetch practices on mount
+  useEffect(() => {
+    fetchPractices();
+  }, []);
+
+  const fetchPractices = async () => {
+    try {
+      const response = await api.getAllPractices();
+      const practicesList = Array.isArray(response) ? response : (response?.items || []);
+      setPractices(practicesList.filter(p => p.isActive !== false));
+    } catch (error) {
+      console.error('Error fetching practices:', error);
+    }
+  };
+
+  const fetchChecks = useCallback(async (page = 0) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      
+      // Build filter parameters
+      const params = {
+        page: page,
+        size: 50
+      };
+
+      // Default filters
+      if (selectedStatus) {
+        params.status = selectedStatus;
+      }
+      
+      if (selectedPractice) {
+        params.practiceCode = selectedPractice;
+      }
+      
+      if (searchTerm) {
+        params.checkNumber = searchTerm;
+      }
+
+      // Advanced filters
+      if (advancedFilters.status) {
+        params.status = advancedFilters.status;
+      }
+      
+      if (advancedFilters.practiceCode) {
+        params.practiceCode = advancedFilters.practiceCode;
+      }
+      
+      if (advancedFilters.locationCode) {
+        params.locationCode = advancedFilters.locationCode;
+      }
+      
+      if (advancedFilters.assigneeId) {
+        params.assigneeId = advancedFilters.assigneeId;
+      }
+      
+      if (advancedFilters.reporterId) {
+        params.reporterId = advancedFilters.reporterId;
+      }
+      
+      if (advancedFilters.checkNumber) {
+        params.checkNumber = advancedFilters.checkNumber;
+      }
+      
+      if (advancedFilters.startDate) {
+        params.startDate = advancedFilters.startDate;
+      }
+      
+      if (advancedFilters.endDate) {
+        params.endDate = advancedFilters.endDate;
+      }
+      
+      if (advancedFilters.month) {
+        params.month = advancedFilters.month;
+      }
+      
+      if (advancedFilters.year) {
+        params.year = advancedFilters.year;
+      }
+
+      // Default to current month if no date filters
+      if (!params.startDate && !params.endDate && !params.month && !params.year) {
+        params.startDate = currentMonthRange.startDate;
+        params.endDate = currentMonthRange.endDate;
+      }
+
+      // Note: Sorting would typically be handled by backend, but for now we'll sort client-side
+      // In a real implementation, you'd add sort params to the API call
+
+      const response = await api.getChecksDashboard(params);
+      
+      let checksList = response.items || [];
+      const totalPages = response.totalPages || 0;
+      const totalElements = response.totalElements || 0;
+      
+      // Client-side sorting (if backend doesn't support it)
+      if (sortField && checksList.length > 0) {
+        checksList = [...checksList].sort((a, b) => {
+          let aVal = a[sortField];
+          let bVal = b[sortField];
+          
+          if (sortField === 'depositDate') {
+            aVal = aVal ? new Date(aVal) : new Date(0);
+            bVal = bVal ? new Date(bVal) : new Date(0);
+          } else if (sortField === 'totalAmount' || sortField === 'postedAmount' || sortField === 'remainingAmount') {
+            aVal = aVal || 0;
+            bVal = bVal || 0;
+          } else {
+            aVal = aVal || '';
+            bVal = bVal || '';
+          }
+          
+          if (sortDirection === 'asc') {
+            return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+          } else {
+            return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
+          }
+        });
+      }
+      
+      if (page === 0) {
+        setChecks(checksList);
+      } else {
+        setChecks(prev => [...prev, ...checksList]);
+      }
+      
+      setTotalPages(totalPages);
+      setTotalElements(totalElements);
+      setHasMore(page < totalPages - 1);
+      setCurrentPage(page);
+      
+    } catch (err) {
+      console.error('Error fetching checks:', err);
+      setError('Failed to load checks. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedStatus, selectedPractice, searchTerm, advancedFilters, sortField, sortDirection, currentMonthRange]);
+
+  // Fetch checks when filters change (reset to page 0)
+  useEffect(() => {
+    setCurrentPage(0);
+    fetchChecks(0);
+  }, [selectedStatus, selectedPractice, searchTerm, advancedFilters, sortField, sortDirection]);
+
+  const handleLoadMore = () => {
+    if (!loading && hasMore) {
+      const nextPage = currentPage + 1;
+      fetchChecks(nextPage);
+    }
+  };
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('desc');
+    }
+  };
+
+  const handleApplyAdvancedFilters = (filters) => {
+    setAdvancedFilters(filters);
+  };
+
+  const handleResetAdvancedFilters = () => {
+    setAdvancedFilters({
+      status: '',
+      practiceCode: '',
+      locationCode: '',
+      assigneeId: '',
+      reporterId: '',
+      checkNumber: '',
+      startDate: '',
+      endDate: '',
+      month: null,
+      year: null
+    });
+  };
+
+  const handleSelectCheck = (checkId) => {
+    setSelectedChecks(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(checkId)) {
+        newSet.delete(checkId);
+      } else {
+        newSet.add(checkId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedChecks.size === checks.length) {
+      setSelectedChecks(new Set());
+    } else {
+      setSelectedChecks(new Set(checks.map(c => c.checkId)));
+    }
+  };
+
+  const handleBulkAssign = async () => {
+    if (selectedChecks.size === 0) return;
+    
+    try {
+      await api.bulkAssignChecks(
+        Array.from(selectedChecks),
+        bulkAssigneeId || null,
+        bulkReporterId || null
+      );
+      
+      // Refresh checks
+      fetchChecks(true);
+      setSelectedChecks(new Set());
+      setShowBulkActions(false);
+      setBulkAssigneeId('');
+      setBulkReporterId('');
+    } catch (error) {
+      console.error('Error bulk assigning checks:', error);
+      alert('Failed to assign checks. Please try again.');
+    }
+  };
+
+  useEffect(() => {
+    if (showBulkActions && users.length === 0) {
+      api.getAllUsers().then(response => {
+        const usersList = Array.isArray(response) ? response : (response?.items || []);
+        setUsers(usersList);
+      }).catch(err => console.error('Error fetching users:', err));
+    }
+  }, [showBulkActions]);
+
+  useEffect(() => {
+    setShowBulkActions(selectedChecks.size > 0);
+  }, [selectedChecks]);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 2
-    }).format(amount);
+    }).format(amount || 0);
   };
 
   const getStatusClass = (status) => {
     const statusMap = {
-      'Complete': 'status-complete',
-      'Under Clarification': 'status-clarification',
-      'In Progress': 'status-progress',
-      'Not Started': 'status-not-started'
+      'COMPLETE': 'status-complete',
+      'UNDER_CLARIFICATION': 'status-clarification',
+      'IN_PROGRESS': 'status-progress',
+      'NOT_STARTED': 'status-not-started'
     };
-    return statusMap[status] || '';
+    return statusMap[status] || 'status-not-started';
+  };
+
+  const formatStatus = (status) => {
+    const statusMap = {
+      'COMPLETE': 'Complete',
+      'UNDER_CLARIFICATION': 'Under Clarification',
+      'IN_PROGRESS': 'In Progress',
+      'NOT_STARTED': 'Not Started'
+    };
+    return statusMap[status] || status;
+  };
+
+  const getDateRangeDisplay = () => {
+    if (advancedFilters.startDate && advancedFilters.endDate) {
+      return formatDateRange(advancedFilters.startDate, advancedFilters.endDate);
+    }
+    return formatDateRange(currentMonthRange.startDate, currentMonthRange.endDate);
   };
 
   const totals = checks.reduce((acc, check) => ({
-    totalAmount: acc.totalAmount + check.totalAmount,
-    posted: acc.posted + check.posted,
-    remaining: acc.remaining + check.remaining
+    totalAmount: acc.totalAmount + (check.totalAmount || 0),
+    posted: acc.posted + (check.postedAmount || 0),
+    remaining: acc.remaining + (check.remainingAmount || 0)
   }), { totalAmount: 0, posted: 0, remaining: 0 });
 
-  const statusCounts = checks.reduce((acc, check) => {
-    acc[check.status] = (acc[check.status] || 0) + 1;
-    return acc;
-  }, {});
-
-  const totalChecks = checks.length;
-  const statusPercentages = {
-    'Complete': ((statusCounts['Complete'] || 0) / totalChecks * 100).toFixed(1),
-    'Under Clarification': ((statusCounts['Under Clarification'] || 0) / totalChecks * 100).toFixed(1),
-    'In Progress': ((statusCounts['In Progress'] || 0) / totalChecks * 100).toFixed(1),
-    'Not Started': ((statusCounts['Not Started'] || 0) / totalChecks * 100).toFixed(1)
+  const SortArrow = ({ field }) => {
+    if (sortField !== field) return null;
+    return (
+      <span className="sort-arrow">
+        {sortDirection === 'asc' ? '↑' : '↓'}
+      </span>
+    );
   };
 
   return (
@@ -58,14 +351,14 @@ const Checks = () => {
           <p className="page-subtitle">Manage and reconcile payment checks</p>
         </div>
         <div className="header-actions">
-          <div className="date-range">Nov 2025 - Nov 2025</div>
+          <div className="date-range">{getDateRangeDisplay()}</div>
           <button className="btn-export">
             <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
               <path d="M3 15V17H17V15M10 3V13M10 13L6 9M10 13L14 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
             Export
           </button>
-          <button className="btn-primary" onClick={() => navigate('/checks/new')}>
+          <button className="btn-primary" onClick={() => navigate('/check-upload')}>
             <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
               <path d="M10 3V17M3 10H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
             </svg>
@@ -93,52 +386,93 @@ const Checks = () => {
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value)}
           >
-            <option>All Statuses</option>
-            <option>Complete</option>
-            <option>Under Clarification</option>
-            <option>In Progress</option>
-            <option>Not Started</option>
+            <option value="">All Statuses</option>
+            <option value="NOT_STARTED">Not Started</option>
+            <option value="IN_PROGRESS">In Progress</option>
+            <option value="UNDER_CLARIFICATION">Under Clarification</option>
+            <option value="COMPLETE">Complete</option>
           </select>
           <select 
             className="filter-select"
             value={selectedPractice}
             onChange={(e) => setSelectedPractice(e.target.value)}
           >
-            <option>All Practices</option>
-            <option>Metro Health Center</option>
-            <option>Family Care Associates</option>
-            <option>Community Medical Group</option>
+            <option value="">All Practices</option>
+            {practices.map(practice => (
+              <option key={practice.practiceId || practice.id} value={practice.code}>
+                {practice.name || practice.code}
+              </option>
+            ))}
           </select>
+          <button 
+            className="btn-advanced-filter"
+            onClick={() => setShowAdvancedFilters(true)}
+          >
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+              <path d="M3 5H17M7 10H17M11 15H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+            Advanced Filters
+          </button>
         </div>
       </div>
 
-      <div className="status-bar">
-        <div className="status-segment" style={{ width: `${statusPercentages['Complete']}%`, backgroundColor: '#10b981' }}>
-          Complete ({statusPercentages['Complete']}%)
+      {showBulkActions && (
+        <div className="bulk-actions-bar">
+          <div className="bulk-actions-info">
+            <span>{selectedChecks.size} check(s) selected</span>
+          </div>
+          <div className="bulk-actions-controls">
+            <select
+              value={bulkAssigneeId}
+              onChange={(e) => setBulkAssigneeId(e.target.value)}
+              className="bulk-select"
+            >
+              <option value="">Select Assignee</option>
+              {users.map(user => (
+                <option key={user.userId || user.id} value={user.userId || user.id}>
+                  {user.firstName && user.lastName 
+                    ? `${user.firstName} ${user.lastName}` 
+                    : user.email || 'Unknown User'}
+                </option>
+              ))}
+            </select>
+            <select
+              value={bulkReporterId}
+              onChange={(e) => setBulkReporterId(e.target.value)}
+              className="bulk-select"
+            >
+              <option value="">Select Reporter</option>
+              {users.map(user => (
+                <option key={user.userId || user.id} value={user.userId || user.id}>
+                  {user.firstName && user.lastName 
+                    ? `${user.firstName} ${user.lastName}` 
+                    : user.email || 'Unknown User'}
+                </option>
+              ))}
+            </select>
+            <button className="btn-bulk-assign" onClick={handleBulkAssign}>
+              Assign
+            </button>
+            <button className="btn-bulk-cancel" onClick={() => setSelectedChecks(new Set())}>
+              Cancel
+            </button>
+          </div>
         </div>
-        <div className="status-segment" style={{ width: `${statusPercentages['Under Clarification']}%`, backgroundColor: '#f59e0b' }}>
-          Under Clarification ({statusPercentages['Under Clarification']}%)
+      )}
+
+      {error && (
+        <div className="error-message">
+          {error}
         </div>
-        <div className="status-segment" style={{ width: `${statusPercentages['In Progress']}%`, backgroundColor: '#3b82f6' }}>
-          In Progress ({statusPercentages['In Progress']}%)
-        </div>
-        <div className="status-segment" style={{ width: `${statusPercentages['Not Started']}%`, backgroundColor: '#6b7280' }}>
-          Not Started ({statusPercentages['Not Started']}%)
-        </div>
-      </div>
+      )}
 
       <div className="table-section">
         <div className="table-header">
-          <h3>{checks.length} Checks</h3>
+          <h3>{totalElements} Checks</h3>
           <div className="table-actions">
             <button className="icon-btn">
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                 <path d="M3 5H17M3 10H17M3 15H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-              </svg>
-            </button>
-            <button className="icon-btn">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path d="M5 5L15 15M15 5L5 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
               </svg>
             </button>
           </div>
@@ -155,63 +489,131 @@ const Checks = () => {
                 <th colSpan="3"></th>
               </tr>
               <tr>
-                <th><input type="checkbox" /></th>
-                <th>Deposit Date</th>
-                <th>Check Number</th>
+                <th>
+                  <input 
+                    type="checkbox" 
+                    checked={selectedChecks.size === checks.length && checks.length > 0}
+                    onChange={handleSelectAll}
+                  />
+                </th>
+                <th 
+                  className="sortable"
+                  onClick={() => handleSort('depositDate')}
+                >
+                  Deposit Date <SortArrow field="depositDate" />
+                </th>
+                <th 
+                  className="sortable"
+                  onClick={() => handleSort('checkNumber')}
+                >
+                  Check Number <SortArrow field="checkNumber" />
+                </th>
                 <th>Payer</th>
                 <th>Batch Description</th>
                 <th>Exchange</th>
-                <th>Total Amount</th>
-                <th>Posted</th>
-                <th>Remaining</th>
+                <th 
+                  className="sortable"
+                  onClick={() => handleSort('totalAmount')}
+                >
+                  Total Amount <SortArrow field="totalAmount" />
+                </th>
+                <th 
+                  className="sortable"
+                  onClick={() => handleSort('postedAmount')}
+                >
+                  Posted <SortArrow field="postedAmount" />
+                </th>
+                <th 
+                  className="sortable"
+                  onClick={() => handleSort('remainingAmount')}
+                >
+                  Remaining <SortArrow field="remainingAmount" />
+                </th>
                 <th>Status</th>
                 <th>Clarifications</th>
                 <th>Unknown</th>
               </tr>
             </thead>
             <tbody>
-              {checks.map((check) => (
-                <tr key={check.id}>
-                  <td><input type="checkbox" /></td>
-                  <td>{check.depositDate}</td>
-                  <td>
-                    <button 
-                      className="link-btn"
-                      onClick={() => navigate(`/checks/${check.id}`)}
-                    >
-                      {check.checkNumber}
-                    </button>
-                  </td>
-                  <td>{check.payer}</td>
-                  <td>{check.batchDescription}</td>
-                  <td>{check.exchange}</td>
-                  <td>{formatCurrency(check.totalAmount)}</td>
-                  <td>{formatCurrency(check.posted)}</td>
-                  <td>{formatCurrency(check.remaining)}</td>
-                  <td>
-                    <span className={`status-badge ${getStatusClass(check.status)}`}>
-                      {check.status}
-                    </span>
-                  </td>
-                  <td>
-                    {check.clarifications > 0 && (
-                      <span className="clarification-count">{check.clarifications}</span>
-                    )}
-                  </td>
-                  <td>
-                    {check.unknown > 0 && (
-                      <span className="unknown-count">{check.unknown}</span>
-                    )}
+              {loading && checks.length === 0 ? (
+                <tr>
+                  <td colSpan="12" style={{ textAlign: 'center', padding: '40px' }}>
+                    Loading checks...
                   </td>
                 </tr>
-              ))}
+              ) : checks.length === 0 ? (
+                <tr>
+                  <td colSpan="12" style={{ textAlign: 'center', padding: '40px' }}>
+                    No checks found
+                  </td>
+                </tr>
+              ) : (
+                checks.map((check) => (
+                  <tr key={check.checkId}>
+                    <td>
+                      <input 
+                        type="checkbox" 
+                        checked={selectedChecks.has(check.checkId)}
+                        onChange={() => handleSelectCheck(check.checkId)}
+                      />
+                    </td>
+                    <td>{check.depositDate ? formatDateUS(check.depositDate) : ''}</td>
+                    <td>
+                      <button 
+                        className="link-btn"
+                        onClick={() => navigate(`/checks/${check.checkId}`)}
+                      >
+                        {check.checkNumber}
+                      </button>
+                    </td>
+                    <td>{check.payer || ''}</td>
+                    <td>{check.batchDescription || ''}</td>
+                    <td>{check.exchange || ''}</td>
+                    <td>{formatCurrency(check.totalAmount)}</td>
+                    <td>{formatCurrency(check.postedAmount)}</td>
+                    <td>{formatCurrency(check.remainingAmount)}</td>
+                    <td>
+                      <span className={`status-badge ${getStatusClass(check.status)}`}>
+                        {formatStatus(check.status)}
+                      </span>
+                    </td>
+                    <td>
+                      {check.underClarification && (
+                        <span className="clarification-count">!</span>
+                      )}
+                    </td>
+                    <td>
+                      {/* Unknown indicator if needed */}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
+
+        {hasMore && (
+          <div className="load-more-section">
+            <button 
+              className="btn-load-more"
+              onClick={handleLoadMore}
+              disabled={loading}
+            >
+              {loading ? 'Loading...' : 'Load More'}
+            </button>
+          </div>
+        )}
       </div>
+
+      <AdvancedFilterDrawer
+        isOpen={showAdvancedFilters}
+        onClose={() => setShowAdvancedFilters(false)}
+        filters={advancedFilters}
+        onApplyFilters={handleApplyAdvancedFilters}
+        onResetFilters={handleResetAdvancedFilters}
+      />
     </div>
   );
 };
 
 export default Checks;
-

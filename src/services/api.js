@@ -453,6 +453,174 @@ class ApiService {
   async checkLocationCodeExists(code) {
     return this.get(`/api/v1/practices/locations/code-exists?code=${encodeURIComponent(code)}`);
   }
+
+  // ==================== Check Management APIs ====================
+
+  /**
+   * Get checks dashboard with filters
+   * GET /api/v1/checks/dashboard
+   * @param {Object} params - Query parameters
+   * @param {string} params.status - Check status
+   * @param {string} params.practiceCode - Practice code
+   * @param {string} params.locationCode - Location code
+   * @param {string} params.assigneeId - Assignee user ID (UUID)
+   * @param {string} params.reporterId - Reporter user ID (UUID)
+   * @param {string} params.checkNumber - Check number
+   * @param {string} params.startDate - Start date (YYYY-MM-DD)
+   * @param {string} params.endDate - End date (YYYY-MM-DD)
+   * @param {number} params.month - Month (1-12)
+   * @param {number} params.year - Year
+   * @param {number} params.page - Page number (default: 0)
+   * @param {number} params.size - Page size (default: 50)
+   */
+  async getChecksDashboard(params = {}) {
+    const queryParams = new URLSearchParams();
+    
+    // Add all non-empty parameters
+    Object.keys(params).forEach(key => {
+      if (params[key] !== null && params[key] !== undefined && params[key] !== '') {
+        queryParams.append(key, params[key]);
+      }
+    });
+
+    const queryString = queryParams.toString();
+    const endpoint = `/api/v1/checks/dashboard${queryString ? `?${queryString}` : ''}`;
+    
+    return this.get(endpoint);
+  }
+
+  /**
+   * Create a new check
+   * POST /api/v1/checks
+   * @param {Object} checkData - Check data
+   */
+  async createCheck(checkData) {
+    return this.post('/api/v1/checks', checkData);
+  }
+
+  /**
+   * Bulk assign checks
+   * POST /api/v1/checks/bulk-actions
+   * @param {Array<string>} checkIds - Array of check IDs (UUIDs)
+   * @param {string} assigneeId - Assignee user ID (UUID)
+   * @param {string} reporterId - Reporter user ID (UUID)
+   */
+  async bulkAssignChecks(checkIds, assigneeId = null, reporterId = null) {
+    const payload = { checkIds };
+    
+    if (assigneeId) {
+      payload.assigneeId = assigneeId;
+    }
+    
+    if (reporterId) {
+      payload.reporterId = reporterId;
+    }
+    
+    return this.post('/api/v1/checks/bulk-actions', payload);
+  }
+
+  /**
+   * Get check by ID
+   * GET /api/v1/checks/{checkId}
+   * @param {string} checkId - Check ID (UUID)
+   */
+  async getCheckById(checkId) {
+    return this.get(`/api/v1/checks/${checkId}`);
+  }
+
+  /**
+   * Update check
+   * PATCH /api/v1/checks/{checkId}
+   * @param {string} checkId - Check ID (UUID)
+   * @param {Object} checkData - Check data to update
+   */
+  async updateCheck(checkId, checkData) {
+    return this.patch(`/api/v1/checks/${checkId}`, checkData);
+  }
+
+  /**
+   * Create batch for a check
+   * POST /api/v1/checks/{checkId}/batches
+   * @param {string} checkId - Check ID (UUID)
+   * @param {Object} batchData - Batch data
+   */
+  async createBatch(checkId, batchData) {
+    return this.post(`/api/v1/checks/${checkId}/batches`, batchData);
+  }
+
+  /**
+   * Update batch
+   * PATCH /api/v1/checks/{checkId}/batches/{batchId}
+   * @param {string} checkId - Check ID (UUID)
+   * @param {string} batchId - Batch ID (UUID)
+   * @param {Object} batchData - Batch data to update
+   */
+  async updateBatch(checkId, batchId, batchData) {
+    return this.patch(`/api/v1/checks/${checkId}/batches/${batchId}`, batchData);
+  }
+
+  // ==================== Clarification Management APIs ====================
+
+  /**
+   * Get clarifications dashboard with filters
+   * GET /api/v1/clarifications/dashboard
+   * @param {Object} params - Query parameters
+   * @param {string} params.status - Clarification status
+   * @param {string} params.assigneeId - Assignee user ID (UUID)
+   * @param {string} params.reporterId - Reporter user ID (UUID)
+   * @param {string} params.checkNumber - Check number
+   * @param {string} params.startDate - Start date (YYYY-MM-DD)
+   * @param {string} params.endDate - End date (YYYY-MM-DD)
+   * @param {number} params.month - Month (1-12)
+   * @param {number} params.year - Year
+   * @param {number} params.page - Page number (default: 0)
+   * @param {number} params.size - Page size (default: 50)
+   */
+  async getClarificationsDashboard(params = {}) {
+    const queryParams = new URLSearchParams();
+    
+    // Add all non-empty parameters
+    Object.keys(params).forEach(key => {
+      if (params[key] !== null && params[key] !== undefined && params[key] !== '') {
+        queryParams.append(key, params[key]);
+      }
+    });
+
+    const queryString = queryParams.toString();
+    const endpoint = `/api/v1/clarifications/dashboard${queryString ? `?${queryString}` : ''}`;
+    
+    return this.get(endpoint);
+  }
+
+  /**
+   * Get all clarifications for a check
+   * GET /api/v1/checks/{checkId}/clarifications
+   * @param {string} checkId - Check ID (UUID)
+   */
+  async getClarifications(checkId) {
+    return this.get(`/api/v1/checks/${checkId}/clarifications`);
+  }
+
+  /**
+   * Create a new clarification
+   * POST /api/v1/checks/{checkId}/clarifications
+   * @param {string} checkId - Check ID (UUID)
+   * @param {Object} clarificationData - Clarification data
+   */
+  async createClarification(checkId, clarificationData) {
+    return this.post(`/api/v1/checks/${checkId}/clarifications`, clarificationData);
+  }
+
+  /**
+   * Update a clarification
+   * PATCH /api/v1/checks/{checkId}/clarifications/{clarificationId}
+   * @param {string} checkId - Check ID (UUID)
+   * @param {string} clarificationId - Clarification ID (UUID)
+   * @param {Object} clarificationData - Clarification data to update (can include newComment)
+   */
+  async updateClarification(checkId, clarificationId, clarificationData) {
+    return this.patch(`/api/v1/checks/${checkId}/clarifications/${clarificationId}`, clarificationData);
+  }
 }
 
 // Export singleton instance

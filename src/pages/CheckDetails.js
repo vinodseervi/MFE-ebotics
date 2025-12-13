@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { formatDateUS, parseDateUS } from '../utils/dateUtils';
+import { MdOutlineHistory } from 'react-icons/md';
+import ActivityDrawer from '../components/ActivityDrawer';
 import './CheckDetails.css';
 
 const CheckDetails = () => {
@@ -24,6 +26,7 @@ const CheckDetails = () => {
   const [isAddingClarification, setIsAddingClarification] = useState(false);
   const [editingClarificationId, setEditingClarificationId] = useState(null);
   const [expandedClarificationId, setExpandedClarificationId] = useState(null);
+  const [showActivityDrawer, setShowActivityDrawer] = useState(false);
   
   // Form data
   const [formData, setFormData] = useState({});
@@ -322,7 +325,8 @@ const CheckDetails = () => {
       'COMPLETE': 'status-complete',
       'UNDER_CLARIFICATION': 'status-clarification',
       'IN_PROGRESS': 'status-progress',
-      'NOT_STARTED': 'status-not-started'
+      'NOT_STARTED': 'status-not-started',
+      'OVER_POSTED': 'status-over-posted'
     };
     return statusMap[status] || 'status-not-started';
   };
@@ -332,7 +336,8 @@ const CheckDetails = () => {
       'COMPLETE': 'Complete',
       'UNDER_CLARIFICATION': 'Under Clarification',
       'IN_PROGRESS': 'In Progress',
-      'NOT_STARTED': 'Not Started'
+      'NOT_STARTED': 'Not Started',
+      'OVER_POSTED': 'Over Posted'
     };
     return statusMap[status] || status;
   };
@@ -352,7 +357,7 @@ const CheckDetails = () => {
   // Skeleton loader
   if (loading) {
     return (
-      <div className="check-details-page">
+      <div className={`check-details-page ${showActivityDrawer ? 'activity-sidebar-open' : ''}`}>
         <div className="skeleton-loader">
           <div className="skeleton-header"></div>
           <div className="skeleton-card">
@@ -367,7 +372,7 @@ const CheckDetails = () => {
 
   if (error || !check) {
     return (
-      <div className="check-details-page">
+      <div className={`check-details-page ${showActivityDrawer ? 'activity-sidebar-open' : ''}`}>
         <div className="error-state">
           <p>{error || 'Check not found'}</p>
           <button className="btn-primary" onClick={() => navigate('/checks')}>
@@ -379,73 +384,39 @@ const CheckDetails = () => {
   }
 
   return (
-    <div className="check-details-page">
+    <div className={`check-details-page ${showActivityDrawer ? 'activity-sidebar-open' : ''}`}>
       {/* Header */}
       <div className="page-header">
         <div className="header-left">
-          <button className="back-btn" onClick={() => navigate('/checks')}>
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            Back
-          </button>
-          <div className="header-title-section">
+          <div className="header-top-row">
+            <button className="back-btn" onClick={() => navigate('/checks')}>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Back
+            </button>
             <div className="title-row">
-              <h1 className="page-title">{check.checkNumber}</h1>
+              <h1 className="page-title">Check Details</h1>
               <span className={`status-badge-large ${getStatusClass(check.status)}`}>
                 {formatStatus(check.status)}
               </span>
             </div>
-            <div className="metadata">
-              <span>Payer: {check.payer || 'N/A'}</span>
-              <span>Practice: {check.practiceCode || 'N/A'}</span>
-              <span>Location: {check.locationCode || 'N/A'}</span>
-            </div>
+          </div>
+          <div className="metadata">
+            <span>Payer: {check.payer || 'N/A'}</span>
+            <span>Practice: {check.practiceCode || 'N/A'}</span>
+            <span>Location: {check.locationCode || 'N/A'}</span>
           </div>
         </div>
         <div className="header-right">
-          <div className="nav-controls">
-            <button 
-              className="nav-arrow" 
-              onClick={() => navigate(`/checks/${check.checkId}`)}
-              title="Previous Check"
-            >
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-            <button 
-              className="nav-arrow"
-              onClick={() => navigate(`/checks/${check.checkId}`)}
-              title="Next Check"
-            >
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path d="M7.5 5L12.5 10L7.5 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-          </div>
-          {!isEditMode ? (
-            <button className="btn-primary" onClick={() => setIsEditMode(true)}>
-              <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-                <path d="M11 3H5C4.46957 3 3.96086 3.21071 3.58579 3.58579C3.21071 3.96086 3 4.46957 3 5V15C3 15.5304 3.21071 16.0391 3.58579 16.4142C3.96086 16.7893 4.46957 17 5 17H15C15.5304 17 16.0391 16.7893 16.4142 16.4142C16.7893 16.0391 17 15.5304 17 15V9" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                <path d="M14.5 1.5L18.5 5.5L11 13H7V9L14.5 1.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              Edit
-            </button>
-          ) : (
-            <div className="edit-actions-header">
-              <button className="btn-cancel" onClick={handleCancel}>
-                Cancel
-              </button>
-              <button className="btn-save" onClick={handleSave}>
-                <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-                  <path d="M17 3H3C2.44772 3 2 3.44772 2 4V16C2 16.5523 2.44772 17 3 17H17C17.5523 17 18 16.5523 18 16V4C18 3.44772 17.5523 3 17 3Z" stroke="currentColor" strokeWidth="2"/>
-                  <path d="M6 9L9 12L14 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                Save
-              </button>
-            </div>
-          )}
+          <button 
+            className="activity-btn" 
+            onClick={() => setShowActivityDrawer(true)}
+            title="View Activity History"
+          >
+            <MdOutlineHistory size={20} />
+            <span>Activity</span>
+          </button>
         </div>
       </div>
 
@@ -453,6 +424,14 @@ const CheckDetails = () => {
       <div className="financial-summary-card">
         <h3 className="card-title">Financial Summary</h3>
         <div className="financial-grid">
+          <div className="financial-item">
+            <span className="financial-label">Check Number</span>
+            <span className="financial-value">{check.checkNumber || 'N/A'}</span>
+          </div>
+          <div className="financial-item">
+            <span className="financial-label">Deposit Date</span>
+            <span className="financial-value">{check.depositDate ? formatDateUS(check.depositDate) : 'N/A'}</span>
+          </div>
           <div className="financial-item">
             <span className="financial-label">Total Amount</span>
             <span className="financial-value primary">{formatCurrency(check.totalAmount)}</span>
@@ -467,30 +446,6 @@ const CheckDetails = () => {
               {formatCurrency(check.remainingAmount)}
             </span>
           </div>
-          <div className="financial-item">
-            <span className="financial-label">Interest Amount</span>
-            <span className="financial-value">{formatCurrency(check.interestAmount)}</span>
-          </div>
-          <div className="financial-item">
-            <span className="financial-label">Non-AR Amount</span>
-            <span className="financial-value">{formatCurrency(check.nonArAmount)}</span>
-          </div>
-          <div className="financial-item">
-            <span className="financial-label">Medical Records Fee</span>
-            <span className="financial-value">{formatCurrency(check.medicalRecordsFee)}</span>
-          </div>
-          <div className="financial-item">
-            <span className="financial-label">Corrections Amount</span>
-            <span className="financial-value">{formatCurrency(check.correctionsAmount)}</span>
-          </div>
-        </div>
-        <div className="financial-indicators">
-          {check.overPosted && (
-            <span className="indicator-badge warning">Over Posted</span>
-          )}
-          {check.underClarification && (
-            <span className="indicator-badge info">Under Clarification</span>
-          )}
         </div>
       </div>
 
@@ -521,12 +476,32 @@ const CheckDetails = () => {
         {activeTab === 'overview' && (
           <div className="tab-content">
             <div className="details-card">
-              <h3 className="card-title">Check Information</h3>
+              <div className="card-header-with-action">
+                <h3 className="card-title">Check Information</h3>
+                {!isEditMode ? (
+                  <button className="btn-primary" onClick={() => setIsEditMode(true)}>
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                      <path d="M11 3H5C4.46957 3 3.96086 3.21071 3.58579 3.58579C3.21071 3.96086 3 4.46957 3 5V15C3 15.5304 3.21071 16.0391 3.58579 16.4142C3.96086 16.7893 4.46957 17 5 17H15C15.5304 17 16.0391 16.7893 16.4142 16.4142C16.7893 16.0391 17 15.5304 17 15V9" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                      <path d="M14.5 1.5L18.5 5.5L11 13H7V9L14.5 1.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    Edit
+                  </button>
+                ) : (
+                  <div className="edit-actions-header">
+                    <button className="btn-cancel" onClick={handleCancel}>
+                      Cancel
+                    </button>
+                    <button className="btn-save" onClick={handleSave}>
+                      <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                        <path d="M17 3H3C2.44772 3 2 3.44772 2 4V16C2 16.5523 2.44772 17 3 17H17C17.5523 17 18 16.5523 18 16V4C18 3.44772 17.5523 3 17 3Z" stroke="currentColor" strokeWidth="2"/>
+                        <path d="M6 9L9 12L14 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      Save
+                    </button>
+                  </div>
+                )}
+              </div>
               <div className="form-grid">
-                <div className="form-group">
-                  <label>Check Number</label>
-                  <input type="text" value={check.checkNumber || ''} disabled />
-                </div>
                 <div className="form-group">
                   <label>Alt. Check Number</label>
                   <input 
@@ -534,14 +509,6 @@ const CheckDetails = () => {
                     value={formData.altCheckNumber || ''}
                     onChange={(e) => handleFormChange('altCheckNumber', e.target.value)}
                     disabled={!isEditMode}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Deposit Date</label>
-                  <input 
-                    type="text" 
-                    value={check.depositDate ? formatDateUS(check.depositDate) : ''} 
-                    disabled 
                   />
                 </div>
                 <div className="form-group">
@@ -651,6 +618,29 @@ const CheckDetails = () => {
                     disabled={!isEditMode}
                     rows="4"
                   />
+                </div>
+              </div>
+            </div>
+
+            {/* Advanced Financial Parameters */}
+            <div className="details-card">
+              <h3 className="card-title">Advanced Financial Parameters</h3>
+              <div className="form-grid">
+                <div className="form-group">
+                  <label>Interest Amount</label>
+                  <input type="text" value={formatCurrency(check.interestAmount)} disabled />
+                </div>
+                <div className="form-group">
+                  <label>Non-AR Amount</label>
+                  <input type="text" value={formatCurrency(check.nonArAmount)} disabled />
+                </div>
+                <div className="form-group">
+                  <label>Medical Records Fee</label>
+                  <input type="text" value={formatCurrency(check.medicalRecordsFee)} disabled />
+                </div>
+                <div className="form-group">
+                  <label>Corrections Amount</label>
+                  <input type="text" value={formatCurrency(check.correctionsAmount)} disabled />
                 </div>
               </div>
             </div>
@@ -1112,6 +1102,13 @@ const CheckDetails = () => {
           </div>
         )}
       </div>
+
+      {/* Activity Drawer */}
+      <ActivityDrawer
+        isOpen={showActivityDrawer}
+        onClose={() => setShowActivityDrawer(false)}
+        checkId={check?.checkId}
+      />
     </div>
   );
 };

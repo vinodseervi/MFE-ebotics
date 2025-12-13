@@ -114,6 +114,18 @@ export const formatDateRange = (startDate, endDate) => {
 };
 
 /**
+ * Format month and year for display (e.g., "Dec 2025")
+ * @param {number} month - Month (1-12)
+ * @param {number} year - Year
+ * @returns {string} Formatted month year
+ */
+export const formatMonthYear = (month, year) => {
+  if (!month || !year) return '';
+  const date = new Date(year, month - 1, 1);
+  return date.toLocaleString('en-US', { month: 'short', year: 'numeric' });
+};
+
+/**
  * Format date time for display (MM/DD/YYYY HH:MM AM/PM)
  * @param {string|Date} dateTime - Date time string or Date object
  * @returns {string} Formatted date time

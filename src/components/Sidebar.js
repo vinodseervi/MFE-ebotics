@@ -32,6 +32,11 @@ const Sidebar = ({ showAdminSubmenu, onAdminClick, isCollapsed, onToggleCollapse
     if (path === '/admin') {
       return location.pathname.startsWith('/admin');
     }
+    // Highlight Checks when on /checks, /checks/new, or /checks/:id
+    if (path === '/checks') {
+      return location.pathname === '/checks' || 
+             location.pathname.startsWith('/checks/');
+    }
     return location.pathname === path;
   };
 

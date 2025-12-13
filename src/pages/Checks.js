@@ -1,9 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import AdvancedFilterDrawer from '../components/AdvancedFilterDrawer';
 import MonthYearPicker from '../components/MonthYearPicker';
-import { getCurrentMonthRange, formatDateUS, formatDateRange, getMonthRange, getCurrentMonthYear } from '../utils/dateUtils';
+import SearchableDropdown from '../components/SearchableDropdown';
+import ColumnSelector from '../components/ColumnSelector';
+import Tooltip from '../components/Tooltip';
+import { getCurrentMonthRange, formatDateUS, formatDateRange, getMonthRange, getCurrentMonthYear, formatMonthYear } from '../utils/dateUtils';
 import './Checks.css';
 
 const Checks = () => {
@@ -11,6 +14,7 @@ const Checks = () => {
   
   // State management
   const [checks, setChecks] = useState([]);
+  const [allChecks, setAllChecks] = useState([]); // Store all fetched checks before filtering
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
@@ -51,6 +55,45 @@ const Checks = () => {
   const [users, setUsers] = useState([]);
   const [bulkAssigneeId, setBulkAssigneeId] = useState('');
   const [bulkReporterId, setBulkReporterId] = useState('');
+
+  // Column selector
+  const [showColumnSelector, setShowColumnSelector] = useState(false);
+  const columnSelectorTriggerRef = useRef(null);
+  
+  // Available columns - defined as constant array
+  const allColumns = [
+    { key: 'checkbox', label: 'Select', alwaysVisible: true },
+    { key: 'depositDate', label: 'Deposit Date' },
+    { key: 'checkNumber', label: 'Check Number' },
+    { key: 'altCheckNumber', label: 'Alt. Check Number' },
+    { key: 'payer', label: 'Payer' },
+    { key: 'batchDescription', label: 'Batch Description' },
+    { key: 'exchange', label: 'Exchange' },
+    { key: 'checkType', label: 'Check Type' },
+    { key: 'practiceCode', label: 'Practice Code' },
+    { key: 'locationCode', label: 'Location Code' },
+    { key: 'totalAmount', label: 'Total Amount' },
+    { key: 'postedAmount', label: 'Posted' },
+    { key: 'remainingAmount', label: 'Remaining' },
+    { key: 'status', label: 'Status' }
+  ];
+
+  // Initialize visible columns with default columns (excluding new optional columns)
+  const [visibleColumns, setVisibleColumns] = useState(() => {
+    // Default visible columns (exclude altCheckNumber, checkType, practiceCode, locationCode)
+    const defaultColumns = [
+      'depositDate',
+      'checkNumber',
+      'payer',
+      'batchDescription',
+      'exchange',
+      'totalAmount',
+      'postedAmount',
+      'remainingAmount',
+      'status'
+    ];
+    return defaultColumns;
+  });
 
   // Month/Year selection
   const currentMonthYear = getCurrentMonthYear();
@@ -107,9 +150,8 @@ const Checks = () => {
         params.practiceCode = selectedPractice;
       }
       
-      if (searchTerm) {
-        params.checkNumber = searchTerm;
-      }
+      // Note: searchTerm will be handled client-side for multiple fields
+      // Don't send searchTerm to API as checkNumber anymore
 
       // Advanced filters
       if (advancedFilters.status) {
@@ -192,11 +234,8 @@ const Checks = () => {
         });
       }
       
-      if (page === 0) {
-        setChecks(checksList);
-      } else {
-        setChecks(prev => [...prev, ...checksList]);
-      }
+      // Store all fetched checks
+      setAllChecks(checksList);
       
       setTotalPages(totalPages);
       setTotalElements(totalElements);
@@ -209,13 +248,17 @@ const Checks = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedStatus, selectedPractice, searchTerm, advancedFilters, sortField, sortDirection, selectedMonth, selectedYear]);
+  }, [currentPage, selectedStatus, selectedPractice, advancedFilters, sortField, sortDirection, selectedMonth, selectedYear]);
 
   // Fetch checks when filters change (reset to page 0)
   useEffect(() => {
     setCurrentPage(0);
-    fetchChecks(0);
-  }, [selectedStatus, selectedPractice, searchTerm, advancedFilters, sortField, sortDirection, selectedMonth, selectedYear]);
+  }, [selectedStatus, selectedPractice, advancedFilters, sortField, sortDirection, selectedMonth, selectedYear]);
+
+  // Fetch checks when page or filters change (excluding searchTerm - handled client-side)
+  useEffect(() => {
+    fetchChecks(currentPage);
+  }, [currentPage, selectedStatus, selectedPractice, advancedFilters, sortField, sortDirection, selectedMonth, selectedYear]);
 
   const handleLoadMore = () => {
     if (!loading && hasMore) {
@@ -223,6 +266,61 @@ const Checks = () => {
       fetchChecks(nextPage);
     }
   };
+
+  const handlePreviousPage = () => {
+    if (currentPage > 0 && !loading) {
+      setCurrentPage(prev => prev - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (hasMore && !loading) {
+      setCurrentPage(prev => prev + 1);
+    }
+  };
+
+  // Calculate pagination display values
+  const pageSize = 50;
+  // If search is active, show filtered results count, otherwise show total from API
+  const displayTotal = searchTerm ? checks.length : totalElements;
+  const startIndex = searchTerm ? 1 : (currentPage * pageSize + 1);
+  const endIndex = searchTerm ? checks.length : Math.min((currentPage + 1) * pageSize, totalElements);
+
+  // Client-side filtering for search term (check number, payer, amount)
+  useEffect(() => {
+    if (!searchTerm) {
+      setChecks(allChecks);
+      return;
+    }
+
+    const searchLower = searchTerm.toLowerCase().trim();
+    const filtered = allChecks.filter(check => {
+      // Search by check number
+      if (check.checkNumber && check.checkNumber.toLowerCase().includes(searchLower)) {
+        return true;
+      }
+      
+      // Search by payer
+      if (check.payer && check.payer.toLowerCase().includes(searchLower)) {
+        return true;
+      }
+      
+      // Search by amount (totalAmount, postedAmount, remainingAmount)
+      const totalAmount = String(check.totalAmount || '');
+      const postedAmount = String(check.postedAmount || '');
+      const remainingAmount = String(check.remainingAmount || '');
+      
+      if (totalAmount.includes(searchLower) || 
+          postedAmount.includes(searchLower) || 
+          remainingAmount.includes(searchLower)) {
+        return true;
+      }
+      
+      return false;
+    });
+
+    setChecks(filtered);
+  }, [searchTerm, allChecks]);
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -250,6 +348,17 @@ const Checks = () => {
       month: null,
       year: null
     });
+  };
+
+  const handleClearAllFilters = () => {
+    // Reset advanced filters
+    handleResetAdvancedFilters();
+    // Reset basic filters
+    setSelectedStatus('');
+    setSelectedPractice('');
+    setSearchTerm('');
+    // Close advanced filter drawer
+    setShowAdvancedFilters(false);
   };
 
   const handleSelectCheck = (checkId) => {
@@ -315,6 +424,26 @@ const Checks = () => {
     }).format(amount || 0);
   };
 
+  // Truncate text and show tooltip on hover
+  const TruncatedText = ({ text, maxLength = 15 }) => {
+    if (!text) return <span></span>;
+    
+    const shouldTruncate = text.length > maxLength;
+    const displayText = shouldTruncate ? text.substring(0, maxLength) + '...' : text;
+    
+    if (shouldTruncate) {
+      return (
+        <Tooltip text={text} position="bottom">
+          <span className="truncated-text">
+            {displayText}
+          </span>
+        </Tooltip>
+      );
+    }
+    
+    return <span>{displayText}</span>;
+  };
+
   const getStatusClass = (status) => {
     const statusMap = {
       'COMPLETE': 'status-complete',
@@ -323,6 +452,14 @@ const Checks = () => {
       'NOT_STARTED': 'status-not-started'
     };
     return statusMap[status] || 'status-not-started';
+  };
+
+  const formatCheckType = (checkType) => {
+    if (!checkType) return '';
+    return checkType
+      .split('_')
+      .map(word => word.charAt(0) + word.slice(1).toLowerCase())
+      .join(' ');
   };
 
   const formatStatus = (status) => {
@@ -335,11 +472,35 @@ const Checks = () => {
     return statusMap[status] || status;
   };
 
+  // Check if any advanced filter is active
+  const hasAdvancedFilters = () => {
+    return !!(
+      advancedFilters.status ||
+      advancedFilters.practiceCode ||
+      advancedFilters.locationCode ||
+      advancedFilters.assigneeId ||
+      advancedFilters.reporterId ||
+      advancedFilters.checkNumber ||
+      advancedFilters.startDate ||
+      advancedFilters.endDate ||
+      advancedFilters.month ||
+      advancedFilters.year
+    );
+  };
+
   const getDateRangeDisplay = () => {
-    if (advancedFilters.startDate && advancedFilters.endDate) {
-      return formatDateRange(advancedFilters.startDate, advancedFilters.endDate);
+    // If advanced filters are active, don't show month/year picker
+    if (hasAdvancedFilters()) {
+      if (advancedFilters.startDate && advancedFilters.endDate) {
+        return formatDateRange(advancedFilters.startDate, advancedFilters.endDate);
+      }
+      if (advancedFilters.month && advancedFilters.year) {
+        return formatMonthYear(advancedFilters.month, advancedFilters.year);
+      }
+      return 'Custom Range';
     }
-    return formatDateRange(selectedMonthRange.startDate, selectedMonthRange.endDate);
+    // Show month/year format instead of date range
+    return formatMonthYear(selectedMonth, selectedYear);
   };
 
 
@@ -361,33 +522,39 @@ const Checks = () => {
   return (
     <div className="checks-page">
       <div className="page-header">
-        <div>
-          <h1 className="page-title">
-            Checks
-            <span className="info-icon">⚠️</span>
-          </h1>
+        <div className="page-header-content">
+          <h1 className="page-title">Checks</h1>
           <p className="page-subtitle">Manage and reconcile payment checks</p>
         </div>
         <div className="header-actions">
-          <div className="date-range-container">
-            <button 
-              className="date-range-btn"
-              onClick={() => setShowMonthPicker(!showMonthPicker)}
-            >
-              {getDateRangeDisplay()}
-              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" style={{ marginLeft: '8px' }}>
-                <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-            {showMonthPicker && (
-              <MonthYearPicker
-                selectedMonth={selectedMonth}
-                selectedYear={selectedYear}
-                onSelect={handleMonthYearSelect}
-                onClose={() => setShowMonthPicker(false)}
-              />
-            )}
-          </div>
+          {!hasAdvancedFilters() && (
+            <div className="date-range-container">
+              <button 
+                className="date-range-btn"
+                onClick={() => setShowMonthPicker(!showMonthPicker)}
+              >
+                {getDateRangeDisplay()}
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="none" style={{ marginLeft: '8px' }}>
+                  <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+              {showMonthPicker && (
+                <MonthYearPicker
+                  selectedMonth={selectedMonth}
+                  selectedYear={selectedYear}
+                  onSelect={handleMonthYearSelect}
+                  onClose={() => setShowMonthPicker(false)}
+                />
+              )}
+            </div>
+          )}
+          {hasAdvancedFilters() && (
+            <div className="date-range-container">
+              <div className="date-range-display">
+                {getDateRangeDisplay()}
+              </div>
+            </div>
+          )}
           <button className="btn-primary" onClick={() => navigate('/checks/new')}>
             <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
               <path d="M10 3V17M3 10H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
@@ -405,37 +572,38 @@ const Checks = () => {
           </svg>
           <input
             type="text"
-            placeholder="Search checks..."
+            placeholder="Search by check number, payer, amount..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         <div className="filter-dropdowns">
-          <select 
-            className="filter-select"
+          <SearchableDropdown
+            options={[
+              { value: '', label: 'All Statuses' },
+              { value: 'NOT_STARTED', label: 'Not Started' },
+              { value: 'IN_PROGRESS', label: 'In Progress' },
+              { value: 'UNDER_CLARIFICATION', label: 'Under Clarification' },
+              { value: 'COMPLETE', label: 'Complete' }
+            ]}
             value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-          >
-            <option value="">All Statuses</option>
-            <option value="NOT_STARTED">Not Started</option>
-            <option value="IN_PROGRESS">In Progress</option>
-            <option value="UNDER_CLARIFICATION">Under Clarification</option>
-            <option value="COMPLETE">Complete</option>
-          </select>
-          <select 
-            className="filter-select"
+            onChange={(value) => setSelectedStatus(value)}
+            placeholder="All Statuses"
+          />
+          <SearchableDropdown
+            options={[
+              { value: '', label: 'All Practices' },
+              ...practices.map(practice => ({
+                value: practice.code,
+                label: practice.name || practice.code
+              }))
+            ]}
             value={selectedPractice}
-            onChange={(e) => setSelectedPractice(e.target.value)}
-          >
-            <option value="">All Practices</option>
-            {practices.map(practice => (
-              <option key={practice.practiceId || practice.id} value={practice.code}>
-                {practice.name || practice.code}
-              </option>
-            ))}
-          </select>
+            onChange={(value) => setSelectedPractice(value)}
+            placeholder="All Practices"
+          />
           <button 
-            className="btn-advanced-filter"
+            className={`btn-advanced-filter ${hasAdvancedFilters() ? 'active' : ''}`}
             onClick={() => setShowAdvancedFilters(true)}
           >
             <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
@@ -446,40 +614,204 @@ const Checks = () => {
         </div>
       </div>
 
+      {/* Active Filters Indicator */}
+      {(hasAdvancedFilters() || selectedStatus || selectedPractice || searchTerm) && (
+        <div className="active-filters-section">
+          <div className="active-filters-label">Active Filters:</div>
+          <div className="active-filters-chips">
+            {searchTerm && (
+              <div className="filter-chip">
+                <span>Search: {searchTerm}</span>
+                <button
+                  className="chip-close-btn"
+                  onClick={() => setSearchTerm('')}
+                  title="Remove search filter"
+                >
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                    <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            )}
+            {selectedStatus && (
+              <div className="filter-chip">
+                <span>Status: {[
+                  { value: 'NOT_STARTED', label: 'Not Started' },
+                  { value: 'IN_PROGRESS', label: 'In Progress' },
+                  { value: 'UNDER_CLARIFICATION', label: 'Under Clarification' },
+                  { value: 'COMPLETE', label: 'Complete' }
+                ].find(s => s.value === selectedStatus)?.label || selectedStatus}</span>
+                <button
+                  className="chip-close-btn"
+                  onClick={() => setSelectedStatus('')}
+                  title="Remove status filter"
+                >
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                    <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            )}
+            {selectedPractice && (
+              <div className="filter-chip">
+                <span>Practice: {practices.find(p => p.code === selectedPractice)?.name || selectedPractice}</span>
+                <button
+                  className="chip-close-btn"
+                  onClick={() => setSelectedPractice('')}
+                  title="Remove practice filter"
+                >
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                    <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            )}
+            {advancedFilters.status && (
+              <div className="filter-chip">
+                <span>Status: {[
+                  { value: 'NOT_STARTED', label: 'Not Started' },
+                  { value: 'IN_PROGRESS', label: 'In Progress' },
+                  { value: 'UNDER_CLARIFICATION', label: 'Under Clarification' },
+                  { value: 'COMPLETE', label: 'Complete' }
+                ].find(s => s.value === advancedFilters.status)?.label || advancedFilters.status}</span>
+                <button
+                  className="chip-close-btn"
+                  onClick={() => {
+                    setAdvancedFilters(prev => ({ ...prev, status: '' }));
+                  }}
+                  title="Remove status filter"
+                >
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                    <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            )}
+            {advancedFilters.practiceCode && (
+              <div className="filter-chip">
+                <span>Practice: {practices.find(p => p.code === advancedFilters.practiceCode)?.name || advancedFilters.practiceCode}</span>
+                <button
+                  className="chip-close-btn"
+                  onClick={() => {
+                    setAdvancedFilters(prev => ({ ...prev, practiceCode: '', locationCode: '' }));
+                  }}
+                  title="Remove practice filter"
+                >
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                    <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            )}
+            {advancedFilters.locationCode && (
+              <div className="filter-chip">
+                <span>Location: {advancedFilters.locationCode}</span>
+                <button
+                  className="chip-close-btn"
+                  onClick={() => {
+                    setAdvancedFilters(prev => ({ ...prev, locationCode: '' }));
+                  }}
+                  title="Remove location filter"
+                >
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                    <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            )}
+            {advancedFilters.checkNumber && (
+              <div className="filter-chip">
+                <span>Check: {advancedFilters.checkNumber}</span>
+                <button
+                  className="chip-close-btn"
+                  onClick={() => {
+                    setAdvancedFilters(prev => ({ ...prev, checkNumber: '' }));
+                  }}
+                  title="Remove check number filter"
+                >
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                    <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            )}
+            {(advancedFilters.startDate || advancedFilters.endDate) && (
+              <div className="filter-chip">
+                <span>Date Range: {formatDateRange(advancedFilters.startDate || '', advancedFilters.endDate || '')}</span>
+                <button
+                  className="chip-close-btn"
+                  onClick={() => {
+                    setAdvancedFilters(prev => ({ ...prev, startDate: '', endDate: '' }));
+                  }}
+                  title="Remove date range filter"
+                >
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                    <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            )}
+            {(advancedFilters.month || advancedFilters.year) && (
+              <div className="filter-chip">
+                <span>Period: {formatMonthYear(advancedFilters.month || selectedMonth, advancedFilters.year || selectedYear)}</span>
+                <button
+                  className="chip-close-btn"
+                  onClick={() => {
+                    setAdvancedFilters(prev => ({ ...prev, month: null, year: null }));
+                  }}
+                  title="Remove period filter"
+                >
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                    <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            )}
+            <button
+              className="clear-all-filters-btn"
+              onClick={handleClearAllFilters}
+              title="Clear all filters"
+            >
+              Clear All
+            </button>
+          </div>
+        </div>
+      )}
+
       {showBulkActions && (
         <div className="bulk-actions-bar">
           <div className="bulk-actions-info">
             <span>{selectedChecks.size} check(s) selected</span>
           </div>
           <div className="bulk-actions-controls">
-            <select
+            <SearchableDropdown
+              options={[
+                { value: '', label: 'Select Assignee' },
+                ...users.map(user => ({
+                  value: user.userId || user.id,
+                  label: user.firstName && user.lastName 
+                    ? `${user.firstName} ${user.lastName}` 
+                    : user.email || 'Unknown User'
+                }))
+              ]}
               value={bulkAssigneeId}
-              onChange={(e) => setBulkAssigneeId(e.target.value)}
-              className="bulk-select"
-            >
-              <option value="">Select Assignee</option>
-              {users.map(user => (
-                <option key={user.userId || user.id} value={user.userId || user.id}>
-                  {user.firstName && user.lastName 
+              onChange={(value) => setBulkAssigneeId(value)}
+              placeholder="Select Assignee"
+            />
+            <SearchableDropdown
+              options={[
+                { value: '', label: 'Select Reporter' },
+                ...users.map(user => ({
+                  value: user.userId || user.id,
+                  label: user.firstName && user.lastName 
                     ? `${user.firstName} ${user.lastName}` 
-                    : user.email || 'Unknown User'}
-                </option>
-              ))}
-            </select>
-            <select
+                    : user.email || 'Unknown User'
+                }))
+              ]}
               value={bulkReporterId}
-              onChange={(e) => setBulkReporterId(e.target.value)}
-              className="bulk-select"
-            >
-              <option value="">Select Reporter</option>
-              {users.map(user => (
-                <option key={user.userId || user.id} value={user.userId || user.id}>
-                  {user.firstName && user.lastName 
-                    ? `${user.firstName} ${user.lastName}` 
-                    : user.email || 'Unknown User'}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => setBulkReporterId(value)}
+              placeholder="Select Reporter"
+            />
             <button className="btn-bulk-assign" onClick={handleBulkAssign}>
               Assign
             </button>
@@ -498,9 +830,41 @@ const Checks = () => {
 
       <div className="table-section">
         <div className="table-header">
-          <h3>{totalElements} Checks</h3>
+          <div className="table-header-left">
+            {totalElements > 0 && (
+              <div className="pagination-info">
+                <button
+                  className="pagination-arrow"
+                  onClick={handlePreviousPage}
+                  disabled={currentPage === 0 || loading}
+                  title="Previous page"
+                >
+                  <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                    <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+                <span className="pagination-text">
+                  {startIndex} - {endIndex}, of {displayTotal}
+                </span>
+                <button
+                  className="pagination-arrow"
+                  onClick={handleNextPage}
+                  disabled={!hasMore || loading}
+                  title="Next page"
+                >
+                  <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                    <path d="M7.5 5L12.5 10L7.5 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            )}
+          </div>
           <div className="table-actions">
-            <button className="icon-btn">
+            <button 
+              ref={columnSelectorTriggerRef}
+              className="icon-btn"
+              onClick={() => setShowColumnSelector(!showColumnSelector)}
+            >
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                 <path d="M3 5H17M3 10H17M3 15H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
               </svg>
@@ -512,11 +876,19 @@ const Checks = () => {
           <table className="checks-table">
             <thead>
               <tr className="totals-row">
-                <th colSpan="6">Totals:</th>
-                <th>{formatCurrency(totals.totalAmount)}</th>
-                <th>{formatCurrency(totals.posted)}</th>
-                <th>{formatCurrency(totals.remaining)}</th>
-                <th colSpan="3"></th>
+                <th>Totals:</th>
+                {visibleColumns.map(colKey => {
+                  switch (colKey) {
+                    case 'totalAmount':
+                      return <th key={colKey}>{formatCurrency(totals.totalAmount)}</th>;
+                    case 'postedAmount':
+                      return <th key={colKey}>{formatCurrency(totals.posted)}</th>;
+                    case 'remainingAmount':
+                      return <th key={colKey}>{formatCurrency(totals.remaining)}</th>;
+                    default:
+                      return <th key={colKey}></th>;
+                  }
+                })}
               </tr>
               <tr>
                 <th>
@@ -526,54 +898,93 @@ const Checks = () => {
                     onChange={handleSelectAll}
                   />
                 </th>
-                <th 
-                  className="sortable"
-                  onClick={() => handleSort('depositDate')}
-                >
-                  Deposit Date <SortArrow field="depositDate" />
-                </th>
-                <th 
-                  className="sortable"
-                  onClick={() => handleSort('checkNumber')}
-                >
-                  Check Number <SortArrow field="checkNumber" />
-                </th>
-                <th>Payer</th>
-                <th>Batch Description</th>
-                <th>Exchange</th>
-                <th 
-                  className="sortable"
-                  onClick={() => handleSort('totalAmount')}
-                >
-                  Total Amount <SortArrow field="totalAmount" />
-                </th>
-                <th 
-                  className="sortable"
-                  onClick={() => handleSort('postedAmount')}
-                >
-                  Posted <SortArrow field="postedAmount" />
-                </th>
-                <th 
-                  className="sortable"
-                  onClick={() => handleSort('remainingAmount')}
-                >
-                  Remaining <SortArrow field="remainingAmount" />
-                </th>
-                <th>Status</th>
-                <th>Clarifications</th>
-                <th>Unknown</th>
+                {visibleColumns.map(colKey => {
+                  const column = allColumns.find(col => col.key === colKey);
+                  if (!column) return null;
+
+                  switch (colKey) {
+                    case 'depositDate':
+                      return (
+                        <th 
+                          key={colKey}
+                          className="sortable"
+                          onClick={() => handleSort('depositDate')}
+                        >
+                          Deposit Date <SortArrow field="depositDate" />
+                        </th>
+                      );
+                    case 'checkNumber':
+                      return (
+                        <th 
+                          key={colKey}
+                          className="sortable"
+                          onClick={() => handleSort('checkNumber')}
+                        >
+                          Check Number <SortArrow field="checkNumber" />
+                        </th>
+                      );
+                    case 'altCheckNumber':
+                      return <th key={colKey}>Alt. Check Number</th>;
+                    case 'payer':
+                      return <th key={colKey}>Payer</th>;
+                    case 'batchDescription':
+                      return <th key={colKey}>Batch Description</th>;
+                    case 'exchange':
+                      return <th key={colKey}>Exchange</th>;
+                    case 'checkType':
+                      return <th key={colKey}>Check Type</th>;
+                    case 'practiceCode':
+                      return <th key={colKey}>Practice Code</th>;
+                    case 'locationCode':
+                      return <th key={colKey}>Location Code</th>;
+                    case 'totalAmount':
+                      return (
+                        <th 
+                          key={colKey}
+                          className="sortable"
+                          onClick={() => handleSort('totalAmount')}
+                        >
+                          Total Amount <SortArrow field="totalAmount" />
+                        </th>
+                      );
+                    case 'postedAmount':
+                      return (
+                        <th 
+                          key={colKey}
+                          className="sortable"
+                          onClick={() => handleSort('postedAmount')}
+                        >
+                          Posted <SortArrow field="postedAmount" />
+                        </th>
+                      );
+                    case 'remainingAmount':
+                      return (
+                        <th 
+                          key={colKey}
+                          className="sortable"
+                          onClick={() => handleSort('remainingAmount')}
+                        >
+                          Remaining <SortArrow field="remainingAmount" />
+                        </th>
+                      );
+                    case 'status':
+                      return <th key={colKey}>Status</th>;
+                    default:
+                      return null;
+                  }
+                })}
               </tr>
             </thead>
             <tbody>
               {loading && checks.length === 0 ? (
                 <tr>
-                  <td colSpan="12" style={{ textAlign: 'center', padding: '40px' }}>
+                  <td colSpan={visibleColumns.length + 1} style={{ textAlign: 'center', padding: '40px' }}>
                     Loading checks...
                   </td>
                 </tr>
               ) : checks.length === 0 ? (
                 <tr>
-                  <td colSpan="12" style={{ textAlign: 'center', padding: '40px' }}>
+                  <td colSpan={visibleColumns.length + 1} style={{ textAlign: 'center', padding: '40px' }}>
                     No checks found
                   </td>
                 </tr>
@@ -587,34 +998,85 @@ const Checks = () => {
                         onChange={() => handleSelectCheck(check.checkId)}
                       />
                     </td>
-                    <td>{check.depositDate ? formatDateUS(check.depositDate) : ''}</td>
-                    <td>
-                      <button 
-                        className="link-btn"
-                        onClick={() => navigate(`/checks/${check.checkId}`)}
-                      >
-                        {check.checkNumber}
-                      </button>
-                    </td>
-                    <td>{check.payer || ''}</td>
-                    <td>{check.batchDescription || ''}</td>
-                    <td>{check.exchange || ''}</td>
-                    <td>{formatCurrency(check.totalAmount)}</td>
-                    <td>{formatCurrency(check.postedAmount)}</td>
-                    <td>{formatCurrency(check.remainingAmount)}</td>
-                    <td>
-                      <span className={`status-badge ${getStatusClass(check.status)}`}>
-                        {formatStatus(check.status)}
-                      </span>
-                    </td>
-                    <td>
-                      {check.underClarification && (
-                        <span className="clarification-count">!</span>
-                      )}
-                    </td>
-                    <td>
-                      {/* Unknown indicator if needed */}
-                    </td>
+                    {visibleColumns.map(colKey => {
+                      switch (colKey) {
+                        case 'depositDate':
+                          return (
+                            <td key={colKey}>
+                              {check.depositDate ? formatDateUS(check.depositDate) : ''}
+                            </td>
+                          );
+                        case 'checkNumber':
+                          return (
+                            <td key={colKey}>
+                              <button 
+                                className="link-btn"
+                                onClick={() => navigate(`/checks/${check.checkId}`)}
+                              >
+                                {check.checkNumber}
+                              </button>
+                            </td>
+                          );
+                        case 'altCheckNumber':
+                          return (
+                            <td key={colKey}>
+                              {check.altCheckNumber || ''}
+                            </td>
+                          );
+                        case 'payer':
+                          return (
+                            <td key={colKey}>
+                              <TruncatedText text={check.payer || ''} maxLength={15} />
+                            </td>
+                          );
+                        case 'batchDescription':
+                          return (
+                            <td key={colKey}>
+                              <TruncatedText text={check.batchDescription || ''} maxLength={15} />
+                            </td>
+                          );
+                        case 'exchange':
+                          return (
+                            <td key={colKey}>
+                              <TruncatedText text={check.exchange || ''} maxLength={15} />
+                            </td>
+                          );
+                        case 'checkType':
+                          return (
+                            <td key={colKey}>
+                              {formatCheckType(check.checkType)}
+                            </td>
+                          );
+                        case 'practiceCode':
+                          return (
+                            <td key={colKey}>
+                              {check.practiceCode || ''}
+                            </td>
+                          );
+                        case 'locationCode':
+                          return (
+                            <td key={colKey}>
+                              {check.locationCode || ''}
+                            </td>
+                          );
+                        case 'totalAmount':
+                          return <td key={colKey}>{formatCurrency(check.totalAmount)}</td>;
+                        case 'postedAmount':
+                          return <td key={colKey}>{formatCurrency(check.postedAmount)}</td>;
+                        case 'remainingAmount':
+                          return <td key={colKey}>{formatCurrency(check.remainingAmount)}</td>;
+                        case 'status':
+                          return (
+                            <td key={colKey}>
+                              <span className={`status-badge ${getStatusClass(check.status)}`}>
+                                {formatStatus(check.status)}
+                              </span>
+                            </td>
+                          );
+                        default:
+                          return null;
+                      }
+                    })}
                   </tr>
                 ))
               )}
@@ -622,17 +1084,6 @@ const Checks = () => {
           </table>
         </div>
 
-        {hasMore && (
-          <div className="load-more-section">
-            <button 
-              className="btn-load-more"
-              onClick={handleLoadMore}
-              disabled={loading}
-            >
-              {loading ? 'Loading...' : 'Load More'}
-            </button>
-          </div>
-        )}
       </div>
 
       <AdvancedFilterDrawer
@@ -642,6 +1093,16 @@ const Checks = () => {
         onApplyFilters={handleApplyAdvancedFilters}
         onResetFilters={handleResetAdvancedFilters}
       />
+
+      {showColumnSelector && (
+        <ColumnSelector
+          availableColumns={allColumns}
+          visibleColumns={visibleColumns}
+          onChange={setVisibleColumns}
+          onClose={() => setShowColumnSelector(false)}
+          triggerRef={columnSelectorTriggerRef}
+        />
+      )}
     </div>
   );
 };

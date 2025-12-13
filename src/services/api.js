@@ -64,6 +64,22 @@ class ApiService {
     try {
       const response = await fetch(url, config);
       
+      // Handle 401 Unauthorized or 403 Forbidden - redirect to login
+      if (response.status === 401 || response.status === 403) {
+        // Clear authentication data
+        this.logout();
+        // Redirect to login page
+        window.location.href = '/login';
+        // Create error object
+        const error = new Error(
+          response.status === 401 
+            ? 'Unauthorized. Please login again.' 
+            : 'Access forbidden. Please login again.'
+        );
+        error.status = response.status;
+        throw error;
+      }
+      
       // Handle non-JSON responses
       const contentType = response.headers.get('content-type');
       const isJson = contentType && contentType.includes('application/json');
@@ -81,6 +97,10 @@ class ApiService {
       return data;
     } catch (error) {
       console.error('API Request Error:', error);
+      // If it's already a 403 error we handled, just rethrow it
+      if (error.status === 403) {
+        throw error;
+      }
       throw error;
     }
   }
@@ -557,6 +577,21 @@ class ApiService {
    */
   async updateBatch(checkId, batchId, batchData) {
     return this.patch(`/api/v1/checks/${checkId}/batches/${batchId}`, batchData);
+  }
+
+  /**
+   * Get check activities
+   * GET /api/v1/checks/{checkId}/activities
+   * @param {string} checkId - Check ID (UUID)
+   * @param {number} page - Page number (default: 0)
+   * @param {number} size - Page size (default: 20)
+   */
+  async getCheckActivities(checkId, page = 0, size = 20) {
+    const queryParams = new URLSearchParams();
+    queryParams.append('page', page);
+    queryParams.append('size', size);
+    
+    return this.get(`/api/v1/checks/${checkId}/activities?${queryParams.toString()}`);
   }
 
   // ==================== Clarification Management APIs ====================

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import SearchableDropdown from '../components/SearchableDropdown';
 import { formatDateUS, parseDateUS } from '../utils/dateUtils';
 import './CreateCheck.css';
 
@@ -171,11 +172,8 @@ const CreateCheck = () => {
   return (
     <div className="create-check-page">
       <div className="page-header">
-        <div>
-          <h1 className="page-title">
-            Create Check
-            <span className="info-icon">⚠️</span>
-          </h1>
+        <div className="page-header-content">
+          <h1 className="page-title">Create Check</h1>
           <p className="page-subtitle">Add a new payment check to the system</p>
         </div>
       </div>
@@ -244,19 +242,22 @@ const CreateCheck = () => {
               <label htmlFor="checkType">
                 Check Type <span className="required">*</span>
               </label>
-              <select
-                id="checkType"
-                name="checkType"
+              <SearchableDropdown
+                options={[
+                  { value: 'EFT', label: 'EFT' },
+                  { value: 'CHECK', label: 'Check' },
+                  { value: 'WIRE', label: 'Wire' },
+                  { value: 'ACH', label: 'ACH' }
+                ]}
                 value={formData.checkType}
-                onChange={handleInputChange}
-                className={formErrors.checkType ? 'error' : ''}
-                required
-              >
-                <option value="EFT">EFT</option>
-                <option value="CHECK">Check</option>
-                <option value="WIRE">Wire</option>
-                <option value="ACH">ACH</option>
-              </select>
+                onChange={(value) => {
+                  setFormData(prev => ({ ...prev, checkType: value }));
+                  if (formErrors.checkType) {
+                    setFormErrors(prev => ({ ...prev, checkType: '' }));
+                  }
+                }}
+                placeholder="Select Check Type"
+              />
               {formErrors.checkType && (
                 <span className="error-text">{formErrors.checkType}</span>
               )}
@@ -271,21 +272,23 @@ const CreateCheck = () => {
               <label htmlFor="practiceCode">
                 Practice <span className="required">*</span>
               </label>
-              <select
-                id="practiceCode"
-                name="practiceCode"
+              <SearchableDropdown
+                options={[
+                  { value: '', label: 'Select Practice' },
+                  ...practices.map(practice => ({
+                    value: practice.code,
+                    label: `${practice.name} (${practice.code})`
+                  }))
+                ]}
                 value={formData.practiceCode}
-                onChange={handleInputChange}
-                className={formErrors.practiceCode ? 'error' : ''}
-                required
-              >
-                <option value="">Select Practice</option>
-                {practices.map(practice => (
-                  <option key={practice.practiceId || practice.id} value={practice.code}>
-                    {practice.name} ({practice.code})
-                  </option>
-                ))}
-              </select>
+                onChange={(value) => {
+                  setFormData(prev => ({ ...prev, practiceCode: value }));
+                  if (formErrors.practiceCode) {
+                    setFormErrors(prev => ({ ...prev, practiceCode: '' }));
+                  }
+                }}
+                placeholder="Select Practice"
+              />
               {formErrors.practiceCode && (
                 <span className="error-text">{formErrors.practiceCode}</span>
               )}
@@ -293,20 +296,21 @@ const CreateCheck = () => {
 
             <div className="form-group">
               <label htmlFor="locationCode">Location</label>
-              <select
-                id="locationCode"
-                name="locationCode"
+              <SearchableDropdown
+                options={[
+                  { value: '', label: 'Select Location' },
+                  ...locations.map(location => ({
+                    value: location.code,
+                    label: `${location.name} (${location.code})`
+                  }))
+                ]}
                 value={formData.locationCode}
-                onChange={handleInputChange}
+                onChange={(value) => {
+                  setFormData(prev => ({ ...prev, locationCode: value }));
+                }}
+                placeholder="Select Location"
                 disabled={!formData.practiceCode || locations.length === 0}
-              >
-                <option value="">Select Location</option>
-                {locations.map(location => (
-                  <option key={location.locationId || location.id} value={location.code}>
-                    {location.name} ({location.code})
-                  </option>
-                ))}
-              </select>
+              />
               {!formData.practiceCode && (
                 <span className="field-hint">Select a practice first</span>
               )}

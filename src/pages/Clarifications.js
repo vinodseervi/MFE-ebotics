@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import AdvancedFilterDrawer from '../components/AdvancedFilterDrawer';
 import MonthYearPicker from '../components/MonthYearPicker';
-import { getCurrentMonthRange, formatDateUS, formatDateRange, formatDateTime, getMonthRange, getCurrentMonthYear } from '../utils/dateUtils';
+import { formatDateRange, formatDateTime, getMonthRange, getCurrentMonthYear } from '../utils/dateUtils';
 import './Clarifications.css';
 
 const Clarifications = () => {
@@ -16,7 +16,6 @@ const Clarifications = () => {
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   
@@ -169,7 +168,6 @@ const Clarifications = () => {
         setClarifications(prev => [...prev, ...clarificationsList]);
       }
       
-      setTotalPages(totalPages);
       setTotalElements(totalElements);
       setHasMore(page < totalPages - 1);
       setCurrentPage(page);
@@ -186,6 +184,7 @@ const Clarifications = () => {
   useEffect(() => {
     setCurrentPage(0);
     fetchClarifications(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStatus, searchTerm, advancedFilters, sortField, sortDirection, selectedMonth, selectedYear]);
 
   const handleLoadMore = () => {

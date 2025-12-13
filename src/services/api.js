@@ -659,5 +659,6 @@ class ApiService {
 }
 
 // Export singleton instance
-export default new ApiService();
+const apiService = new ApiService();
+export default apiService;
 

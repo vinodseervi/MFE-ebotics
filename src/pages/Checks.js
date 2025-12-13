@@ -6,7 +6,7 @@ import MonthYearPicker from '../components/MonthYearPicker';
 import SearchableDropdown from '../components/SearchableDropdown';
 import ColumnSelector from '../components/ColumnSelector';
 import Tooltip from '../components/Tooltip';
-import { getCurrentMonthRange, formatDateUS, formatDateRange, getMonthRange, getCurrentMonthYear, formatMonthYear } from '../utils/dateUtils';
+import { formatDateUS, formatDateRange, getCurrentMonthYear, formatMonthYear } from '../utils/dateUtils';
 import './Checks.css';
 
 const Checks = () => {
@@ -20,7 +20,6 @@ const Checks = () => {
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   
@@ -101,12 +100,6 @@ const Checks = () => {
   const [selectedYear, setSelectedYear] = useState(currentMonthYear.year);
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   
-  // Get selected month range
-  const getSelectedMonthRange = () => {
-    return getMonthRange(selectedMonth, selectedYear);
-  };
-  
-  const selectedMonthRange = getSelectedMonthRange();
 
   const handleMonthYearSelect = (month, year) => {
     setSelectedMonth(month);
@@ -206,7 +199,6 @@ const Checks = () => {
       const response = await api.getChecksDashboard(params);
       
       let checksList = response.items || [];
-      const totalPages = response.totalPages || 0;
       const totalElements = response.totalElements || 0;
       
       // Client-side sorting (if backend doesn't support it)
@@ -237,9 +229,8 @@ const Checks = () => {
       // Store all fetched checks
       setAllChecks(checksList);
       
-      setTotalPages(totalPages);
       setTotalElements(totalElements);
-      setHasMore(page < totalPages - 1);
+      setHasMore(page < (response.totalPages || 0) - 1);
       setCurrentPage(page);
       
     } catch (err) {
@@ -248,7 +239,7 @@ const Checks = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, selectedStatus, selectedPractice, advancedFilters, sortField, sortDirection, selectedMonth, selectedYear]);
+  }, [selectedStatus, selectedPractice, advancedFilters, sortField, sortDirection, selectedMonth, selectedYear]);
 
   // Fetch checks when filters change (reset to page 0)
   useEffect(() => {
@@ -258,14 +249,9 @@ const Checks = () => {
   // Fetch checks when page or filters change (excluding searchTerm - handled client-side)
   useEffect(() => {
     fetchChecks(currentPage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, selectedStatus, selectedPractice, advancedFilters, sortField, sortDirection, selectedMonth, selectedYear]);
 
-  const handleLoadMore = () => {
-    if (!loading && hasMore) {
-      const nextPage = currentPage + 1;
-      fetchChecks(nextPage);
-    }
-  };
 
   const handlePreviousPage = () => {
     if (currentPage > 0 && !loading) {
@@ -410,10 +396,12 @@ const Checks = () => {
         setUsers(usersList);
       }).catch(err => console.error('Error fetching users:', err));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showBulkActions]);
 
   useEffect(() => {
     setShowBulkActions(selectedChecks.size > 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedChecks]);
 
   const formatCurrency = (amount) => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import { formatDateTime } from '../utils/dateUtils';
 import './ActivityDrawer.css';
@@ -11,19 +11,6 @@ const ActivityDrawer = ({ isOpen, onClose, checkId }) => {
   const [totalElements, setTotalElements] = useState(0);
   const [userNames, setUserNames] = useState({});
   const size = 20;
-
-  useEffect(() => {
-    if (isOpen && checkId) {
-      fetchActivities();
-    }
-  }, [isOpen, checkId, page]);
-
-  useEffect(() => {
-    if (activities.length > 0) {
-      fetchUserNames();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activities]);
 
   const fetchActivities = async () => {
     setLoading(true);
@@ -38,6 +25,20 @@ const ActivityDrawer = ({ isOpen, onClose, checkId }) => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (isOpen && checkId) {
+      fetchActivities();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, checkId, page]);
+
+  useEffect(() => {
+    if (activities.length > 0) {
+      fetchUserNames();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activities]);
 
   const fetchUserNames = async () => {
     const uniqueUserIds = [...new Set(activities.map(a => a.createdBy).filter(Boolean))];

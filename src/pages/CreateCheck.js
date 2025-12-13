@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import SearchableDropdown from '../components/SearchableDropdown';
-import { formatDateUS, parseDateUS } from '../utils/dateUtils';
 import './CreateCheck.css';
 
 const CreateCheck = () => {
@@ -39,6 +38,7 @@ const CreateCheck = () => {
       setLocations([]);
       setFormData(prev => ({ ...prev, locationCode: '' }));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.practiceCode, practices]);
 
   const fetchPractices = async () => {
@@ -143,7 +143,7 @@ const CreateCheck = () => {
         againstCheckAdditional: formData.againstCheckAdditional.trim() || null
       };
 
-      const response = await api.createCheck(checkData);
+      await api.createCheck(checkData);
       
       // Navigate to checks list or check details
       navigate('/checks');

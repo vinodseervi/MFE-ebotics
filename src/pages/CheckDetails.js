@@ -53,6 +53,7 @@ const CheckDetails = () => {
       fetchCheckDetails();
       fetchUsers();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   // Fetch clarifications when clarifications tab is active
@@ -60,6 +61,7 @@ const CheckDetails = () => {
     if (id && activeTab === 'clarifications') {
       fetchClarifications();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, activeTab]);
 
   const fetchCheckDetails = async () => {

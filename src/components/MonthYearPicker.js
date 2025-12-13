@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { formatDateUS } from '../utils/dateUtils';
 import './MonthYearPicker.css';
 
 const MonthYearPicker = ({ selectedMonth, selectedYear, onSelect, onClose }) => {
@@ -67,13 +66,6 @@ const MonthYearPicker = ({ selectedMonth, selectedYear, onSelect, onClose }) => 
     }
   };
 
-  const getMonthRange = (month, year) => {
-    const monthStr = String(month).padStart(2, '0');
-    const firstDay = `${year}-${monthStr}-01`;
-    const lastDay = new Date(year, month, 0).getDate();
-    const lastDayStr = `${year}-${monthStr}-${String(lastDay).padStart(2, '0')}`;
-    return { startDate: firstDay, endDate: lastDayStr };
-  };
 
   return (
     <div className="month-year-picker" ref={pickerRef}>

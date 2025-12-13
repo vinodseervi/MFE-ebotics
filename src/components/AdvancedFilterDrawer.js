@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
-import { formatDateUS, parseDateUS } from '../utils/dateUtils';
 import SearchableDropdown from './SearchableDropdown';
 import './AdvancedFilterDrawer.css';
 
@@ -9,7 +8,6 @@ const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onRese
   const [users, setUsers] = useState([]);
   const [practices, setPractices] = useState([]);
   const [locations, setLocations] = useState([]);
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -27,6 +25,7 @@ const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onRese
     } else {
       setLocations([]);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localFilters.practiceCode, practices, isClarifications]);
 
   const fetchUsers = async () => {

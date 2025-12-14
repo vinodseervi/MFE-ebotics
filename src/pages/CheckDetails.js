@@ -28,6 +28,11 @@ const CheckDetails = () => {
   const [expandedClarificationId, setExpandedClarificationId] = useState(null);
   const [showActivityDrawer, setShowActivityDrawer] = useState(false);
   
+  // Navigation state
+  const [checkIds, setCheckIds] = useState([]);
+  const [currentIndex, setCurrentIndex] = useState(-1);
+  const [navigationLoading, setNavigationLoading] = useState(false);
+  
   // Form data
   const [formData, setFormData] = useState({});
   const [batchFormData, setBatchFormData] = useState({
@@ -46,6 +51,48 @@ const CheckDetails = () => {
     status: 'OPEN'
   });
   const [commentText, setCommentText] = useState({});
+
+  // Load check IDs from sessionStorage and find current position
+  useEffect(() => {
+    const storedCheckIds = sessionStorage.getItem('checksNavigationIds');
+    const storedFilters = sessionStorage.getItem('checksNavigationFilters');
+    
+    if (storedCheckIds) {
+      try {
+        const ids = JSON.parse(storedCheckIds);
+        setCheckIds(ids);
+        const index = ids.findIndex(checkId => checkId === id);
+        setCurrentIndex(index);
+      } catch (err) {
+        console.error('Error parsing stored check IDs:', err);
+      }
+    } else {
+      // If no stored IDs, try to fetch current page
+      if (storedFilters) {
+        try {
+          const filters = JSON.parse(storedFilters);
+          const params = {
+            ...filters,
+            page: filters.page || 0,
+            size: 50
+          };
+          api.getChecksDashboard(params).then(response => {
+            const checksList = response.items || [];
+            const ids = checksList.map(c => c.checkId);
+            setCheckIds(ids);
+            const index = ids.findIndex(checkId => checkId === id);
+            setCurrentIndex(index);
+            // Update sessionStorage
+            sessionStorage.setItem('checksNavigationIds', JSON.stringify(ids));
+          }).catch(err => {
+            console.error('Error fetching checks for navigation:', err);
+          });
+        } catch (err) {
+          console.error('Error parsing stored filters:', err);
+        }
+      }
+    }
+  }, [id]);
 
   // Fetch check details
   useEffect(() => {
@@ -314,6 +361,101 @@ const CheckDetails = () => {
     );
   };
 
+  // Navigation functions
+  const handlePreviousCheck = async () => {
+    if (currentIndex > 0 && checkIds.length > 0) {
+      const previousId = checkIds[currentIndex - 1];
+      setNavigationLoading(true);
+      navigate(`/checks/${previousId}`);
+    } else if (currentIndex === 0 && checkIds.length > 0) {
+      // Try to fetch previous page
+      const storedFilters = sessionStorage.getItem('checksNavigationFilters');
+      if (storedFilters) {
+        try {
+          const filters = JSON.parse(storedFilters);
+          const currentPage = filters.page || 0;
+          if (currentPage > 0) {
+            // Fetch previous page
+            const params = {
+              ...filters,
+              page: currentPage - 1,
+              size: 50
+            };
+            setNavigationLoading(true);
+            const response = await api.getChecksDashboard(params);
+            const checksList = response.items || [];
+            if (checksList.length > 0) {
+              const lastCheckId = checksList[checksList.length - 1].checkId;
+              // Update sessionStorage - prepend previous page checks
+              const allIds = [...checksList.map(c => c.checkId), ...checkIds];
+              sessionStorage.setItem('checksNavigationIds', JSON.stringify(allIds));
+              sessionStorage.setItem('checksNavigationFilters', JSON.stringify({ ...filters, page: currentPage - 1 }));
+              navigate(`/checks/${lastCheckId}`);
+            } else {
+              setNavigationLoading(false);
+            }
+          } else {
+            setNavigationLoading(false);
+          }
+        } catch (err) {
+          console.error('Error fetching previous page:', err);
+          setNavigationLoading(false);
+        }
+      } else {
+        setNavigationLoading(false);
+      }
+    } else {
+      setNavigationLoading(false);
+    }
+  };
+
+  const handleNextCheck = async () => {
+    if (currentIndex >= 0 && currentIndex < checkIds.length - 1) {
+      const nextId = checkIds[currentIndex + 1];
+      setNavigationLoading(true);
+      navigate(`/checks/${nextId}`);
+    } else if (currentIndex === checkIds.length - 1 && checkIds.length > 0) {
+      // Try to fetch next page
+      const storedFilters = sessionStorage.getItem('checksNavigationFilters');
+      if (storedFilters) {
+        try {
+          const filters = JSON.parse(storedFilters);
+          const currentPage = filters.page || 0;
+          const params = {
+            ...filters,
+            page: currentPage + 1,
+            size: 50
+          };
+          setNavigationLoading(true);
+          const response = await api.getChecksDashboard(params);
+          const checksList = response.items || [];
+          if (checksList.length > 0) {
+            const firstCheckId = checksList[0].checkId;
+            // Update sessionStorage - append next page checks
+            const allIds = [...checkIds, ...checksList.map(c => c.checkId)];
+            sessionStorage.setItem('checksNavigationIds', JSON.stringify(allIds));
+            sessionStorage.setItem('checksNavigationFilters', JSON.stringify({ ...filters, page: currentPage + 1 }));
+            navigate(`/checks/${firstCheckId}`);
+          } else {
+            setNavigationLoading(false);
+          }
+        } catch (err) {
+          console.error('Error fetching next page:', err);
+          setNavigationLoading(false);
+        }
+      } else {
+        setNavigationLoading(false);
+      }
+    } else {
+      setNavigationLoading(false);
+    }
+  };
+
+  // Reset navigation loading when check changes
+  useEffect(() => {
+    setNavigationLoading(false);
+  }, [id]);
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -324,7 +466,7 @@ const CheckDetails = () => {
 
   const getStatusClass = (status) => {
     const statusMap = {
-      'COMPLETE': 'status-complete',
+      'COMPLETED': 'status-complete',
       'UNDER_CLARIFICATION': 'status-clarification',
       'IN_PROGRESS': 'status-progress',
       'NOT_STARTED': 'status-not-started',
@@ -335,7 +477,7 @@ const CheckDetails = () => {
 
   const formatStatus = (status) => {
     const statusMap = {
-      'COMPLETE': 'Complete',
+      'COMPLETED': 'Completed',
       'UNDER_CLARIFICATION': 'Under Clarification',
       'IN_PROGRESS': 'In Progress',
       'NOT_STARTED': 'Not Started',
@@ -355,6 +497,20 @@ const CheckDetails = () => {
       minute: '2-digit'
     });
   };
+
+  // Navigation loading overlay
+  if (navigationLoading) {
+    return (
+      <div className={`check-details-page ${showActivityDrawer ? 'activity-sidebar-open' : ''}`}>
+        <div className="navigation-loading-overlay">
+          <div className="navigation-loading-content">
+            <div className="navigation-loading-spinner"></div>
+            <p className="navigation-loading-text">Loading check details...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Skeleton loader
   if (loading) {
@@ -411,6 +567,30 @@ const CheckDetails = () => {
           </div>
         </div>
         <div className="header-right">
+          <div className="navigation-arrows">
+            <button 
+              className="nav-arrow-btn"
+              onClick={handlePreviousCheck}
+              disabled={navigationLoading || (currentIndex <= 0 && checkIds.length > 0)}
+              title="Previous check"
+            >
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              <span>Previous</span>
+            </button>
+            <button 
+              className="nav-arrow-btn"
+              onClick={handleNextCheck}
+              disabled={navigationLoading || (currentIndex >= checkIds.length - 1 && checkIds.length > 0)}
+              title="Next check"
+            >
+              <span>Next</span>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M7.5 5L12.5 10L7.5 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          </div>
           <button 
             className="activity-btn" 
             onClick={() => setShowActivityDrawer(true)}

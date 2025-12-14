@@ -434,10 +434,11 @@ const Checks = () => {
 
   const getStatusClass = (status) => {
     const statusMap = {
-      'COMPLETE': 'status-complete',
+      'COMPLETED': 'status-complete',
       'UNDER_CLARIFICATION': 'status-clarification',
       'IN_PROGRESS': 'status-progress',
-      'NOT_STARTED': 'status-not-started'
+      'NOT_STARTED': 'status-not-started',
+      'OVER_POSTED': 'status-over-posted'
     };
     return statusMap[status] || 'status-not-started';
   };
@@ -452,10 +453,11 @@ const Checks = () => {
 
   const formatStatus = (status) => {
     const statusMap = {
-      'COMPLETE': 'Complete',
+      'COMPLETED': 'Completed',
       'UNDER_CLARIFICATION': 'Under Clarification',
       'IN_PROGRESS': 'In Progress',
-      'NOT_STARTED': 'Not Started'
+      'NOT_STARTED': 'Not Started',
+      'OVER_POSTED': 'Over Posted'
     };
     return statusMap[status] || status;
   };
@@ -572,7 +574,8 @@ const Checks = () => {
               { value: 'NOT_STARTED', label: 'Not Started' },
               { value: 'IN_PROGRESS', label: 'In Progress' },
               { value: 'UNDER_CLARIFICATION', label: 'Under Clarification' },
-              { value: 'COMPLETE', label: 'Complete' }
+              { value: 'COMPLETED', label: 'Completed' },
+              { value: 'OVER_POSTED', label: 'Over Posted' }
             ]}
             value={selectedStatus}
             onChange={(value) => setSelectedStatus(value)}
@@ -627,7 +630,8 @@ const Checks = () => {
                   { value: 'NOT_STARTED', label: 'Not Started' },
                   { value: 'IN_PROGRESS', label: 'In Progress' },
                   { value: 'UNDER_CLARIFICATION', label: 'Under Clarification' },
-                  { value: 'COMPLETE', label: 'Complete' }
+                  { value: 'COMPLETED', label: 'Completed' },
+                  { value: 'OVER_POSTED', label: 'Over Posted' }
                 ].find(s => s.value === selectedStatus)?.label || selectedStatus}</span>
                 <button
                   className="chip-close-btn"
@@ -660,7 +664,8 @@ const Checks = () => {
                   { value: 'NOT_STARTED', label: 'Not Started' },
                   { value: 'IN_PROGRESS', label: 'In Progress' },
                   { value: 'UNDER_CLARIFICATION', label: 'Under Clarification' },
-                  { value: 'COMPLETE', label: 'Complete' }
+                  { value: 'COMPLETED', label: 'Completed' },
+                  { value: 'OVER_POSTED', label: 'Over Posted' }
                 ].find(s => s.value === advancedFilters.status)?.label || advancedFilters.status}</span>
                 <button
                   className="chip-close-btn"
@@ -999,7 +1004,27 @@ const Checks = () => {
                             <td key={colKey}>
                               <button 
                                 className="link-btn"
-                                onClick={() => navigate(`/checks/${check.checkId}`)}
+                                onClick={() => {
+                                  // Store check IDs and filters for navigation
+                                  const checkIds = checks.map(c => c.checkId);
+                                  const filters = {
+                                    status: selectedStatus || advancedFilters.status || '',
+                                    practiceCode: selectedPractice || advancedFilters.practiceCode || '',
+                                    locationCode: advancedFilters.locationCode || '',
+                                    assigneeId: advancedFilters.assigneeId || '',
+                                    reporterId: advancedFilters.reporterId || '',
+                                    checkNumber: advancedFilters.checkNumber || '',
+                                    startDate: advancedFilters.startDate || '',
+                                    endDate: advancedFilters.endDate || '',
+                                    month: advancedFilters.month || selectedMonth,
+                                    year: advancedFilters.year || selectedYear,
+                                    page: currentPage,
+                                    size: 50
+                                  };
+                                  sessionStorage.setItem('checksNavigationIds', JSON.stringify(checkIds));
+                                  sessionStorage.setItem('checksNavigationFilters', JSON.stringify(filters));
+                                  navigate(`/checks/${check.checkId}`);
+                                }}
                               >
                                 {check.checkNumber}
                               </button>

@@ -161,7 +161,8 @@ const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onRese
                   { value: 'NOT_STARTED', label: 'Not Started' },
                   { value: 'IN_PROGRESS', label: 'In Progress' },
                   { value: 'UNDER_CLARIFICATION', label: 'Under Clarification' },
-                  { value: 'COMPLETE', label: 'Complete' }
+                  { value: 'COMPLETED', label: 'Completed' },
+                  { value: 'OVER_POSTED', label: 'Over Posted' }
                 ])
               ]}
               value={localFilters.status || ''}

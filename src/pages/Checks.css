@@ -568,6 +568,11 @@
   color: #374151;
 }
 
+.status-over-posted {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
 .clarification-count,
 .unknown-count {
   display: inline-flex;

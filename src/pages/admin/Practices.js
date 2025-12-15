@@ -5,6 +5,7 @@ import { Edit, MapPin, Plus, Building2, Phone, Mail, Search, Info } from 'lucide
 import { countryCodes, parsePhoneNumber, formatPhoneNumber, getDefaultCountry, validatePhoneInput, getPhoneMaxLength, getPhonePlaceholder } from '../../utils/countryCodes';
 import { usePermissions, PERMISSIONS } from '../../hooks/usePermissions';
 import PermissionGuard from '../../components/PermissionGuard';
+import { formatDateTime } from '../../utils/dateUtils';
 import './Admin.css';
 
 const Practices = () => {
@@ -645,21 +646,6 @@ const Practices = () => {
   };
 
 
-  const formatDateForTooltip = (dateString) => {
-    if (!dateString) return '-';
-    const date = new Date(dateString);
-    const dateStr = date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-    const timeStr = date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
-    return `${dateStr} at ${timeStr}`;
-  };
 
   // Filter countries based on search term
   const filterCountries = (searchTerm) => {
@@ -807,12 +793,12 @@ const Practices = () => {
                             <div className="info-tooltip">
                               {practice.createdByMeta && (
                                 <div className="tooltip-line">
-                                  Created by <strong>{practice.createdByMeta.fullName || 'N/A'}</strong> on {formatDateForTooltip(practice.createdAt)}
+                                  Created by <strong>{practice.createdByMeta.fullName || 'N/A'}</strong> on {formatDateTime(practice.createdAt) || '-'}
                                 </div>
                               )}
                               {practice.updatedByMeta && (
                                 <div className="tooltip-line">
-                                  Updated by <strong>{practice.updatedByMeta.fullName || 'N/A'}</strong> on {formatDateForTooltip(practice.updatedAt)}
+                                  Updated by <strong>{practice.updatedByMeta.fullName || 'N/A'}</strong> on {formatDateTime(practice.updatedAt) || '-'}
                                 </div>
                               )}
                             </div>
@@ -951,12 +937,12 @@ const Practices = () => {
                                 <div className="info-tooltip">
                                   {location.createdByMeta && (
                                     <div className="tooltip-line">
-                                      Created by <strong>{location.createdByMeta.fullName || 'N/A'}</strong> on {formatDateForTooltip(location.createdAt)}
+                                      Created by <strong>{location.createdByMeta.fullName || 'N/A'}</strong> on {formatDateTime(location.createdAt) || '-'}
                                     </div>
                                   )}
                                   {location.updatedByMeta && (
                                     <div className="tooltip-line">
-                                      Updated by <strong>{location.updatedByMeta.fullName || 'N/A'}</strong> on {formatDateForTooltip(location.updatedAt)}
+                                      Updated by <strong>{location.updatedByMeta.fullName || 'N/A'}</strong> on {formatDateTime(location.updatedAt) || '-'}
                                     </div>
                                   )}
                                 </div>

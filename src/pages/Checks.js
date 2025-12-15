@@ -413,7 +413,7 @@ const Checks = () => {
   };
 
   // Truncate text and show tooltip on hover
-  const TruncatedText = ({ text, maxLength = 15 }) => {
+  const TruncatedText = ({ text, maxLength = 12 }) => {
     if (!text) return <span></span>;
     
     const shouldTruncate = text.length > maxLength;
@@ -435,7 +435,7 @@ const Checks = () => {
   const getStatusClass = (status) => {
     const statusMap = {
       'COMPLETED': 'status-complete',
-      'UNDER_CLARIFICATION': 'status-clarification',
+      'UNDER_CLARIFICATIONS': 'status-clarification',
       'IN_PROGRESS': 'status-progress',
       'NOT_STARTED': 'status-not-started',
       'OVER_POSTED': 'status-over-posted'
@@ -454,7 +454,8 @@ const Checks = () => {
   const formatStatus = (status) => {
     const statusMap = {
       'COMPLETED': 'Completed',
-      'UNDER_CLARIFICATION': 'Under Clarification',
+      // Show shorter label in list view; filters/details keep full text
+      'UNDER_CLARIFICATIONS': 'Clarifications',
       'IN_PROGRESS': 'In Progress',
       'NOT_STARTED': 'Not Started',
       'OVER_POSTED': 'Over Posted'
@@ -479,14 +480,12 @@ const Checks = () => {
   };
 
   const getDateRangeDisplay = () => {
-    // If advanced filters are active, don't show month/year picker
+    // If both start and end dates are selected, show the date range
+    if (advancedFilters.startDate && advancedFilters.endDate) {
+      return formatDateRange(advancedFilters.startDate, advancedFilters.endDate);
+    }
+    // If advanced filters are active (but no date range), show custom range
     if (hasAdvancedFilters()) {
-      if (advancedFilters.startDate && advancedFilters.endDate) {
-        return formatDateRange(advancedFilters.startDate, advancedFilters.endDate);
-      }
-      if (advancedFilters.month && advancedFilters.year) {
-        return formatMonthYear(advancedFilters.month, advancedFilters.year);
-      }
       return 'Custom Range';
     }
     // Show month/year format instead of date range
@@ -573,13 +572,14 @@ const Checks = () => {
               { value: '', label: 'All Statuses' },
               { value: 'NOT_STARTED', label: 'Not Started' },
               { value: 'IN_PROGRESS', label: 'In Progress' },
-              { value: 'UNDER_CLARIFICATION', label: 'Under Clarification' },
+              { value: 'UNDER_CLARIFICATIONS', label: 'Under Clarifications' },
               { value: 'COMPLETED', label: 'Completed' },
               { value: 'OVER_POSTED', label: 'Over Posted' }
             ]}
             value={selectedStatus}
             onChange={(value) => setSelectedStatus(value)}
             placeholder="All Statuses"
+            maxVisibleItems={5}
           />
           <SearchableDropdown
             options={[
@@ -592,6 +592,7 @@ const Checks = () => {
             value={selectedPractice}
             onChange={(value) => setSelectedPractice(value)}
             placeholder="All Practices"
+            maxVisibleItems={5}
           />
           <button 
             className={`btn-advanced-filter ${hasAdvancedFilters() ? 'active' : ''}`}
@@ -629,7 +630,7 @@ const Checks = () => {
                 <span>Status: {[
                   { value: 'NOT_STARTED', label: 'Not Started' },
                   { value: 'IN_PROGRESS', label: 'In Progress' },
-                  { value: 'UNDER_CLARIFICATION', label: 'Under Clarification' },
+                  { value: 'UNDER_CLARIFICATIONS', label: 'Under Clarifications' },
                   { value: 'COMPLETED', label: 'Completed' },
                   { value: 'OVER_POSTED', label: 'Over Posted' }
                 ].find(s => s.value === selectedStatus)?.label || selectedStatus}</span>
@@ -663,7 +664,7 @@ const Checks = () => {
                 <span>Status: {[
                   { value: 'NOT_STARTED', label: 'Not Started' },
                   { value: 'IN_PROGRESS', label: 'In Progress' },
-                  { value: 'UNDER_CLARIFICATION', label: 'Under Clarification' },
+                  { value: 'UNDER_CLARIFICATIONS', label: 'Under Clarifications' },
                   { value: 'COMPLETED', label: 'Completed' },
                   { value: 'OVER_POSTED', label: 'Over Posted' }
                 ].find(s => s.value === advancedFilters.status)?.label || advancedFilters.status}</span>
@@ -790,6 +791,7 @@ const Checks = () => {
               value={bulkAssigneeId}
               onChange={(value) => setBulkAssigneeId(value)}
               placeholder="Select Assignee"
+              maxVisibleItems={5}
             />
             <SearchableDropdown
               options={[
@@ -804,6 +806,7 @@ const Checks = () => {
               value={bulkReporterId}
               onChange={(value) => setBulkReporterId(value)}
               placeholder="Select Reporter"
+              maxVisibleItems={5}
             />
             <button className="btn-bulk-assign" onClick={handleBulkAssign}>
               Assign
@@ -1026,58 +1029,70 @@ const Checks = () => {
                                   navigate(`/checks/${check.checkId}`);
                                 }}
                               >
-                                {check.checkNumber}
+                                <TruncatedText text={check.checkNumber || ''} maxLength={12} />
                               </button>
                             </td>
                           );
                         case 'altCheckNumber':
                           return (
                             <td key={colKey}>
-                              {check.altCheckNumber || ''}
+                              <TruncatedText text={check.altCheckNumber || ''} maxLength={12} />
                             </td>
                           );
                         case 'payer':
                           return (
                             <td key={colKey}>
-                              <TruncatedText text={check.payer || ''} maxLength={15} />
+                              <TruncatedText text={check.payer || ''} maxLength={12} />
                             </td>
                           );
                         case 'batchDescription':
                           return (
                             <td key={colKey}>
-                              <TruncatedText text={check.batchDescription || ''} maxLength={15} />
+                              <TruncatedText text={check.batchDescription || ''} maxLength={12} />
                             </td>
                           );
                         case 'exchange':
                           return (
                             <td key={colKey}>
-                              <TruncatedText text={check.exchange || ''} maxLength={15} />
+                              <TruncatedText text={check.exchange || ''} maxLength={12} />
                             </td>
                           );
                         case 'checkType':
                           return (
                             <td key={colKey}>
-                              {formatCheckType(check.checkType)}
+                              <TruncatedText text={formatCheckType(check.checkType)} maxLength={12} />
                             </td>
                           );
                         case 'practiceCode':
                           return (
                             <td key={colKey}>
-                              {check.practiceCode || ''}
+                              <TruncatedText text={check.practiceCode || ''} maxLength={12} />
                             </td>
                           );
                         case 'locationCode':
                           return (
                             <td key={colKey}>
-                              {check.locationCode || ''}
+                              <TruncatedText text={check.locationCode || ''} maxLength={12} />
                             </td>
                           );
                         case 'totalAmount':
-                          return <td key={colKey}>{formatCurrency(check.totalAmount)}</td>;
+                          return (
+                            <td key={colKey}>
+                              <TruncatedText text={formatCurrency(check.totalAmount)} maxLength={12} />
+                            </td>
+                          );
                         case 'postedAmount':
-                          return <td key={colKey}>{formatCurrency(check.postedAmount)}</td>;
+                          return (
+                            <td key={colKey}>
+                              <TruncatedText text={formatCurrency(check.postedAmount)} maxLength={12} />
+                            </td>
+                          );
                         case 'remainingAmount':
-                          return <td key={colKey}>{formatCurrency(check.remainingAmount)}</td>;
+                          return (
+                            <td key={colKey}>
+                              <TruncatedText text={formatCurrency(check.remainingAmount)} maxLength={12} />
+                            </td>
+                          );
                         case 'status':
                           return (
                             <td key={colKey}>

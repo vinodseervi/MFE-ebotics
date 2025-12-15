@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import SearchableDropdown from './SearchableDropdown';
+import USDateInput from './USDateInput';
 import './AdvancedFilterDrawer.css';
 
 const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onResetFilters, isClarifications = false }) => {
@@ -86,7 +87,6 @@ const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onRese
   };
 
   const handleDateChange = (field, value) => {
-    // Date input type="date" already provides YYYY-MM-DD format
     setLocalFilters(prev => ({
       ...prev,
       [field]: value || ''
@@ -160,7 +160,7 @@ const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onRese
                 ] : [
                   { value: 'NOT_STARTED', label: 'Not Started' },
                   { value: 'IN_PROGRESS', label: 'In Progress' },
-                  { value: 'UNDER_CLARIFICATION', label: 'Under Clarification' },
+                  { value: 'UNDER_CLARIFICATIONS', label: 'Under Clarifications' },
                   { value: 'COMPLETED', label: 'Completed' },
                   { value: 'OVER_POSTED', label: 'Over Posted' }
                 ])
@@ -168,6 +168,7 @@ const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onRese
               value={localFilters.status || ''}
               onChange={(value) => handleChange('status', value)}
               placeholder="All Statuses"
+              maxVisibleItems={5}
             />
           </div>
 
@@ -188,6 +189,7 @@ const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onRese
                   value={localFilters.practiceCode || ''}
                   onChange={(value) => handleChange('practiceCode', value)}
                   placeholder="All Practices"
+                  maxVisibleItems={5}
                 />
               </div>
 
@@ -207,6 +209,7 @@ const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onRese
                   onChange={(value) => handleChange('locationCode', value)}
                   placeholder="All Locations"
                   disabled={!localFilters.practiceCode}
+                  maxVisibleItems={5}
                 />
               </div>
             </>
@@ -227,6 +230,7 @@ const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onRese
               value={localFilters.assigneeId || ''}
               onChange={(value) => handleChange('assigneeId', value)}
               placeholder="All Assignees"
+              maxVisibleItems={5}
             />
           </div>
 
@@ -245,6 +249,7 @@ const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onRese
               value={localFilters.reporterId || ''}
               onChange={(value) => handleChange('reporterId', value)}
               placeholder="All Reporters"
+              maxVisibleItems={5}
             />
           </div>
 
@@ -260,8 +265,8 @@ const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onRese
 
           <div className="filter-group">
             <label>Start Date</label>
-            <input
-              type="date"
+            <USDateInput
+              name="startDate"
               value={localFilters.startDate || ''}
               onChange={(e) => handleDateChange('startDate', e.target.value)}
             />
@@ -269,40 +274,14 @@ const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onRese
 
           <div className="filter-group">
             <label>End Date</label>
-            <input
-              type="date"
+            <USDateInput
+              name="endDate"
               value={localFilters.endDate || ''}
               onChange={(e) => handleDateChange('endDate', e.target.value)}
             />
           </div>
 
-          <div className="filter-group">
-            <label>Month</label>
-            <SearchableDropdown
-              options={[
-                { value: '', label: 'All Months' },
-                ...Array.from({ length: 12 }, (_, i) => i + 1).map(month => ({
-                  value: month,
-                  label: new Date(2000, month - 1).toLocaleString('en-US', { month: 'long' })
-                }))
-              ]}
-              value={localFilters.month || ''}
-              onChange={(value) => handleChange('month', value ? parseInt(value) : null)}
-              placeholder="All Months"
-            />
-          </div>
-
-          <div className="filter-group">
-            <label>Year</label>
-            <input
-              type="number"
-              value={localFilters.year || ''}
-              onChange={(e) => handleChange('year', e.target.value ? parseInt(e.target.value) : null)}
-              placeholder="YYYY"
-              min="2000"
-              max="2100"
-            />
-          </div>
+          {/* Month and Year filters removed from Advanced Filter as requested */}
         </div>
 
         <div className="drawer-footer">

@@ -94,10 +94,6 @@ const SearchableDropdown = ({
   // Close dropdown when clicking outside or on another dropdown trigger
   useEffect(() => {
     const handleClickOutside = (event) => {
-      // Don't close if clicking on drawer overlay or drawer itself
-      const isDrawerOverlay = event.target.classList.contains('drawer-overlay');
-      const isDrawer = event.target.closest('.advanced-filter-drawer');
-      
       // Check if clicking on another dropdown trigger
       const clickedTrigger = event.target.closest('.searchable-dropdown-trigger');
       const isAnotherDropdownTrigger = clickedTrigger && clickedTrigger !== triggerRef.current;
@@ -114,8 +110,6 @@ const SearchableDropdown = ({
       }
       
       if (
-        !isDrawerOverlay &&
-        !isDrawer &&
         !isAnotherDropdownPopup &&
         dropdownRef.current &&
         !dropdownRef.current.contains(event.target) &&

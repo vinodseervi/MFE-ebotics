@@ -17,55 +17,129 @@ const Tooltip = ({ children, text, position = 'top' }) => {
 
   useEffect(() => {
     if (showTooltip && triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect();
-      const scrollY = window.scrollY || window.pageYOffset;
-      const scrollX = window.scrollX || window.pageXOffset;
+      const calculatePosition = () => {
+        if (!triggerRef.current) return;
+        
+        const rect = triggerRef.current.getBoundingClientRect();
+        const scrollY = window.scrollY || window.pageYOffset;
+        const scrollX = window.scrollX || window.pageXOffset;
 
-      let top, left;
-      const tooltipHeight = 30; // Approximate tooltip height
-      const tooltipWidth = 200; // Approximate tooltip width
-      const spacing = 8;
+        // Estimate tooltip dimensions based on text
+        const estimatedCharWidth = 7.5; // Average character width in pixels
+        const estimatedLineHeight = 20;
+        const padding = 24; // 12px left + 12px right
+        const verticalPadding = 16; // 8px top + 8px bottom
+        const arrowHeight = 6;
+        
+        const textWidth = Math.min(text.length * estimatedCharWidth, 300);
+        const tooltipWidth = Math.max(textWidth + padding, 80);
+        const tooltipHeight = verticalPadding + estimatedLineHeight + arrowHeight;
 
-      switch (position) {
-        case 'top':
-          top = rect.top + scrollY - tooltipHeight - spacing;
-          left = rect.left + scrollX + (rect.width / 2) - (tooltipWidth / 2);
-          break;
-        case 'bottom':
-          top = rect.bottom + scrollY + spacing;
-          left = rect.left + scrollX + (rect.width / 2) - (tooltipWidth / 2);
-          break;
-        case 'left':
-          top = rect.top + scrollY + (rect.height / 2) - (tooltipHeight / 2);
-          left = rect.left + scrollX - tooltipWidth - spacing;
-          break;
-        case 'right':
-          top = rect.top + scrollY + (rect.height / 2) - (tooltipHeight / 2);
-          left = rect.right + scrollX + spacing;
-          break;
-        default:
-          top = rect.top + scrollY - tooltipHeight - spacing;
-          left = rect.left + scrollX + (rect.width / 2) - (tooltipWidth / 2);
-      }
+        let top, left;
+        const spacing = 6; // Space between element and tooltip
 
-      // Adjust if tooltip goes outside viewport
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
+        switch (position) {
+          case 'top':
+            top = rect.top + scrollY - tooltipHeight - spacing;
+            left = rect.left + scrollX + (rect.width / 2) - (tooltipWidth / 2);
+            break;
+          case 'bottom':
+            top = rect.bottom + scrollY + spacing;
+            left = rect.left + scrollX + (rect.width / 2) - (tooltipWidth / 2);
+            break;
+          case 'left':
+            top = rect.top + scrollY + (rect.height / 2) - (tooltipHeight / 2);
+            left = rect.left + scrollX - tooltipWidth - spacing;
+            break;
+          case 'right':
+            top = rect.top + scrollY + (rect.height / 2) - (tooltipHeight / 2);
+            left = rect.right + scrollX + spacing;
+            break;
+          default:
+            top = rect.bottom + scrollY + spacing;
+            left = rect.left + scrollX + (rect.width / 2) - (tooltipWidth / 2);
+        }
 
-      if (left < 10) left = 10;
-      if (left + tooltipWidth > viewportWidth - 10) {
-        left = viewportWidth - tooltipWidth - 10;
-      }
-      if (top < 10) top = 10;
-      if (top + tooltipHeight > viewportHeight - 10) {
-        top = viewportHeight - tooltipHeight - 10;
-      }
+        // Adjust if tooltip goes outside viewport
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        const margin = 10;
 
-      setTooltipPosition({ top, left });
+        // Horizontal adjustments
+        if (left < margin) {
+          left = margin;
+        } else if (left + tooltipWidth > viewportWidth - margin) {
+          left = viewportWidth - tooltipWidth - margin;
+        }
+
+        // Vertical adjustments
+        if (top < margin) {
+          top = margin;
+        } else if (top + tooltipHeight > viewportHeight - margin) {
+          top = viewportHeight - tooltipHeight - margin;
+        }
+
+        setTooltipPosition({ top, left });
+      };
+
+      // Initial calculation
+      calculatePosition();
+
+      // Recalculate after a brief delay to get actual tooltip dimensions
+      const timeoutId = setTimeout(() => {
+        if (tooltipRef.current && triggerRef.current) {
+          const rect = triggerRef.current.getBoundingClientRect();
+          const tooltipRect = tooltipRef.current.getBoundingClientRect();
+          const scrollY = window.scrollY || window.pageYOffset;
+          const scrollX = window.scrollX || window.pageXOffset;
+
+          let top, left;
+          const spacing = 6;
+
+          switch (position) {
+            case 'top':
+              top = rect.top + scrollY - tooltipRect.height - spacing;
+              left = rect.left + scrollX + (rect.width / 2) - (tooltipRect.width / 2);
+              break;
+            case 'bottom':
+              top = rect.bottom + scrollY + spacing;
+              left = rect.left + scrollX + (rect.width / 2) - (tooltipRect.width / 2);
+              break;
+            case 'left':
+              top = rect.top + scrollY + (rect.height / 2) - (tooltipRect.height / 2);
+              left = rect.left + scrollX - tooltipRect.width - spacing;
+              break;
+            case 'right':
+              top = rect.top + scrollY + (rect.height / 2) - (tooltipRect.height / 2);
+              left = rect.right + scrollX + spacing;
+              break;
+            default:
+              top = rect.bottom + scrollY + spacing;
+              left = rect.left + scrollX + (rect.width / 2) - (tooltipRect.width / 2);
+          }
+
+          const viewportWidth = window.innerWidth;
+          const viewportHeight = window.innerHeight;
+          const margin = 10;
+
+          if (left < margin) left = margin;
+          if (left + tooltipRect.width > viewportWidth - margin) {
+            left = viewportWidth - tooltipRect.width - margin;
+          }
+          if (top < margin) top = margin;
+          if (top + tooltipRect.height > viewportHeight - margin) {
+            top = viewportHeight - tooltipRect.height - margin;
+          }
+
+          setTooltipPosition({ top, left });
+        }
+      }, 0);
+
+      return () => clearTimeout(timeoutId);
     }
-  }, [showTooltip, position]);
+  }, [showTooltip, position, text]);
 
-  if (!text || text.length <= 15) {
+  if (!text || text.length <= 12) {
     return <>{children}</>;
   }
 
@@ -79,18 +153,25 @@ const Tooltip = ({ children, text, position = 'top' }) => {
       >
         {children}
       </span>
-      {showTooltip && tooltipPosition && createPortal(
+      {showTooltip && createPortal(
         <div
           ref={tooltipRef}
           className={`tooltip tooltip-${position}`}
           style={{
             position: 'fixed',
-            top: `${tooltipPosition.top}px`,
-            left: `${tooltipPosition.left}px`,
-            zIndex: 10000
+            top: tooltipPosition ? `${tooltipPosition.top}px` : '-9999px',
+            left: tooltipPosition ? `${tooltipPosition.left}px` : '-9999px',
+            zIndex: 10000,
+            visibility: tooltipPosition ? 'visible' : 'hidden'
           }}
+          onMouseEnter={() => setShowTooltip(true)}
+          onMouseLeave={() => setShowTooltip(false)}
         >
-          {text}
+          <div className="tooltip-content">{text}</div>
+          {position === 'bottom' && <div className="tooltip-arrow tooltip-arrow-top"></div>}
+          {position === 'top' && <div className="tooltip-arrow tooltip-arrow-bottom"></div>}
+          {position === 'left' && <div className="tooltip-arrow tooltip-arrow-right"></div>}
+          {position === 'right' && <div className="tooltip-arrow tooltip-arrow-left"></div>}
         </div>,
         document.body
       )}

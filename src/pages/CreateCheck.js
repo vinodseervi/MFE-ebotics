@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import SearchableDropdown from '../components/SearchableDropdown';
+import USDateInput from '../components/USDateInput';
 import './CreateCheck.css';
 
 const CreateCheck = () => {
@@ -223,8 +224,7 @@ const CreateCheck = () => {
               <label htmlFor="depositDate">
                 Deposit Date <span className="required">*</span>
               </label>
-              <input
-                type="date"
+              <USDateInput
                 id="depositDate"
                 name="depositDate"
                 value={formData.depositDate}
@@ -245,9 +245,13 @@ const CreateCheck = () => {
               <SearchableDropdown
                 options={[
                   { value: 'EFT', label: 'EFT' },
-                  { value: 'CHECK', label: 'Check' },
-                  { value: 'WIRE', label: 'Wire' },
-                  { value: 'ACH', label: 'ACH' }
+                  { value: 'ERA', label: 'ERA' },
+                  { value: 'DIT/DRL', label: 'DIT/DRL' },
+                  { value: 'NON_AR', label: 'NON_AR' },
+                  { value: 'REFUND', label: 'REFUND' },
+                  { value: 'LOCK_BOX', label: 'LOCK_BOX' },
+                  { value: 'DEBIT', label: 'DEBIT' },
+                  { value: 'FEE', label: 'FEE' }
                 ]}
                 value={formData.checkType}
                 onChange={(value) => {
@@ -257,6 +261,7 @@ const CreateCheck = () => {
                   }
                 }}
                 placeholder="Select Check Type"
+                maxVisibleItems={5}
               />
               {formErrors.checkType && (
                 <span className="error-text">{formErrors.checkType}</span>
@@ -288,6 +293,7 @@ const CreateCheck = () => {
                   }
                 }}
                 placeholder="Select Practice"
+                maxVisibleItems={5}
               />
               {formErrors.practiceCode && (
                 <span className="error-text">{formErrors.practiceCode}</span>
@@ -310,6 +316,7 @@ const CreateCheck = () => {
                 }}
                 placeholder="Select Location"
                 disabled={!formData.practiceCode || locations.length === 0}
+                maxVisibleItems={5}
               />
               {!formData.practiceCode && (
                 <span className="field-hint">Select a practice first</span>

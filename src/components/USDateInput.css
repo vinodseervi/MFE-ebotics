@@ -1,0 +1,82 @@
+.us-date-input-container {
+  position: relative;
+  width: 100%;
+}
+
+.us-date-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.us-date-text-input {
+  width: 100%;
+  padding: 6px 10px;
+  padding-right: 40px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #111827;
+  background: white;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.us-date-text-input:focus {
+  outline: none;
+  border-color: #14b8a6;
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.1);
+}
+
+.us-date-text-input.error {
+  border-color: #ef4444;
+}
+
+.us-date-text-input.error:focus {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.us-date-calendar-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #6b7280;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.us-date-calendar-btn:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.us-date-calendar-btn:active {
+  background: #e5e7eb;
+}
+
+.us-date-hidden-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+}
+
+/* For AdvancedFilterDrawer */
+.filter-group .us-date-text-input {
+  padding: 10px 12px;
+  padding-right: 40px;
+}
+
+.filter-group .us-date-calendar-btn {
+  right: 12px;
+}

@@ -149,6 +149,33 @@
   min-height: 50px;
 }
 
+.date-format-hint {
+  font-size: 11px;
+  font-weight: 400;
+  color: #9ca3af;
+  margin-left: 6px;
+  font-style: italic;
+}
+
+.date-display {
+  font-size: 14px;
+  color: #111827;
+  margin-top: 6px;
+  padding: 8px 12px;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 6px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.date-display::before {
+  content: "📅";
+  font-size: 16px;
+}
+
 .error-text {
   font-size: 11px;
   color: #ef4444;

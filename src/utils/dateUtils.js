@@ -128,19 +128,25 @@ export const formatMonthYear = (month, year) => {
 /**
  * Format date time for display (MM/DD/YYYY HH:MM AM/PM)
  * @param {string|Date} dateTime - Date time string or Date object
- * @returns {string} Formatted date time
+ * @returns {string} Formatted date time in MM/DD/YYYY HH:MM AM/PM format
  */
 export const formatDateTime = (dateTime) => {
   if (!dateTime) return '';
   const date = typeof dateTime === 'string' ? new Date(dateTime) : dateTime;
   if (isNaN(date.getTime())) return '';
   
-  return date.toLocaleString('en-US', {
-    month: '2-digit',
-    day: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+  // Format date as MM/DD/YYYY
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const year = date.getFullYear();
+  
+  // Format time as HH:MM AM/PM
+  const hours = date.getHours();
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours % 12 || 12;
+  const displayHoursStr = String(displayHours).padStart(2, '0');
+  
+  return `${month}/${day}/${year} ${displayHoursStr}:${minutes} ${ampm}`;
 };
 

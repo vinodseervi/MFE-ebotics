@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { Edit } from 'lucide-react';
 import { countryCodes, parsePhoneNumber, formatPhoneNumber, getDefaultCountry, validatePhoneInput, getPhoneMaxLength, getPhonePlaceholder } from '../utils/countryCodes';
+import { formatDateTime } from '../utils/dateUtils';
 import './Profile.css';
 
 const Profile = () => {
@@ -229,21 +230,6 @@ const Profile = () => {
     }
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    } catch {
-      return dateString;
-    }
-  };
 
   const getUserInitials = () => {
     if (userData) {
@@ -495,7 +481,7 @@ const Profile = () => {
             <div className="detail-list">
               <div className="detail-item">
                 <span className="detail-label">Created At</span>
-                <span className="detail-value">{formatDate(userData.createdAt)}</span>
+                <span className="detail-value">{formatDateTime(userData.createdAt) || 'N/A'}</span>
               </div>
               <div className="detail-item">
                 <span className="detail-label">Created By</span>
@@ -505,7 +491,7 @@ const Profile = () => {
               </div>
               <div className="detail-item">
                 <span className="detail-label">Updated At</span>
-                <span className="detail-value">{formatDate(userData.updatedAt)}</span>
+                <span className="detail-value">{formatDateTime(userData.updatedAt) || 'N/A'}</span>
               </div>
               <div className="detail-item">
                 <span className="detail-label">Updated By</span>

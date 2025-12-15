@@ -5,6 +5,7 @@ import { Edit, Info } from 'lucide-react';
 import { countryCodes, parsePhoneNumber, formatPhoneNumber, getDefaultCountry, validatePhoneInput, getPhoneMaxLength, getPhonePlaceholder } from '../../utils/countryCodes';
 import { usePermissions, PERMISSIONS } from '../../hooks/usePermissions';
 import PermissionGuard from '../../components/PermissionGuard';
+import { formatDateTime } from '../../utils/dateUtils';
 import './Admin.css';
 
 const Users = () => {
@@ -437,21 +438,6 @@ const Users = () => {
     }
   };
 
-  const formatDateForTooltip = (dateString) => {
-    if (!dateString) return '-';
-    const date = new Date(dateString);
-    const dateStr = date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-    const timeStr = date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
-    return `${dateStr} at ${timeStr}`;
-  };
 
 
   const handleEditClick = (user) => {
@@ -787,12 +773,12 @@ const Users = () => {
                               <div className="info-tooltip info-tooltip-right">
                                 {user.createdByMeta && (
                                   <div className="tooltip-line">
-                                    Created by <strong>{user.createdByMeta.fullName || 'N/A'}</strong> on {formatDateForTooltip(user.createdAt)}
+                                    Created by <strong>{user.createdByMeta.fullName || 'N/A'}</strong> on {formatDateTime(user.createdAt) || '-'}
                                   </div>
                                 )}
                                 {user.updatedByMeta && (
                                   <div className="tooltip-line">
-                                    Updated by <strong>{user.updatedByMeta.fullName || 'N/A'}</strong> on {formatDateForTooltip(user.updatedAt)}
+                                    Updated by <strong>{user.updatedByMeta.fullName || 'N/A'}</strong> on {formatDateTime(user.updatedAt) || '-'}
                                   </div>
                                 )}
                               </div>

@@ -27,9 +27,10 @@ const ColumnSelector = ({ availableColumns, visibleColumns, onChange, onClose, t
       const rect = triggerRef.current.getBoundingClientRect();
       
       const popupWidth = 320;
-      const popupHeight = 500; // Approximate max height
+      const popupHeight = 500; // Slightly taller, while still keeping footer visible
       const spacing = 4;
-      const margin = 10; // Margin from viewport edges
+      const margin = 12; // General margin from viewport edges
+      const bottomGap = 40; // Extra space from bottom of screen for OS/taskbar
       
       // Calculate initial position (using getBoundingClientRect which gives viewport-relative coords)
       let top = rect.bottom + spacing;
@@ -46,26 +47,62 @@ const ColumnSelector = ({ availableColumns, visibleColumns, onChange, onClose, t
         }
       }
       
-      // Check if popup would overflow bottom edge
+      // Check if popup would overflow bottom edge and constrain height
       const viewportHeight = window.innerHeight;
-      const bottomSpace = viewportHeight - rect.bottom;
-      if (bottomSpace < popupHeight + margin) {
-        // Position above trigger instead
-        top = rect.top - popupHeight - spacing;
-        // If still overflows, align to top edge
-        if (top < margin) {
-          top = margin;
+      const maxAvailableHeight = viewportHeight - margin * 2 - bottomGap;
+      
+      // Calculate available space below the button
+      const spaceBelow = viewportHeight - rect.bottom - bottomGap - spacing;
+      
+      // Prefer positioning below button - constrain height to available space
+      let effectiveHeight;
+      if (spaceBelow >= popupHeight * 0.5) {
+        // Good space below - use full or near-full height
+        effectiveHeight = Math.min(popupHeight, maxAvailableHeight);
+        top = rect.bottom + spacing;
+      } else if (spaceBelow > 200) {
+        // Some space below - use what's available
+        effectiveHeight = Math.min(popupHeight, spaceBelow);
+        top = rect.bottom + spacing;
+      } else {
+        // Very little space below - try above button
+        const spaceAbove = rect.top - margin - spacing;
+        if (spaceAbove >= popupHeight * 0.5) {
+          effectiveHeight = Math.min(popupHeight, maxAvailableHeight);
+          top = rect.top - effectiveHeight - spacing;
+          if (top < margin) {
+            top = margin;
+            effectiveHeight = Math.min(effectiveHeight, viewportHeight - top - bottomGap);
+          }
+        } else {
+          // Limited space everywhere - position below with constrained height
+          effectiveHeight = Math.max(200, Math.min(popupHeight, spaceBelow));
+          top = rect.bottom + spacing;
         }
       }
       
-      // Ensure minimum margins from edges
+      // Final check: ensure popup doesn't overflow bottom
+      if (top + effectiveHeight > viewportHeight - bottomGap) {
+        effectiveHeight = viewportHeight - top - bottomGap;
+        if (effectiveHeight < 200) {
+          // If too constrained, try moving up
+          effectiveHeight = Math.min(popupHeight, maxAvailableHeight);
+          top = viewportHeight - effectiveHeight - bottomGap;
+          if (top < margin) {
+            top = margin;
+            effectiveHeight = Math.min(effectiveHeight, viewportHeight - top - bottomGap);
+          }
+        }
+      }
+
+      // Ensure minimum horizontal margins from edges
       if (left < margin) left = margin;
-      if (top < margin) top = margin;
       
       setPosition({
-        top: top,
-        left: left,
-        width: popupWidth
+        top,
+        left,
+        width: popupWidth,
+        height: effectiveHeight
       });
     }
   }, [triggerRef]);
@@ -142,6 +179,7 @@ const ColumnSelector = ({ availableColumns, visibleColumns, onChange, onClose, t
         top: `${position.top}px`,
         left: `${position.left}px`,
         width: `${position.width}px`,
+        maxHeight: `${position.height}px`,
         zIndex: 1000
       }}
     >

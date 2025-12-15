@@ -4,6 +4,7 @@ import api from '../../services/api';
 import { Edit, Info } from 'lucide-react';
 import { usePermissions, PERMISSIONS } from '../../hooks/usePermissions';
 import PermissionGuard from '../../components/PermissionGuard';
+import { formatDateTime } from '../../utils/dateUtils';
 import './Admin.css';
 
 const Roles = () => {
@@ -94,30 +95,6 @@ const Roles = () => {
     return status.charAt(0) + status.slice(1).toLowerCase();
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
-  const formatDateForTooltip = (dateString) => {
-    if (!dateString) return '-';
-    const date = new Date(dateString);
-    const dateStr = date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-    const timeStr = date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
-    return `${dateStr} at ${timeStr}`;
-  };
 
   const filteredRoles = roles.filter(role => {
     const matchesSearch = !searchTerm || 
@@ -244,12 +221,12 @@ const Roles = () => {
                         <div className="info-tooltip">
                           {role.createdByMeta && (
                             <div className="tooltip-line">
-                              Created by <strong>{role.createdByMeta.fullName || 'N/A'}</strong> on {formatDateForTooltip(role.createdAt)}
+                              Created by <strong>{role.createdByMeta.fullName || 'N/A'}</strong> on {formatDateTime(role.createdAt) || '-'}
                             </div>
                           )}
                           {role.updatedByMeta && (
                             <div className="tooltip-line">
-                              Updated by <strong>{role.updatedByMeta.fullName || 'N/A'}</strong> on {formatDateForTooltip(role.updatedAt)}
+                              Updated by <strong>{role.updatedByMeta.fullName || 'N/A'}</strong> on {formatDateTime(role.updatedAt) || '-'}
                             </div>
                           )}
                         </div>
@@ -323,11 +300,11 @@ const Roles = () => {
                 <div className="role-footer">
                   <div className="role-meta-info">
                     <span className="role-meta-label">Created:</span>
-                    <span className="role-meta-value">{formatDate(role.createdAt)}</span>
+                    <span className="role-meta-value">{formatDateTime(role.createdAt) || '-'}</span>
                   </div>
                   <div className="role-meta-info">
                     <span className="role-meta-label">Updated:</span>
-                    <span className="role-meta-value">{formatDate(role.updatedAt)}</span>
+                    <span className="role-meta-value">{formatDateTime(role.updatedAt) || '-'}</span>
                   </div>
                 </div>
               </div>

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { formatDateUS, parseDateUS } from '../utils/dateUtils';
+import { formatDateUS, parseDateUS, formatDateTime } from '../utils/dateUtils';
 import { MdOutlineHistory } from 'react-icons/md';
 import ActivityDrawer from '../components/ActivityDrawer';
+import SearchableDropdown from '../components/SearchableDropdown';
 import './CheckDetails.css';
 
 const CheckDetails = () => {
@@ -467,7 +468,7 @@ const CheckDetails = () => {
   const getStatusClass = (status) => {
     const statusMap = {
       'COMPLETED': 'status-complete',
-      'UNDER_CLARIFICATION': 'status-clarification',
+      'UNDER_CLARIFICATIONS': 'status-clarification',
       'IN_PROGRESS': 'status-progress',
       'NOT_STARTED': 'status-not-started',
       'OVER_POSTED': 'status-over-posted'
@@ -478,7 +479,7 @@ const CheckDetails = () => {
   const formatStatus = (status) => {
     const statusMap = {
       'COMPLETED': 'Completed',
-      'UNDER_CLARIFICATION': 'Under Clarification',
+      'UNDER_CLARIFICATIONS': 'Under Clarifications',
       'IN_PROGRESS': 'In Progress',
       'NOT_STARTED': 'Not Started',
       'OVER_POSTED': 'Over Posted'
@@ -486,17 +487,6 @@ const CheckDetails = () => {
     return statusMap[status] || status;
   };
 
-  const formatDateTime = (dateTime) => {
-    if (!dateTime) return '';
-    const date = new Date(dateTime);
-    return date.toLocaleString('en-US', {
-      month: '2-digit',
-      day: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
 
   // Navigation loading overlay
   if (navigationLoading) {
@@ -554,7 +544,9 @@ const CheckDetails = () => {
               Back
             </button>
             <div className="title-row">
-              <h1 className="page-title">Check Details</h1>
+              <h1 className="page-title">
+                {check.checkNumber || 'Check Details'}
+              </h1>
               <span className={`status-badge-large ${getStatusClass(check.status)}`}>
                 {formatStatus(check.status)}
               </span>
@@ -607,12 +599,38 @@ const CheckDetails = () => {
         <h3 className="card-title">Financial Summary</h3>
         <div className="financial-grid">
           <div className="financial-item">
-            <span className="financial-label">Check Number</span>
-            <span className="financial-value">{check.checkNumber || 'N/A'}</span>
+            <span className="financial-label">Received Date</span>
+            <span className="financial-value">
+              {check.receivedDate ? formatDateUS(check.receivedDate) : 'N/A'}
+            </span>
           </div>
           <div className="financial-item">
             <span className="financial-label">Deposit Date</span>
-            <span className="financial-value">{check.depositDate ? formatDateUS(check.depositDate) : 'N/A'}</span>
+            <span className="financial-value">
+              {check.depositDate ? formatDateUS(check.depositDate) : 'N/A'}
+            </span>
+          </div>
+          <div className="financial-item">
+            <span className="financial-label">Completed Date</span>
+            <span className="financial-value">
+              {check.completedDate ? formatDateUS(check.completedDate) : 'N/A'}
+            </span>
+          </div>
+          <div className="financial-item">
+            <span className="financial-label">TAT by Received</span>
+            <span className="financial-value">
+              {typeof check.turnaroundByReceivedDays === 'number'
+                ? `${check.turnaroundByReceivedDays} day${check.turnaroundByReceivedDays === 1 ? '' : 's'}`
+                : 'N/A'}
+            </span>
+          </div>
+          <div className="financial-item">
+            <span className="financial-label">TAT by Deposit</span>
+            <span className="financial-value">
+              {typeof check.turnaroundByDepositDays === 'number'
+                ? `${check.turnaroundByDepositDays} day${check.turnaroundByDepositDays === 1 ? '' : 's'}`
+                : 'N/A'}
+            </span>
           </div>
           <div className="financial-item">
             <span className="financial-label">Total Amount</span>
@@ -694,27 +712,24 @@ const CheckDetails = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Received Date</label>
-                  <input 
-                    type="text" 
-                    value={formData.receivedDate ? formatDateUS(formData.receivedDate) : ''}
-                    onChange={(e) => handleFormChange('receivedDate', parseDateUS(e.target.value) || e.target.value)}
-                    placeholder="MM/DD/YYYY"
-                    disabled={!isEditMode}
-                  />
-                </div>
-                <div className="form-group">
                   <label>Check Type</label>
-                  <select 
+                  <SearchableDropdown
+                    options={[
+                      { value: 'EFT', label: 'EFT' },
+                      { value: 'ERA', label: 'ERA' },
+                      { value: 'DIT/DRL', label: 'DIT/DRL' },
+                      { value: 'NON_AR', label: 'NON_AR' },
+                      { value: 'REFUND', label: 'REFUND' },
+                      { value: 'LOCK_BOX', label: 'LOCK_BOX' },
+                      { value: 'DEBIT', label: 'DEBIT' },
+                      { value: 'FEE', label: 'FEE' }
+                    ]}
                     value={formData.checkType || ''}
-                    onChange={(e) => handleFormChange('checkType', e.target.value)}
+                    onChange={(val) => handleFormChange('checkType', val)}
+                    placeholder="Select Type"
                     disabled={!isEditMode}
-                  >
-                    <option value="">Select Type</option>
-                    <option value="EFT">EFT</option>
-                    <option value="Paper">Paper</option>
-                    <option value="ERA">ERA</option>
-                  </select>
+                    maxVisibleItems={5}
+                  />
                 </div>
                 <div className="form-group">
                   <label>Exchange</label>
@@ -754,20 +769,19 @@ const CheckDetails = () => {
                 </div>
                 <div className="form-group">
                   <label>Assignee</label>
-                  <select 
+                  <SearchableDropdown
+                    options={users.map(user => ({
+                      value: user.userId || user.id,
+                      label: user.firstName && user.lastName
+                        ? `${user.firstName} ${user.lastName}`
+                        : user.email || 'Unknown User'
+                    }))}
                     value={formData.assigneeId || ''}
-                    onChange={(e) => handleFormChange('assigneeId', e.target.value)}
+                    onChange={(val) => handleFormChange('assigneeId', val)}
+                    placeholder="Select Assignee"
                     disabled={!isEditMode}
-                  >
-                    <option value="">Select Assignee</option>
-                    {users.map(user => (
-                      <option key={user.userId || user.id} value={user.userId || user.id}>
-                        {user.firstName && user.lastName 
-                          ? `${user.firstName} ${user.lastName}` 
-                          : user.email || 'Unknown User'}
-                      </option>
-                    ))}
-                  </select>
+                    maxVisibleItems={5}
+                  />
                 </div>
                 <div className="form-group">
                   <label>Practice Code</label>
@@ -781,24 +795,46 @@ const CheckDetails = () => {
             </div>
 
             <div className="details-card">
+              <h3 className="card-title">Processing & Status Overview</h3>
+              <div className="form-grid">
+                <div className="form-group">
+                  <label>Assignee ID</label>
+                  <input 
+                    type="text" 
+                    value={check.assigneeId || ''}
+                    disabled
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Reporter ID</label>
+                  <input 
+                    type="text" 
+                    value={check.reporterId || ''}
+                    disabled
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="details-card">
               <h3 className="card-title">Additional Information</h3>
               <div className="form-grid">
-                <div className="form-group full-width">
+                <div className="form-group">
                   <label>Legacy Notes</label>
                   <textarea 
                     value={formData.legacyNotes || ''}
                     onChange={(e) => handleFormChange('legacyNotes', e.target.value)}
                     disabled={!isEditMode}
-                    rows="4"
+                    rows="1"
                   />
                 </div>
-                <div className="form-group full-width">
+                <div className="form-group">
                   <label>Against Check Additional</label>
                   <textarea 
                     value={formData.againstCheckAdditional || ''}
                     onChange={(e) => handleFormChange('againstCheckAdditional', e.target.value)}
                     disabled={!isEditMode}
-                    rows="4"
+                    rows="1"
                   />
                 </div>
               </div>

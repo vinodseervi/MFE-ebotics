@@ -1,9 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import AdvancedFilterDrawer from '../components/AdvancedFilterDrawer';
 import MonthYearPicker from '../components/MonthYearPicker';
-import { formatDateRange, formatDateTime, getMonthRange, getCurrentMonthYear } from '../utils/dateUtils';
+import SearchableDropdown from '../components/SearchableDropdown';
+import ColumnSelector from '../components/ColumnSelector';
+import Tooltip from '../components/Tooltip';
+import { formatDateRange, formatDateTime, getMonthRange, getCurrentMonthYear, formatMonthYear } from '../utils/dateUtils';
 import './Clarifications.css';
 
 const Clarifications = () => {
@@ -11,6 +14,7 @@ const Clarifications = () => {
   
   // State management
   const [clarifications, setClarifications] = useState([]);
+  const [allClarifications, setAllClarifications] = useState([]); // Store all fetched clarifications before filtering
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
@@ -23,6 +27,28 @@ const Clarifications = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [users, setUsers] = useState([]);
+  
+  // Column selector
+  const [showColumnSelector, setShowColumnSelector] = useState(false);
+  const columnSelectorTriggerRef = useRef(null);
+  
+  // Available columns
+  const allColumns = [
+    { key: 'checkNumber', label: 'Check Number' },
+    { key: 'clarificationType', label: 'Type' },
+    { key: 'details', label: 'Details' },
+    { key: 'assignee', label: 'Assignee' },
+    { key: 'reporter', label: 'Reporter' },
+    { key: 'status', label: 'Status' },
+    { key: 'openedAt', label: 'Opened Date' },
+    { key: 'resolvedAt', label: 'Resolved Date' },
+    { key: 'actions', label: 'Actions', alwaysVisible: true }
+  ];
+
+  // Initialize visible columns
+  const [visibleColumns, setVisibleColumns] = useState(() => {
+    return allColumns.map(col => col.key);
+  });
   
   // Advanced filters
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
@@ -162,11 +188,8 @@ const Clarifications = () => {
         });
       }
       
-      if (page === 0) {
-        setClarifications(clarificationsList);
-      } else {
-        setClarifications(prev => [...prev, ...clarificationsList]);
-      }
+      // Store all fetched clarifications
+      setAllClarifications(clarificationsList);
       
       setTotalElements(totalElements);
       setHasMore(page < totalPages - 1);
@@ -183,16 +206,62 @@ const Clarifications = () => {
   // Fetch clarifications when filters change (reset to page 0)
   useEffect(() => {
     setCurrentPage(0);
-    fetchClarifications(0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedStatus, searchTerm, advancedFilters, sortField, sortDirection, selectedMonth, selectedYear]);
+  }, [selectedStatus, advancedFilters, sortField, sortDirection, selectedMonth, selectedYear]);
 
-  const handleLoadMore = () => {
-    if (!loading && hasMore) {
-      const nextPage = currentPage + 1;
-      fetchClarifications(nextPage);
+  // Fetch clarifications when page or filters change (excluding searchTerm - handled client-side)
+  useEffect(() => {
+    fetchClarifications(currentPage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, selectedStatus, advancedFilters, sortField, sortDirection, selectedMonth, selectedYear]);
+
+  const handlePreviousPage = () => {
+    if (currentPage > 0 && !loading) {
+      setCurrentPage(prev => prev - 1);
     }
   };
+
+  const handleNextPage = () => {
+    if (hasMore && !loading) {
+      setCurrentPage(prev => prev + 1);
+    }
+  };
+
+  // Calculate pagination display values
+  const pageSize = 50;
+  // If search is active, show filtered results count, otherwise show total from API
+  const displayTotal = searchTerm ? clarifications.length : totalElements;
+  const startIndex = searchTerm ? 1 : (currentPage * pageSize + 1);
+  const endIndex = searchTerm ? clarifications.length : Math.min((currentPage + 1) * pageSize, totalElements);
+
+  // Client-side filtering for search term
+  useEffect(() => {
+    if (!searchTerm) {
+      setClarifications(allClarifications);
+      return;
+    }
+
+    const searchLower = searchTerm.toLowerCase().trim();
+    const filtered = allClarifications.filter(clarification => {
+      // Search by check number
+      if (clarification.checkNumber && clarification.checkNumber.toLowerCase().includes(searchLower)) {
+        return true;
+      }
+      
+      // Search by clarification type
+      if (clarification.clarificationType && clarification.clarificationType.toLowerCase().includes(searchLower)) {
+        return true;
+      }
+      
+      // Search by details
+      if (clarification.details && clarification.details.toLowerCase().includes(searchLower)) {
+        return true;
+      }
+      
+      return false;
+    });
+
+    setClarifications(filtered);
+  }, [searchTerm, allClarifications]);
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -220,6 +289,30 @@ const Clarifications = () => {
     });
   };
 
+  const handleClearAllFilters = () => {
+    // Reset advanced filters
+    handleResetAdvancedFilters();
+    // Reset basic filters
+    setSelectedStatus('');
+    setSearchTerm('');
+    // Close advanced filter drawer
+    setShowAdvancedFilters(false);
+  };
+
+  // Check if any advanced filter is active
+  const hasAdvancedFilters = () => {
+    return !!(
+      advancedFilters.status ||
+      advancedFilters.assigneeId ||
+      advancedFilters.reporterId ||
+      advancedFilters.checkNumber ||
+      advancedFilters.startDate ||
+      advancedFilters.endDate ||
+      advancedFilters.month ||
+      advancedFilters.year
+    );
+  };
+
   const getStatusClass = (status) => {
     const statusMap = {
       'RESOLVED': 'status-resolved',
@@ -229,7 +322,11 @@ const Clarifications = () => {
   };
 
   const formatStatus = (status) => {
-    return status || 'OPEN';
+    const statusMap = {
+      'OPEN': 'Open',
+      'RESOLVED': 'Resolved'
+    };
+    return statusMap[status] || status || 'Open';
   };
 
   const getUserName = (userId) => {
@@ -244,10 +341,36 @@ const Clarifications = () => {
   };
 
   const getDateRangeDisplay = () => {
+    // If both start and end dates are selected, show the date range
     if (advancedFilters.startDate && advancedFilters.endDate) {
       return formatDateRange(advancedFilters.startDate, advancedFilters.endDate);
     }
-    return formatDateRange(selectedMonthRange.startDate, selectedMonthRange.endDate);
+    // If advanced filters are active (but no date range), show custom range
+    if (hasAdvancedFilters()) {
+      return 'Custom Range';
+    }
+    // Show month/year format instead of date range
+    return formatMonthYear(selectedMonth, selectedYear);
+  };
+
+  // Truncate text and show tooltip on hover
+  const TruncatedText = ({ text, maxLength = 50 }) => {
+    if (!text) return <span></span>;
+    
+    const shouldTruncate = text.length > maxLength;
+    const displayText = shouldTruncate ? text.substring(0, maxLength) + '...' : text;
+    
+    if (shouldTruncate) {
+      return (
+        <Tooltip text={text} position="bottom">
+          <span className="truncated-text">
+            {displayText}
+          </span>
+        </Tooltip>
+      );
+    }
+    
+    return <span>{displayText}</span>;
   };
 
 
@@ -263,33 +386,39 @@ const Clarifications = () => {
   return (
     <div className="clarifications-page">
       <div className="page-header">
-        <div>
-          <h1 className="page-title">
-            Clarifications
-            <span className="info-icon">⚠️</span>
-          </h1>
+        <div className="page-header-content">
+          <h1 className="page-title">Clarifications</h1>
           <p className="page-subtitle">Manage and track payment clarifications</p>
         </div>
         <div className="header-actions">
-          <div className="date-range-container">
-            <button 
-              className="date-range-btn"
-              onClick={() => setShowMonthPicker(!showMonthPicker)}
-            >
-              {getDateRangeDisplay()}
-              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" style={{ marginLeft: '8px' }}>
-                <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-            {showMonthPicker && (
-              <MonthYearPicker
-                selectedMonth={selectedMonth}
-                selectedYear={selectedYear}
-                onSelect={handleMonthYearSelect}
-                onClose={() => setShowMonthPicker(false)}
-              />
-            )}
-          </div>
+          {!hasAdvancedFilters() && (
+            <div className="date-range-container">
+              <button 
+                className="date-range-btn"
+                onClick={() => setShowMonthPicker(!showMonthPicker)}
+              >
+                {getDateRangeDisplay()}
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="none" style={{ marginLeft: '8px' }}>
+                  <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+              {showMonthPicker && (
+                <MonthYearPicker
+                  selectedMonth={selectedMonth}
+                  selectedYear={selectedYear}
+                  onSelect={handleMonthYearSelect}
+                  onClose={() => setShowMonthPicker(false)}
+                />
+              )}
+            </div>
+          )}
+          {hasAdvancedFilters() && (
+            <div className="date-range-container">
+              <div className="date-range-display">
+                {getDateRangeDisplay()}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -301,23 +430,25 @@ const Clarifications = () => {
           </svg>
           <input
             type="text"
-            placeholder="Search by check number..."
+            placeholder="Search by check number, type, details..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         <div className="filter-dropdowns">
-          <select 
-            className="filter-select"
+          <SearchableDropdown
+            options={[
+              { value: '', label: 'All Statuses' },
+              { value: 'OPEN', label: 'Open' },
+              { value: 'RESOLVED', label: 'Resolved' }
+            ]}
             value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-          >
-            <option value="">All Statuses</option>
-            <option value="OPEN">Open</option>
-            <option value="RESOLVED">Resolved</option>
-          </select>
+            onChange={(value) => setSelectedStatus(value)}
+            placeholder="All Statuses"
+            maxVisibleItems={5}
+          />
           <button 
-            className="btn-advanced-filter"
+            className={`btn-advanced-filter ${hasAdvancedFilters() ? 'active' : ''}`}
             onClick={() => setShowAdvancedFilters(true)}
           >
             <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
@@ -328,6 +459,120 @@ const Clarifications = () => {
         </div>
       </div>
 
+      {/* Active Filters Indicator */}
+      {(hasAdvancedFilters() || selectedStatus || searchTerm) && (
+        <div className="active-filters-section">
+          <div className="active-filters-label">Active Filters:</div>
+          <div className="active-filters-chips">
+            {searchTerm && (
+              <div className="filter-chip">
+                <span>Search: {searchTerm}</span>
+                <button
+                  className="chip-close-btn"
+                  onClick={() => setSearchTerm('')}
+                  title="Remove search filter"
+                >
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                    <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            )}
+            {selectedStatus && (
+              <div className="filter-chip">
+                <span>Status: {[
+                  { value: 'OPEN', label: 'Open' },
+                  { value: 'RESOLVED', label: 'Resolved' }
+                ].find(s => s.value === selectedStatus)?.label || selectedStatus}</span>
+                <button
+                  className="chip-close-btn"
+                  onClick={() => setSelectedStatus('')}
+                  title="Remove status filter"
+                >
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                    <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            )}
+            {advancedFilters.status && (
+              <div className="filter-chip">
+                <span>Status: {[
+                  { value: 'OPEN', label: 'Open' },
+                  { value: 'RESOLVED', label: 'Resolved' }
+                ].find(s => s.value === advancedFilters.status)?.label || advancedFilters.status}</span>
+                <button
+                  className="chip-close-btn"
+                  onClick={() => {
+                    setAdvancedFilters(prev => ({ ...prev, status: '' }));
+                  }}
+                  title="Remove status filter"
+                >
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                    <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            )}
+            {advancedFilters.checkNumber && (
+              <div className="filter-chip">
+                <span>Check: {advancedFilters.checkNumber}</span>
+                <button
+                  className="chip-close-btn"
+                  onClick={() => {
+                    setAdvancedFilters(prev => ({ ...prev, checkNumber: '' }));
+                  }}
+                  title="Remove check number filter"
+                >
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                    <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            )}
+            {(advancedFilters.startDate || advancedFilters.endDate) && (
+              <div className="filter-chip">
+                <span>Date Range: {formatDateRange(advancedFilters.startDate || '', advancedFilters.endDate || '')}</span>
+                <button
+                  className="chip-close-btn"
+                  onClick={() => {
+                    setAdvancedFilters(prev => ({ ...prev, startDate: '', endDate: '' }));
+                  }}
+                  title="Remove date range filter"
+                >
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                    <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            )}
+            {(advancedFilters.month || advancedFilters.year) && (
+              <div className="filter-chip">
+                <span>Period: {formatMonthYear(advancedFilters.month || selectedMonth, advancedFilters.year || selectedYear)}</span>
+                <button
+                  className="chip-close-btn"
+                  onClick={() => {
+                    setAdvancedFilters(prev => ({ ...prev, month: null, year: null }));
+                  }}
+                  title="Remove period filter"
+                >
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                    <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            )}
+            <button
+              className="clear-all-filters-btn"
+              onClick={handleClearAllFilters}
+              title="Clear all filters"
+            >
+              Clear All
+            </button>
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className="error-message">
           {error}
@@ -336,9 +581,41 @@ const Clarifications = () => {
 
       <div className="table-section">
         <div className="table-header">
-          <h3>{totalElements} Clarifications</h3>
+          <div className="table-header-left">
+            {totalElements > 0 && (
+              <div className="pagination-info">
+                <button
+                  className="pagination-arrow"
+                  onClick={handlePreviousPage}
+                  disabled={currentPage === 0 || loading}
+                  title="Previous page"
+                >
+                  <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                    <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+                <span className="pagination-text">
+                  {startIndex} - {endIndex}, of {displayTotal}
+                </span>
+                <button
+                  className="pagination-arrow"
+                  onClick={handleNextPage}
+                  disabled={!hasMore || loading}
+                  title="Next page"
+                >
+                  <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                    <path d="M7.5 5L12.5 10L7.5 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            )}
+          </div>
           <div className="table-actions">
-            <button className="icon-btn">
+            <button 
+              ref={columnSelectorTriggerRef}
+              className="icon-btn"
+              onClick={() => setShowColumnSelector(!showColumnSelector)}
+            >
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                 <path d="M3 5H17M3 10H17M3 15H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
               </svg>
@@ -350,96 +627,166 @@ const Clarifications = () => {
           <table className="clarifications-table">
             <thead>
               <tr>
-                <th 
-                  className="sortable"
-                  onClick={() => handleSort('checkNumber')}
-                >
-                  Check Number <SortArrow field="checkNumber" />
-                </th>
-                <th 
-                  className="sortable"
-                  onClick={() => handleSort('clarificationType')}
-                >
-                  Type <SortArrow field="clarificationType" />
-                </th>
-                <th>Details</th>
-                <th>Assignee</th>
-                <th>Reporter</th>
-                <th 
-                  className="sortable"
-                  onClick={() => handleSort('status')}
-                >
-                  Status <SortArrow field="status" />
-                </th>
-                <th 
-                  className="sortable"
-                  onClick={() => handleSort('openedAt')}
-                >
-                  Opened Date <SortArrow field="openedAt" />
-                </th>
-                <th 
-                  className="sortable"
-                  onClick={() => handleSort('resolvedAt')}
-                >
-                  Resolved Date <SortArrow field="resolvedAt" />
-                </th>
-                <th>Actions</th>
+                {visibleColumns.map(colKey => {
+                  const column = allColumns.find(col => col.key === colKey);
+                  if (!column) return null;
+
+                  switch (colKey) {
+                    case 'checkNumber':
+                      return (
+                        <th 
+                          key={colKey}
+                          className="sortable"
+                          onClick={() => handleSort('checkNumber')}
+                        >
+                          Check Number <SortArrow field="checkNumber" />
+                        </th>
+                      );
+                    case 'clarificationType':
+                      return (
+                        <th 
+                          key={colKey}
+                          className="sortable"
+                          onClick={() => handleSort('clarificationType')}
+                        >
+                          Type <SortArrow field="clarificationType" />
+                        </th>
+                      );
+                    case 'details':
+                      return <th key={colKey}>Details</th>;
+                    case 'assignee':
+                      return <th key={colKey}>Assignee</th>;
+                    case 'reporter':
+                      return <th key={colKey}>Reporter</th>;
+                    case 'status':
+                      return (
+                        <th 
+                          key={colKey}
+                          className="sortable"
+                          onClick={() => handleSort('status')}
+                        >
+                          Status <SortArrow field="status" />
+                        </th>
+                      );
+                    case 'openedAt':
+                      return (
+                        <th 
+                          key={colKey}
+                          className="sortable"
+                          onClick={() => handleSort('openedAt')}
+                        >
+                          Opened Date <SortArrow field="openedAt" />
+                        </th>
+                      );
+                    case 'resolvedAt':
+                      return (
+                        <th 
+                          key={colKey}
+                          className="sortable"
+                          onClick={() => handleSort('resolvedAt')}
+                        >
+                          Resolved Date <SortArrow field="resolvedAt" />
+                        </th>
+                      );
+                    case 'actions':
+                      return <th key={colKey}>Actions</th>;
+                    default:
+                      return null;
+                  }
+                })}
               </tr>
             </thead>
             <tbody>
               {loading && clarifications.length === 0 ? (
                 <tr>
-                  <td colSpan="9" style={{ textAlign: 'center', padding: '40px' }}>
+                  <td colSpan={visibleColumns.length} style={{ textAlign: 'center', padding: '40px' }}>
                     Loading clarifications...
                   </td>
                 </tr>
               ) : clarifications.length === 0 ? (
                 <tr>
-                  <td colSpan="9" style={{ textAlign: 'center', padding: '40px' }}>
+                  <td colSpan={visibleColumns.length} style={{ textAlign: 'center', padding: '40px' }}>
                     No clarifications found
                   </td>
                 </tr>
               ) : (
                 clarifications.map((clarification) => (
                   <tr key={clarification.clarificationId}>
-                    <td>
-                      <button 
-                        className="link-btn"
-                        onClick={() => navigate(`/checks/${clarification.checkId}`)}
-                      >
-                        {clarification.checkNumber || 'N/A'}
-                      </button>
-                    </td>
-                    <td>{clarification.clarificationType || 'N/A'}</td>
-                    <td className="details-cell">
-                      <span title={clarification.details || ''}>
-                        {clarification.details ? 
-                          (clarification.details.length > 50 
-                            ? `${clarification.details.substring(0, 50)}...` 
-                            : clarification.details) 
-                          : 'N/A'}
-                      </span>
-                    </td>
-                    <td>{getUserName(clarification.assigneeId)}</td>
-                    <td>{getUserName(clarification.reporterId)}</td>
-                    <td>
-                      <span className={`status-badge ${getStatusClass(clarification.status)}`}>
-                        {formatStatus(clarification.status)}
-                      </span>
-                    </td>
-                    <td>{clarification.openedAt ? formatDateTime(clarification.openedAt) : 'N/A'}</td>
-                    <td>{clarification.resolvedAt ? formatDateTime(clarification.resolvedAt) : 'N/A'}</td>
-                    <td>
-                      <button 
-                        className="btn-icon view"
-                        onClick={() => navigate(`/checks/${clarification.checkId}`)}
-                        title="View Check"
-                      >
-                        <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-                          <path d="M10 3C5 3 1.73 6.11 1 10C1.73 13.89 5 17 10 17C15 17 18.27 13.89 19 10C18.27 6.11 15 3 10 3ZM10 15C7.24 15 5 12.76 5 10C5 7.24 7.24 5 10 5C12.76 5 15 7.24 15 10C15 12.76 12.76 15 10 15ZM10 7C8.34 7 7 8.34 7 10C7 11.66 8.34 13 10 13C11.66 13 13 11.66 13 10C13 8.34 11.66 7 10 7Z" fill="currentColor"/>
-                        </svg>
-                      </button>
-                    </td>
+                    {visibleColumns.map(colKey => {
+                      switch (colKey) {
+                        case 'checkNumber':
+                          return (
+                            <td key={colKey}>
+                              <button 
+                                className="link-btn"
+                                onClick={() => navigate(`/checks/${clarification.checkId}`)}
+                              >
+                                {clarification.checkNumber || 'N/A'}
+                              </button>
+                            </td>
+                          );
+                        case 'clarificationType':
+                          return (
+                            <td key={colKey}>
+                              {clarification.clarificationType || 'N/A'}
+                            </td>
+                          );
+                        case 'details':
+                          return (
+                            <td key={colKey} className="details-cell">
+                              <TruncatedText text={clarification.details || ''} maxLength={50} />
+                            </td>
+                          );
+                        case 'assignee':
+                          return (
+                            <td key={colKey}>
+                              {getUserName(clarification.assigneeId)}
+                            </td>
+                          );
+                        case 'reporter':
+                          return (
+                            <td key={colKey}>
+                              {getUserName(clarification.reporterId)}
+                            </td>
+                          );
+                        case 'status':
+                          return (
+                            <td key={colKey}>
+                              <span className={`status-badge ${getStatusClass(clarification.status)}`}>
+                                {formatStatus(clarification.status)}
+                              </span>
+                            </td>
+                          );
+                        case 'openedAt':
+                          return (
+                            <td key={colKey}>
+                              {clarification.openedAt ? formatDateTime(clarification.openedAt) : 'N/A'}
+                            </td>
+                          );
+                        case 'resolvedAt':
+                          return (
+                            <td key={colKey}>
+                              {clarification.resolvedAt ? formatDateTime(clarification.resolvedAt) : 'N/A'}
+                            </td>
+                          );
+                        case 'actions':
+                          return (
+                            <td key={colKey}>
+                              <button 
+                                className="btn-icon view"
+                                onClick={() => navigate(`/checks/${clarification.checkId}`)}
+                                title="View Check"
+                              >
+                                <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                                  <path d="M10 3C5 3 1.73 6.11 1 10C1.73 13.89 5 17 10 17C15 17 18.27 13.89 19 10C18.27 6.11 15 3 10 3ZM10 15C7.24 15 5 12.76 5 10C5 7.24 7.24 5 10 5C12.76 5 15 7.24 15 10C15 12.76 12.76 15 10 15ZM10 7C8.34 7 7 8.34 7 10C7 11.66 8.34 13 10 13C11.66 13 13 11.66 13 10C13 8.34 11.66 7 10 7Z" fill="currentColor"/>
+                                </svg>
+                              </button>
+                            </td>
+                          );
+                        default:
+                          return null;
+                      }
+                    })}
                   </tr>
                 ))
               )}
@@ -447,17 +794,6 @@ const Clarifications = () => {
           </table>
         </div>
 
-        {hasMore && (
-          <div className="load-more-section">
-            <button 
-              className="btn-load-more"
-              onClick={handleLoadMore}
-              disabled={loading}
-            >
-              {loading ? 'Loading...' : 'Load More'}
-            </button>
-          </div>
-        )}
       </div>
 
       <AdvancedFilterDrawer
@@ -468,6 +804,16 @@ const Clarifications = () => {
         onResetFilters={handleResetAdvancedFilters}
         isClarifications={true}
       />
+
+      {showColumnSelector && (
+        <ColumnSelector
+          availableColumns={allColumns}
+          visibleColumns={visibleColumns}
+          onChange={setVisibleColumns}
+          onClose={() => setShowColumnSelector(false)}
+          triggerRef={columnSelectorTriggerRef}
+        />
+      )}
     </div>
   );
 };

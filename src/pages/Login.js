@@ -12,13 +12,6 @@ const Login = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   
-  // Debug: Log error state changes
-  useEffect(() => {
-    if (error) {
-      console.log('Error state updated:', error);
-    }
-  }, [error]);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -32,16 +25,9 @@ const Login = () => {
 
     try {
       const result = await login(email, password);
-      
-      console.log('=== LOGIN RESULT ===');
-      console.log('Full result:', JSON.stringify(result, null, 2));
-      console.log('Result success:', result?.success);
-      console.log('Result error:', result?.error);
-      console.log('Result errorData:', result?.errorData);
 
       if (result && result.success === true) {
         // Only navigate on success
-        console.log('Login successful, navigating...');
         navigate('/');
         return;
       } 
@@ -54,28 +40,20 @@ const Login = () => {
         // Priority 1: Check errorData.message (from backend response)
         if (result.errorData && result.errorData.message) {
           errorMessage = result.errorData.message;
-          console.log('Using errorData.message:', errorMessage);
         }
         // Priority 2: Check result.error (from AuthContext)
         else if (result.error) {
           errorMessage = result.error;
-          console.log('Using result.error:', errorMessage);
         }
         // Priority 3: Check errorData.error
         else if (result.errorData && result.errorData.error === 'UNAUTHORIZED') {
           errorMessage = 'Invalid credentials. Please check your username and password.';
-          console.log('Using UNAUTHORIZED fallback');
         }
       }
-      
-      console.log('=== SETTING ERROR ===');
-      console.log('Error message:', errorMessage);
       
       // Set error state
       setError(errorMessage);
       setIsLoading(false);
-      
-      console.log('Error state should be set. Check UI for error notification.');
       
     } catch (err) {
       // Catch any unexpected errors

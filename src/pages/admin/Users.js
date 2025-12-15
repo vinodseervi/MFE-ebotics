@@ -191,7 +191,6 @@ const Users = () => {
     try {
       // x-user-id header is automatically included via api service
       const data = await api.getPublicRoles();
-      console.log('Fetched roles:', data);
       setRoles(data || []);
     } catch (error) {
       console.error('Error fetching roles:', error);

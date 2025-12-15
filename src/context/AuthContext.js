@@ -59,7 +59,6 @@ export const AuthProvider = ({ children }) => {
         // Backend returns: { error: "UNAUTHORIZED", message: "Invalid credentials", ... }
         if (error.data.message) {
           errorMessage = error.data.message;
-          console.log('Using error.data.message:', errorMessage);
         } else if (error.data.error) {
           // If message is not available, use error field
           if (error.data.error === 'UNAUTHORIZED') {
@@ -67,15 +66,11 @@ export const AuthProvider = ({ children }) => {
           } else {
             errorMessage = error.data.error;
           }
-          console.log('Using error.data.error:', errorMessage);
         }
       } else if (error.message) {
         // Fallback to error.message if error.data is not available
         errorMessage = error.message;
-        console.log('Using error.message:', errorMessage);
       }
-      
-      console.log('Returning error result:', { success: false, error: errorMessage, errorData });
       
       // ALWAYS return a result object, even on error
       return {

@@ -18,8 +18,39 @@
   left: 80px;
 }
 
-/* Optimize for 15.6-inch screens */
-@media (max-width: 1400px) {
+/* Fix for problematic screen sizes (1395px - 1936px) - ensure proper alignment */
+@media (max-width: 1936px) and (min-width: 1395px) {
+  .admin-sidebar {
+    width: 220px;
+    left: 260px;
+    top: 0;
+    position: fixed;
+    z-index: 999;
+    height: 100vh;
+    box-sizing: border-box;
+  }
+  
+  .admin-sidebar.main-sidebar-collapsed {
+    left: 80px;
+  }
+  
+  .admin-sidebar-header {
+    padding: 18px;
+    min-height: 56px;
+  }
+  
+  .admin-sidebar-title-text {
+    font-size: 15px;
+  }
+  
+  .admin-nav-item {
+    font-size: 15px;
+    padding: 10px 16px;
+  }
+}
+
+/* Optimize for 15.6-inch screens (up to 1394px) */
+@media (max-width: 1394px) {
   .admin-sidebar {
     width: 200px;
   }

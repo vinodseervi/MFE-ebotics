@@ -15,6 +15,7 @@
   overflow-x: hidden;
   max-width: 100%;
   box-sizing: border-box;
+  width: 100%;
 }
 
 .page-header {
@@ -164,6 +165,7 @@
   overflow-x: hidden;
   max-width: 100%;
   box-sizing: border-box;
+  width: 100%;
 }
 
 .table-header {
@@ -209,6 +211,8 @@
   margin-bottom: 16px;
   align-items: center;
   flex-wrap: wrap;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .search-bar-wrapper {
@@ -265,6 +269,8 @@
   overflow-y: visible;
   max-width: 100%;
   -webkit-overflow-scrolling: touch;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .admin-table {
@@ -272,6 +278,8 @@
   border-collapse: collapse;
   table-layout: auto;
   min-width: 1000px;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .admin-table thead {
@@ -1736,18 +1744,26 @@ textarea:disabled {
   opacity: 0.6;
 }
 
-/* Optimize for 15.6-inch screens (1366px - 1920px width) */
-@media (max-width: 1920px) and (min-width: 1366px) {
+/* Optimize for 15.6-inch screens (1366px - 1395px width) */
+@media (max-width: 1394px) and (min-width: 1366px) {
   .user-management-page {
     padding: 16px;
   }
   
   .table-section {
     padding: 12px;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  
+  .table-wrapper {
+    max-width: 100%;
+    box-sizing: border-box;
   }
   
   .admin-table {
     min-width: 950px;
+    max-width: 100%;
   }
   
   .page-header {
@@ -1759,8 +1775,184 @@ textarea:disabled {
   }
 }
 
-/* Additional optimization for smaller 15.6-inch screens (1366px) */
-@media (max-width: 1400px) {
+/* Fix for problematic screen sizes (1395px - 1936px) - prevent horizontal scrolling */
+@media (max-width: 1936px) and (min-width: 1395px) {
+  .user-management-page {
+    padding: 12px 8px;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
+    width: 100%;
+  }
+  
+  .table-section {
+    padding: 10px 6px;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
+    width: 100%;
+  }
+  
+  .table-wrapper {
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
+    width: 100%;
+  }
+  
+  .admin-table {
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    table-layout: auto;
+  }
+  
+  /* Optimize column widths for problematic screen sizes - reduce min-widths to fit viewport */
+  .admin-table th:first-child,
+  .admin-table td:first-child {
+    width: 55px !important;
+    min-width: 45px !important;
+    max-width: 65px !important;
+    padding: 8px 4px !important;
+  }
+  
+  .admin-table th:nth-child(2),
+  .admin-table td:nth-child(2) {
+    width: auto;
+    min-width: 80px !important;
+    max-width: 120px !important;
+    padding: 8px 4px !important;
+  }
+  
+  .admin-table th:nth-child(3),
+  .admin-table td:nth-child(3) {
+    width: auto;
+    min-width: 80px !important;
+    max-width: 120px !important;
+    padding: 8px 4px !important;
+  }
+  
+  .admin-table th:nth-child(4),
+  .admin-table td:nth-child(4) {
+    width: auto;
+    min-width: 130px !important;
+    max-width: 190px !important;
+    padding: 8px 4px !important;
+  }
+  
+  .admin-table th:nth-child(5),
+  .admin-table td:nth-child(5) {
+    width: auto;
+    min-width: 90px !important;
+    max-width: 130px !important;
+    padding: 8px 4px !important;
+  }
+  
+  .admin-table th:nth-child(6),
+  .admin-table td:nth-child(6) {
+    width: auto;
+    min-width: 90px !important;
+    max-width: 130px !important;
+    padding: 8px 4px !important;
+  }
+  
+  .admin-table th:nth-child(7),
+  .admin-table td:nth-child(7) {
+    width: auto;
+    min-width: 80px !important;
+    max-width: 110px !important;
+    padding: 8px 4px !important;
+  }
+  
+  .admin-table th:nth-child(8),
+  .admin-table td:nth-child(8) {
+    width: auto;
+    min-width: 80px !important;
+    max-width: 110px !important;
+    padding: 8px 4px !important;
+  }
+  
+  .admin-table th:nth-child(9),
+  .admin-table td:nth-child(9) {
+    width: auto;
+    min-width: 80px !important;
+    max-width: 110px !important;
+    padding: 8px 4px !important;
+  }
+  
+  .admin-table th,
+  .admin-table td {
+    font-size: 12px;
+    padding: 8px 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .admin-table th {
+    font-size: 10px;
+  }
+  
+  /* Allow email to wrap if needed */
+  .admin-table td.user-email-cell {
+    white-space: normal;
+    word-break: break-word;
+    max-width: 190px;
+  }
+  
+  /* Allow role badge to wrap */
+  .admin-table td .role-badge {
+    white-space: normal;
+    word-break: break-word;
+    max-width: 100%;
+    display: inline-block;
+  }
+  
+  .page-header {
+    margin-bottom: 16px;
+  }
+  
+  .page-title {
+    font-size: 24px;
+  }
+  
+  .filters-section {
+    margin-bottom: 10px;
+    gap: 6px;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  
+  .filter-select {
+    min-width: 120px;
+    padding: 8px 8px;
+    font-size: 12px;
+  }
+  
+  .search-bar-wrapper {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  
+  .search-bar input {
+    padding: 8px 10px 8px 36px;
+    font-size: 12px;
+  }
+  
+  .filter-dropdowns-wrapper {
+    max-width: 100%;
+    box-sizing: border-box;
+    flex-wrap: wrap;
+  }
+  
+  .btn-add-user {
+    padding: 8px 14px;
+    font-size: 12px;
+  }
+}
+
+/* Additional optimization for smaller 15.6-inch screens (up to 1394px) */
+@media (max-width: 1394px) {
   .user-management-page {
     padding: 12px;
   }

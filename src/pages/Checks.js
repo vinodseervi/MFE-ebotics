@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { useUsers } from '../context/UsersContext';
 import AdvancedFilterDrawer from '../components/AdvancedFilterDrawer';
 import MonthYearPicker from '../components/MonthYearPicker';
 import SearchableDropdown from '../components/SearchableDropdown';
@@ -52,7 +53,7 @@ const Checks = () => {
   // Bulk actions
   const [selectedChecks, setSelectedChecks] = useState(new Set());
   const [showBulkActions, setShowBulkActions] = useState(false);
-  const [users, setUsers] = useState([]);
+  const { users } = useUsers(); // Get users from context
   const [bulkAssigneeId, setBulkAssigneeId] = useState('');
   const [bulkReporterId, setBulkReporterId] = useState('');
 
@@ -390,15 +391,7 @@ const Checks = () => {
     }
   };
 
-  useEffect(() => {
-    if (showBulkActions && users.length === 0) {
-      api.getAllUsers().then(response => {
-        const usersList = Array.isArray(response) ? response : (response?.items || []);
-        setUsers(usersList);
-      }).catch(err => console.error('Error fetching users:', err));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showBulkActions]);
+  // Removed: Users are now loaded from context on login, no need to fetch here
 
   useEffect(() => {
     setShowBulkActions(selectedChecks.size > 0);

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
+import { useUsers } from '../context/UsersContext';
 import { formatDateUS, parseDateUS, formatDateTime } from '../utils/dateUtils';
 import { MdOutlineHistory } from 'react-icons/md';
 import ActivityDrawer from '../components/ActivityDrawer';
@@ -21,7 +22,7 @@ const CheckDetails = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingBatchId, setEditingBatchId] = useState(null);
   const [isAddingBatch, setIsAddingBatch] = useState(false);
-  const [users, setUsers] = useState([]);
+  const { users } = useUsers(); // Get users from context
   
   // Clarifications state
   const [clarifications, setClarifications] = useState([]);
@@ -101,7 +102,7 @@ const CheckDetails = () => {
   useEffect(() => {
     if (id) {
       fetchCheckDetails();
-      fetchUsers();
+      // Removed: Users are now loaded from context on login
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
@@ -177,15 +178,7 @@ const CheckDetails = () => {
     }
   };
 
-  const fetchUsers = async () => {
-    try {
-      const response = await api.getAllUsers();
-      const usersList = Array.isArray(response) ? response : (response?.items || []);
-      setUsers(usersList);
-    } catch (error) {
-      console.error('Error fetching users:', error);
-    }
-  };
+  // Removed: Users are now loaded from context on login, no need to fetch here
 
   const fetchClarifications = async () => {
     setLoadingClarifications(true);

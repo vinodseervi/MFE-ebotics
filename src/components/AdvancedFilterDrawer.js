@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
+import { useUsers } from '../context/UsersContext';
 import SearchableDropdown from './SearchableDropdown';
 import USDateInput from './USDateInput';
 import { filterEmojis } from '../utils/emojiFilter';
@@ -7,14 +8,14 @@ import './AdvancedFilterDrawer.css';
 
 const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onResetFilters, isClarifications = false }) => {
   const [localFilters, setLocalFilters] = useState(filters);
-  const [users, setUsers] = useState([]);
+  const { users } = useUsers(); // Get users from context
   const [practices, setPractices] = useState([]);
   const [locations, setLocations] = useState([]);
 
   useEffect(() => {
     if (isOpen) {
       setLocalFilters(filters);
-      fetchUsers();
+      // Removed: Users are now loaded from context on login
       if (!isClarifications) {
         fetchPractices();
       }
@@ -30,18 +31,7 @@ const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onRese
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localFilters.practiceCode, practices, isClarifications]);
 
-  const fetchUsers = async () => {
-    try {
-      const response = await api.getAllUsers();
-      if (response && Array.isArray(response)) {
-        setUsers(response);
-      } else if (response && response.items) {
-        setUsers(response.items);
-      }
-    } catch (error) {
-      console.error('Error fetching users:', error);
-    }
-  };
+  // Removed: Users are now loaded from context on login, no need to fetch here
 
   const fetchPractices = async () => {
     try {

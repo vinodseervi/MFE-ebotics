@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { useUsers } from '../context/UsersContext';
 import AdvancedFilterDrawer from '../components/AdvancedFilterDrawer';
 import MonthYearPicker from '../components/MonthYearPicker';
 import SearchableDropdown from '../components/SearchableDropdown';
@@ -27,7 +28,7 @@ const Clarifications = () => {
   // Default filters
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
-  const [users, setUsers] = useState([]);
+  const { users, getUserName } = useUsers(); // Get users from context
   
   // Column selector
   const [showColumnSelector, setShowColumnSelector] = useState(false);
@@ -87,20 +88,7 @@ const Clarifications = () => {
     setShowMonthPicker(false);
   };
 
-  // Fetch users on mount
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
-    try {
-      const response = await api.getAllUsers();
-      const usersList = Array.isArray(response) ? response : (response?.items || []);
-      setUsers(usersList);
-    } catch (error) {
-      console.error('Error fetching users:', error);
-    }
-  };
+  // Removed: Users are now loaded from context on login, no need to fetch here
 
   const fetchClarifications = useCallback(async (page = 0) => {
     setLoading(true);
@@ -330,16 +318,7 @@ const Clarifications = () => {
     return statusMap[status] || status || 'Open';
   };
 
-  const getUserName = (userId) => {
-    if (!userId) return 'N/A';
-    const user = users.find(u => (u.userId || u.id) === userId);
-    if (user) {
-      return user.firstName && user.lastName 
-        ? `${user.firstName} ${user.lastName}` 
-        : user.email || 'Unknown User';
-    }
-    return 'N/A';
-  };
+  // getUserName is now provided by useUsers hook from context
 
   const getDateRangeDisplay = () => {
     // If both start and end dates are selected, show the date range

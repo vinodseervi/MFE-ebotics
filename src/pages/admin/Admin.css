@@ -9,9 +9,12 @@
 }
 
 .user-management-page {
-  padding: 30px;
+  padding: 20px;
   background: #f9fafb;
   min-height: 100vh;
+  overflow-x: hidden;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .page-header {
@@ -24,7 +27,7 @@
 }
 
 .page-title {
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 600;
   color: #111827;
   margin: 0 0 8px 0;
@@ -155,9 +158,12 @@
 .table-section {
   background: white;
   border-radius: 8px;
-  padding: 20px;
+  padding: 16px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   border: 1px solid #e5e7eb;
+  overflow-x: hidden;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .table-header {
@@ -199,9 +205,10 @@
 /* Filters Section */
 .filters-section {
   display: flex;
-  gap: 16px;
-  margin-bottom: 20px;
+  gap: 12px;
+  margin-bottom: 16px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .search-bar-wrapper {
@@ -237,7 +244,9 @@
 
 .filter-dropdowns-wrapper {
   display: flex;
-  gap: 12px;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
 .filter-select {
@@ -253,11 +262,16 @@
 
 .table-wrapper {
   overflow-x: auto;
+  overflow-y: visible;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
 }
 
 .admin-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: auto;
+  min-width: 1000px;
 }
 
 .admin-table thead {
@@ -271,7 +285,84 @@
   font-weight: 600;
   color: #6b7280;
   text-transform: uppercase;
+  letter-spacing: 0.5px;
   border-bottom: 2px solid #e5e7eb;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+/* Optimize column widths for users table - Professional layout */
+.admin-table th:first-child, /* Profile (avatar) */
+.admin-table td:first-child {
+  width: 80px;
+  min-width: 70px;
+  max-width: 90px;
+  padding: 12px;
+}
+
+.admin-table th:nth-child(2), /* First Name */
+.admin-table td:nth-child(2) {
+  width: 140px;
+  min-width: 120px;
+  max-width: 160px;
+  padding: 12px;
+}
+
+.admin-table th:nth-child(3), /* Last Name */
+.admin-table td:nth-child(3) {
+  width: 140px;
+  min-width: 120px;
+  max-width: 160px;
+  padding: 12px;
+}
+
+.admin-table th:nth-child(4), /* email */
+.admin-table td:nth-child(4) {
+  width: 220px;
+  min-width: 200px;
+  max-width: 260px;
+  padding: 12px;
+}
+
+.admin-table th:nth-child(5), /* role */
+.admin-table td:nth-child(5) {
+  width: 150px;
+  min-width: 130px;
+  max-width: 170px;
+  padding: 12px;
+}
+
+.admin-table th:nth-child(6), /* phone */
+.admin-table td:nth-child(6) {
+  width: 150px;
+  min-width: 130px;
+  max-width: 170px;
+  padding: 12px;
+}
+
+.admin-table th:nth-child(7), /* status */
+.admin-table td:nth-child(7) {
+  width: 120px;
+  min-width: 110px;
+  max-width: 140px;
+  padding: 12px;
+}
+
+.admin-table th:nth-child(8), /* last login */
+.admin-table td:nth-child(8) {
+  width: 140px;
+  min-width: 120px;
+  max-width: 160px;
+  padding: 12px;
+}
+
+.admin-table th:nth-child(9), /* actions */
+.admin-table td:nth-child(9) {
+  width: 120px;
+  min-width: 110px;
+  max-width: 140px;
+  padding: 12px;
+  text-align: right;
 }
 
 .admin-table th.sortable {
@@ -295,6 +386,13 @@
   font-size: 14px;
   color: #374151;
   border-bottom: 1px solid #e5e7eb;
+  vertical-align: middle;
+}
+
+.admin-table td:not(:first-child):not(:last-child) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .admin-table td:last-child {
@@ -496,12 +594,6 @@
   min-width: 0;
 }
 
-.user-id-cell {
-  font-family: 'Courier New', monospace;
-  font-size: 13px;
-  color: #6b7280;
-}
-
 .role-text {
   font-size: 14px;
   color: #374151;
@@ -517,19 +609,25 @@
 .user-cell {
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
+  min-width: 0;
+}
+
+.user-email-cell {
+  color: #374151;
+  word-break: break-word;
 }
 
 .user-avatar-small {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 14px;
   flex-shrink: 0;
   border: none;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
@@ -542,8 +640,8 @@
 }
 
 .user-profile-image {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
@@ -956,6 +1054,7 @@
   justify-content: center;
   z-index: 10000;
   padding: 20px;
+  box-sizing: border-box;
 }
 
 .modal-content {
@@ -965,7 +1064,7 @@
   max-width: 500px;
   max-height: 90vh;
   overflow-y: auto;
-  overflow-x: visible;
+  overflow-x: hidden;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   border: 1px solid #e5e7eb;
   animation: modalSlideIn 0.3s ease-out;
@@ -973,6 +1072,18 @@
   display: flex;
   flex-direction: column;
   z-index: 10001;
+  box-sizing: border-box;
+}
+
+@media (max-width: 1400px) {
+  .modal-overlay {
+    padding: 16px;
+  }
+  
+  .modal-content {
+    max-width: calc(100vw - 32px);
+    max-height: calc(100vh - 32px);
+  }
 }
 
 .modal-content .country-code-select-wrapper,
@@ -1625,27 +1736,293 @@ textarea:disabled {
   opacity: 0.6;
 }
 
-@media (max-width: 1400px) {
-  .admin-table th:nth-child(8),
-  .admin-table th:nth-child(9),
-  .admin-table th:nth-child(10) {
-    display: none;
+/* Optimize for 15.6-inch screens (1366px - 1920px width) */
+@media (max-width: 1920px) and (min-width: 1366px) {
+  .user-management-page {
+    padding: 16px;
   }
   
-  .admin-table td:nth-child(8),
-  .admin-table td:nth-child(9),
-  .admin-table td:nth-child(10) {
+  .table-section {
+    padding: 12px;
+  }
+  
+  .admin-table {
+    min-width: 950px;
+  }
+  
+  .page-header {
+    margin-bottom: 20px;
+  }
+  
+  .filters-section {
+    margin-bottom: 12px;
+  }
+}
+
+/* Additional optimization for smaller 15.6-inch screens (1366px) */
+@media (max-width: 1400px) {
+  .user-management-page {
+    padding: 12px;
+  }
+  
+  .page-title {
+    font-size: 28px;
+  }
+  
+  .table-section {
+    padding: 10px;
+  }
+  
+  .admin-table {
+    min-width: 900px;
+  }
+  
+  .admin-table th,
+  .admin-table td {
+    padding: 8px 6px;
+    font-size: 12px;
+  }
+  
+  .admin-table th {
+    font-size: 10px;
+  }
+  
+  /* Adjust column widths for smaller screens */
+  .admin-table th:first-child,
+  .admin-table td:first-child {
+    width: 70px;
+    min-width: 60px;
+    max-width: 80px;
+  }
+  
+  .admin-table th:nth-child(2),
+  .admin-table td:nth-child(2) {
+    width: 120px;
+    min-width: 100px;
+    max-width: 140px;
+  }
+  
+  .admin-table th:nth-child(3),
+  .admin-table td:nth-child(3) {
+    width: 120px;
+    min-width: 100px;
+    max-width: 140px;
+  }
+  
+  .admin-table th:nth-child(4),
+  .admin-table td:nth-child(4) {
+    width: 180px;
+    min-width: 160px;
+    max-width: 220px;
+  }
+  
+  .admin-table th:nth-child(5),
+  .admin-table td:nth-child(5) {
+    width: 130px;
+    min-width: 110px;
+    max-width: 150px;
+  }
+  
+  .admin-table th:nth-child(6),
+  .admin-table td:nth-child(6) {
+    width: 130px;
+    min-width: 110px;
+    max-width: 150px;
+  }
+  
+  .admin-table th:nth-child(8),
+  .admin-table td:nth-child(8) {
     display: none;
   }
 }
 
-@media (max-width: 1200px) {
-  .admin-table th:nth-child(6) {
-    display: none;
+/* Extra optimization when admin sidebar is open on 15.6-inch screens */
+@media (max-width: 1400px) {
+  .main-content.admin-sidebar-open .user-management-page,
+  .main-content.admin-sidebar-open .role-management-page,
+  .main-content.admin-sidebar-open .admin-page {
+    padding: 10px;
   }
   
-  .admin-table td:nth-child(6) {
-    display: none;
+  .main-content.admin-sidebar-open .table-section {
+    padding: 8px;
+  }
+  
+  .main-content.admin-sidebar-open .admin-table {
+    min-width: 800px;
+  }
+  
+  .main-content.admin-sidebar-open .admin-table th,
+  .main-content.admin-sidebar-open .admin-table td {
+    padding: 6px 4px;
+    font-size: 11px;
+  }
+  
+  .main-content.admin-sidebar-open .admin-table th {
+    font-size: 9px;
+  }
+  
+  /* Further reduce column widths when sidebar is open */
+  .main-content.admin-sidebar-open .admin-table th:first-child,
+  .main-content.admin-sidebar-open .admin-table td:first-child {
+    width: 60px;
+    min-width: 50px;
+    max-width: 70px;
+  }
+  
+  .main-content.admin-sidebar-open .admin-table th:nth-child(2),
+  .main-content.admin-sidebar-open .admin-table td:nth-child(2) {
+    width: 100px;
+    min-width: 90px;
+    max-width: 120px;
+  }
+  
+  .main-content.admin-sidebar-open .admin-table th:nth-child(3),
+  .main-content.admin-sidebar-open .admin-table td:nth-child(3) {
+    width: 100px;
+    min-width: 90px;
+    max-width: 120px;
+  }
+  
+  .main-content.admin-sidebar-open .admin-table th:nth-child(4),
+  .main-content.admin-sidebar-open .admin-table td:nth-child(4) {
+    width: 160px;
+    min-width: 140px;
+    max-width: 200px;
+  }
+  
+  .main-content.admin-sidebar-open .admin-table th:nth-child(5),
+  .main-content.admin-sidebar-open .admin-table td:nth-child(5) {
+    width: 110px;
+    min-width: 100px;
+    max-width: 130px;
+  }
+  
+  .main-content.admin-sidebar-open .admin-table th:nth-child(6),
+  .main-content.admin-sidebar-open .admin-table td:nth-child(6) {
+    width: 110px;
+    min-width: 100px;
+    max-width: 130px;
+  }
+  
+  .main-content.admin-sidebar-open .page-title {
+    font-size: 24px;
+  }
+  
+  .main-content.admin-sidebar-open .header-actions {
+    gap: 6px;
+  }
+  
+  .main-content.admin-sidebar-open .btn-add-user {
+    padding: 8px 14px;
+    font-size: 12px;
+  }
+  
+  .main-content.admin-sidebar-open .filters-section {
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  
+  .main-content.admin-sidebar-open .filter-select {
+    min-width: 110px;
+    padding: 8px 8px;
+    font-size: 12px;
+  }
+  
+  .main-content.admin-sidebar-open .search-bar input {
+    padding: 8px 10px 8px 36px;
+    font-size: 12px;
+  }
+  
+  /* Practices page optimizations when sidebar is open */
+  .main-content.admin-sidebar-open .practice-card {
+    padding: 16px;
+  }
+  
+  .main-content.admin-sidebar-open .practice-name {
+    font-size: 18px;
+  }
+  
+  .main-content.admin-sidebar-open .practice-code {
+    font-size: 12px;
+  }
+  
+  .main-content.admin-sidebar-open .locations-grid {
+    gap: 12px;
+  }
+  
+  .main-content.admin-sidebar-open .location-item {
+    min-width: 180px;
+    padding: 10px 12px;
+  }
+  
+  /* Roles page optimizations when sidebar is open */
+  .main-content.admin-sidebar-open .roles-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  
+  .main-content.admin-sidebar-open .role-card {
+    padding: 16px;
+  }
+  
+  .main-content.admin-sidebar-open .role-name {
+    font-size: 16px;
+  }
+  
+  .main-content.admin-sidebar-open .role-description {
+    font-size: 13px;
+  }
+}
+
+/* Additional optimizations for when admin sidebar is open - applies to all admin pages */
+@media (max-width: 1400px) {
+  .main-content.admin-sidebar-open .admin-page {
+    padding: 12px;
+  }
+  
+  .main-content.admin-sidebar-open .table-section {
+    padding: 10px;
+  }
+  
+  .main-content.admin-sidebar-open .page-title {
+    font-size: 20px;
+  }
+  
+  .main-content.admin-sidebar-open .filters-section {
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  
+  .main-content.admin-sidebar-open .filter-dropdowns-wrapper,
+  .main-content.admin-sidebar-open .filter-dropdowns {
+    gap: 6px;
+  }
+  
+  .main-content.admin-sidebar-open .filter-select {
+    min-width: 120px;
+    font-size: 13px;
+    padding: 8px 10px;
+  }
+  
+  .main-content.admin-sidebar-open .search-bar input {
+    font-size: 13px;
+    padding: 8px 10px 8px 36px;
+  }
+}
+
+/* Extra compact mode for very small screens with admin sidebar open */
+@media (max-width: 1366px) {
+  .main-content.admin-sidebar-open .admin-page {
+    padding: 10px;
+  }
+  
+  .main-content.admin-sidebar-open .table-section {
+    padding: 8px;
+  }
+  
+  .main-content.admin-sidebar-open .page-title {
+    font-size: 24px;
   }
 }
 
@@ -1666,7 +2043,7 @@ textarea:disabled {
   }
 
   .page-title {
-    font-size: 24px;
+    font-size: 28px;
   }
 
   .page-subtitle {
@@ -1727,15 +2104,16 @@ textarea:disabled {
   }
 
   .user-avatar-small {
-    width: 32px;
-    height: 32px;
-    font-size: 12px;
+    width: 36px;
+    height: 36px;
+    font-size: 13px;
   }
 
   .user-profile-image {
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
   }
+  
 
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);

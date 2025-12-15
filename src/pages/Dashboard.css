@@ -1,7 +1,28 @@
 .dashboard {
-  padding: 30px;
+  padding: 20px;
   background: #f9fafb;
   min-height: 100vh;
+  overflow-x: hidden;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 1400px) {
+  .dashboard {
+    padding: 16px;
+  }
+  
+  .page-title {
+    font-size: 24px;
+  }
+  
+  .stats-grid {
+    gap: 16px;
+  }
+  
+  .chart-card {
+    padding: 20px;
+  }
 }
 
 .page-header {

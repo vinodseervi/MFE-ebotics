@@ -24,6 +24,7 @@
   right: 0;
   bottom: 0;
   width: 420px;
+  max-width: calc(100vw - 60px);
   background: white;
   box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
   z-index: 1001;
@@ -31,6 +32,13 @@
   flex-direction: column;
   animation: slideIn 0.3s ease-out;
   overflow: visible; /* Allow dropdowns to overflow drawer */
+}
+
+@media (max-width: 1400px) {
+  .advanced-filter-drawer {
+    width: 380px;
+    max-width: calc(100vw - 40px);
+  }
 }
 
 @keyframes slideIn {

@@ -1,12 +1,27 @@
 .check-details-page {
-  padding: 30px;
+  padding: 20px;
   background: #f9fafb;
   min-height: 100vh;
   transition: margin-right 0.3s ease-out;
+  overflow-x: hidden;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 1400px) {
+  .check-details-page {
+    padding: 16px;
+  }
 }
 
 .check-details-page.activity-sidebar-open {
   margin-right: 450px;
+}
+
+@media (max-width: 1400px) {
+  .check-details-page.activity-sidebar-open {
+    margin-right: 400px;
+  }
 }
 
 /* Header */

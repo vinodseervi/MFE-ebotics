@@ -1,7 +1,10 @@
 .clarifications-page {
-  padding: 30px;
+  padding: 20px;
   background: #f9fafb;
   min-height: 100vh;
+  overflow-x: hidden;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .page-header {
@@ -9,6 +12,8 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .page-header-content {
@@ -36,8 +41,9 @@
 
 .header-actions {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .date-range-container {
@@ -100,9 +106,10 @@
 
 .filters-section {
   display: flex;
-  gap: 16px;
+  gap: 12px;
   margin-bottom: 12px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .search-bar {
@@ -135,7 +142,9 @@
 
 .filter-dropdowns {
   display: flex;
-  gap: 12px;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
 .filter-select {
@@ -273,9 +282,12 @@
 .table-section {
   background: white;
   border-radius: 8px;
-  padding: 20px;
+  padding: 16px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   border: 1px solid #e5e7eb;
+  overflow-x: hidden;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .table-header {
@@ -351,11 +363,16 @@
 
 .table-wrapper {
   overflow-x: auto;
+  overflow-y: visible;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
 }
 
 .clarifications-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: auto;
+  min-width: 1000px;
 }
 
 .clarifications-table thead {
@@ -363,13 +380,14 @@
 }
 
 .clarifications-table th {
-  padding: 12px;
+  padding: 10px 8px;
   text-align: left;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: #6b7280;
   text-transform: uppercase;
   border-bottom: 2px solid #e5e7eb;
+  white-space: nowrap;
 }
 
 .clarifications-table th.sortable {
@@ -389,10 +407,13 @@
 }
 
 .clarifications-table td {
-  padding: 12px;
-  font-size: 14px;
+  padding: 10px 8px;
+  font-size: 13px;
   color: #374151;
   border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .clarifications-table tbody tr:hover {
@@ -472,6 +493,49 @@
   border-color: #3b82f6;
 }
 
+
+/* Optimize for 15.6-inch screens */
+@media (max-width: 1920px) and (min-width: 1366px) {
+  .clarifications-page {
+    padding: 16px;
+  }
+  
+  .table-section {
+    padding: 12px;
+  }
+  
+  .clarifications-table {
+    min-width: 950px;
+  }
+}
+
+@media (max-width: 1400px) {
+  .clarifications-page {
+    padding: 12px;
+  }
+  
+  .page-title {
+    font-size: 22px;
+  }
+  
+  .table-section {
+    padding: 10px;
+  }
+  
+  .clarifications-table {
+    min-width: 900px;
+  }
+  
+  .clarifications-table th,
+  .clarifications-table td {
+    padding: 8px 6px;
+    font-size: 12px;
+  }
+  
+  .clarifications-table th {
+    font-size: 10px;
+  }
+}
 
 /* Responsive */
 @media (max-width: 768px) {

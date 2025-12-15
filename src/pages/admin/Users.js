@@ -769,7 +769,7 @@ const Users = () => {
                       </td>
                       <td>{user.firstName || '-'}</td>
                       <td>{user.lastName || '-'}</td>
-                      <td>{user.email || '-'}</td>
+                      <td className="user-email-cell">{user.email || '-'}</td>
                       <td>
                         {(() => {
                           const roleColor = getRoleColor();

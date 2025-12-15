@@ -18,6 +18,40 @@
   left: 80px;
 }
 
+/* Optimize for 15.6-inch screens */
+@media (max-width: 1400px) {
+  .admin-sidebar {
+    width: 200px;
+  }
+  
+  .admin-sidebar-title-text {
+    font-size: 14px;
+  }
+  
+  .admin-nav-item {
+    font-size: 16px;
+    padding: 10px 16px;
+  }
+}
+
+/* Extra optimization for very small 15.6-inch screens */
+@media (max-width: 1366px) {
+  .admin-sidebar {
+    width: 180px;
+  }
+  
+  .admin-sidebar-header {
+    padding: 16px;
+  }
+  
+  .admin-nav-item {
+    font-size: 15px;
+    padding: 10px 14px;
+    margin: 4px 8px;
+    width: calc(100% - 16px);
+  }
+}
+
 .admin-sidebar-header {
   padding: 20px;
   display: flex;

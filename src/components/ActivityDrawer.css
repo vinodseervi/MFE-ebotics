@@ -4,6 +4,7 @@
   right: 0;
   bottom: 0;
   width: 450px;
+  max-width: calc(100vw - 60px);
   background: white;
   box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
   z-index: 1000;
@@ -11,6 +12,13 @@
   flex-direction: column;
   animation: slideInRight 0.3s ease-out;
   border-left: 1px solid #e5e7eb;
+}
+
+@media (max-width: 1400px) {
+  .activity-drawer {
+    width: 400px;
+    max-width: calc(100vw - 40px);
+  }
 }
 
 @keyframes slideInRight {

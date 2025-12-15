@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import SearchableDropdown from './SearchableDropdown';
 import USDateInput from './USDateInput';
+import { filterEmojis } from '../utils/emojiFilter';
 import './AdvancedFilterDrawer.css';
 
 const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onResetFilters, isClarifications = false }) => {
@@ -72,13 +73,15 @@ const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onRese
   };
 
   const handleChange = (field, value) => {
+    // Filter emojis from string inputs
+    const filteredValue = typeof value === 'string' ? filterEmojis(value) : value;
     setLocalFilters(prev => ({
       ...prev,
-      [field]: value
+      [field]: filteredValue
     }));
 
     // Clear location if practice changes
-    if (field === 'practiceCode' && value !== localFilters.practiceCode) {
+    if (field === 'practiceCode' && filteredValue !== localFilters.practiceCode) {
       setLocalFilters(prev => ({
         ...prev,
         locationCode: ''

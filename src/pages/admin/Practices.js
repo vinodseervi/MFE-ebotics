@@ -101,16 +101,38 @@ const Practices = () => {
   const [locationCountryPos, setLocationCountryPos] = useState(null);
   const [editLocationCountryPos, setEditLocationCountryPos] = useState(null);
   
+  // Function to find all scrollable containers
+  const findScrollableContainers = (element) => {
+    const containers = [];
+    let current = element;
+    
+    while (current && current !== document.body) {
+      const style = window.getComputedStyle(current);
+      const overflowY = style.overflowY || style.overflow;
+      const overflowX = style.overflowX || style.overflow;
+      
+      if (overflowY === 'auto' || overflowY === 'scroll' || 
+          overflowX === 'auto' || overflowX === 'scroll') {
+        containers.push(current);
+      }
+      
+      current = current.parentElement;
+    }
+    
+    // Always include window
+    containers.push(window);
+    
+    return containers;
+  };
+
   // Function to calculate dropdown position
   const calculateDropdownPosition = (ref, setPosition) => {
     if (!ref.current) return;
     const rect = ref.current.getBoundingClientRect();
-    const scrollY = window.scrollY || window.pageYOffset;
-    const scrollX = window.scrollX || window.pageXOffset;
     
     setPosition({
-      top: rect.bottom + scrollY + 4,
-      left: rect.left + scrollX,
+      top: rect.bottom + 4,
+      left: rect.left,
       width: Math.max(rect.width, 280) // Ensure minimum width of 280px
     });
   };
@@ -163,12 +185,48 @@ const Practices = () => {
       }
     };
     
-    window.addEventListener('scroll', updatePositions, true);
+    // Find all scrollable containers for each open dropdown
+    const scrollableContainers = new Set();
+    
+    if (practiceCountryOpen && practiceCountryRef.current) {
+      findScrollableContainers(practiceCountryRef.current).forEach(container => scrollableContainers.add(container));
+    }
+    if (editPracticeCountryOpen && editPracticeCountryRef.current) {
+      findScrollableContainers(editPracticeCountryRef.current).forEach(container => scrollableContainers.add(container));
+    }
+    if (locationCountryOpen && locationCountryRef.current) {
+      findScrollableContainers(locationCountryRef.current).forEach(container => scrollableContainers.add(container));
+    }
+    if (editLocationCountryOpen && editLocationCountryRef.current) {
+      findScrollableContainers(editLocationCountryRef.current).forEach(container => scrollableContainers.add(container));
+    }
+    
+    // Add scroll listeners to all scrollable containers
+    const cleanupFunctions = [];
+    scrollableContainers.forEach(container => {
+      if (container === window) {
+        container.addEventListener('scroll', updatePositions, true);
+        container.addEventListener('resize', updatePositions);
+        cleanupFunctions.push(() => {
+          container.removeEventListener('scroll', updatePositions, true);
+          container.removeEventListener('resize', updatePositions);
+        });
+      } else {
+        container.addEventListener('scroll', updatePositions, true);
+        cleanupFunctions.push(() => {
+          container.removeEventListener('scroll', updatePositions, true);
+        });
+      }
+    });
+    
+    // Also listen to window resize
     window.addEventListener('resize', updatePositions);
+    cleanupFunctions.push(() => {
+      window.removeEventListener('resize', updatePositions);
+    });
     
     return () => {
-      window.removeEventListener('scroll', updatePositions, true);
-      window.removeEventListener('resize', updatePositions);
+      cleanupFunctions.forEach(cleanup => cleanup());
     };
   }, [practiceCountryOpen, editPracticeCountryOpen, locationCountryOpen, editLocationCountryOpen]);
 

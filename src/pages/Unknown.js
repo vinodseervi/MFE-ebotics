@@ -7,6 +7,7 @@ import SearchableDropdown from '../components/SearchableDropdown';
 import ColumnSelector from '../components/ColumnSelector';
 import Tooltip from '../components/Tooltip';
 import { formatDateUS, formatDateRange, getCurrentMonthYear, formatMonthYear } from '../utils/dateUtils';
+import { filterEmojis } from '../utils/emojiFilter';
 import './Checks.css';
 
 const Unknown = () => {
@@ -545,12 +546,6 @@ const Unknown = () => {
               </div>
             </div>
           )}
-          <button className="btn-primary" onClick={() => navigate('/checks/new')}>
-            <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-              <path d="M10 3V17M3 10H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
-            New Check
-          </button>
         </div>
       </div>
 
@@ -564,7 +559,10 @@ const Unknown = () => {
             type="text"
             placeholder="Search by check number, payer, amount..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              const filteredValue = filterEmojis(e.target.value);
+              setSearchTerm(filteredValue);
+            }}
           />
         </div>
         <div className="filter-dropdowns">

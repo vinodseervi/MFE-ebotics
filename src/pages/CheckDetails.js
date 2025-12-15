@@ -5,6 +5,7 @@ import { formatDateUS, parseDateUS, formatDateTime } from '../utils/dateUtils';
 import { MdOutlineHistory } from 'react-icons/md';
 import ActivityDrawer from '../components/ActivityDrawer';
 import SearchableDropdown from '../components/SearchableDropdown';
+import { filterEmojis } from '../utils/emojiFilter';
 import './CheckDetails.css';
 
 const CheckDetails = () => {
@@ -199,16 +200,20 @@ const CheckDetails = () => {
   };
 
   const handleFormChange = (field, value) => {
+    // Filter emojis from string inputs
+    const filteredValue = typeof value === 'string' ? filterEmojis(value) : value;
     setFormData(prev => ({
       ...prev,
-      [field]: value
+      [field]: filteredValue
     }));
   };
 
   const handleBatchFormChange = (field, value) => {
+    // Filter emojis from string inputs
+    const filteredValue = typeof value === 'string' ? filterEmojis(value) : value;
     setBatchFormData(prev => ({
       ...prev,
-      [field]: value
+      [field]: filteredValue
     }));
   };
 
@@ -303,9 +308,11 @@ const CheckDetails = () => {
 
   // Clarification handlers
   const handleClarificationFormChange = (field, value) => {
+    // Filter emojis from string inputs
+    const filteredValue = typeof value === 'string' ? filterEmojis(value) : value;
     setClarificationFormData(prev => ({
       ...prev,
-      [field]: value
+      [field]: filteredValue
     }));
   };
 
@@ -1350,10 +1357,13 @@ const CheckDetails = () => {
                                   <textarea 
                                     placeholder="Add a comment..."
                                     value={commentText[clarification.clarificationId] || ''}
-                                    onChange={(e) => setCommentText(prev => ({
-                                      ...prev,
-                                      [clarification.clarificationId]: e.target.value
-                                    }))}
+                                    onChange={(e) => {
+                                      const filteredValue = filterEmojis(e.target.value);
+                                      setCommentText(prev => ({
+                                        ...prev,
+                                        [clarification.clarificationId]: filteredValue
+                                      }));
+                                    }}
                                     rows="3"
                                   />
                                   <button 

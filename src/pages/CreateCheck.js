@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import SearchableDropdown from '../components/SearchableDropdown';
 import USDateInput from '../components/USDateInput';
+import { filterEmojis } from '../utils/emojiFilter';
 import './CreateCheck.css';
 
 const CreateCheck = () => {
@@ -71,9 +72,11 @@ const CreateCheck = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    // Filter emojis from string inputs
+    const filteredValue = filterEmojis(value);
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: filteredValue
     }));
     // Clear error for this field
     if (formErrors[name]) {

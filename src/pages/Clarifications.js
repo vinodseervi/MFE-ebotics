@@ -7,6 +7,7 @@ import SearchableDropdown from '../components/SearchableDropdown';
 import ColumnSelector from '../components/ColumnSelector';
 import Tooltip from '../components/Tooltip';
 import { formatDateRange, formatDateTime, getMonthRange, getCurrentMonthYear, formatMonthYear } from '../utils/dateUtils';
+import { filterEmojis } from '../utils/emojiFilter';
 import './Clarifications.css';
 
 const Clarifications = () => {
@@ -432,7 +433,10 @@ const Clarifications = () => {
             type="text"
             placeholder="Search by check number, type, details..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              const filteredValue = filterEmojis(e.target.value);
+              setSearchTerm(filteredValue);
+            }}
           />
         </div>
         <div className="filter-dropdowns">

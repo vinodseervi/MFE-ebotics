@@ -719,7 +719,7 @@ const Clarifications = () => {
                             <td key={colKey}>
                               <button 
                                 className="link-btn"
-                                onClick={() => navigate(`/checks/${clarification.checkId}`)}
+                                onClick={() => navigate(`/checks/${clarification.checkId}?clarificationId=${clarification.clarificationId}&source=clarifications`)}
                               >
                                 {clarification.checkNumber || 'N/A'}
                               </button>
@@ -774,7 +774,7 @@ const Clarifications = () => {
                             <td key={colKey}>
                               <button 
                                 className="btn-icon view"
-                                onClick={() => navigate(`/checks/${clarification.checkId}`)}
+                                onClick={() => navigate(`/checks/${clarification.checkId}?clarificationId=${clarification.clarificationId}&source=clarifications`)}
                                 title="View Check"
                               >
                                 <svg width="16" height="16" viewBox="0 0 20 20" fill="none">

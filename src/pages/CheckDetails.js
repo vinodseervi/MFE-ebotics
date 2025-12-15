@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import { formatDateUS, parseDateUS, formatDateTime } from '../utils/dateUtils';
 import { MdOutlineHistory } from 'react-icons/md';
@@ -10,6 +10,7 @@ import './CheckDetails.css';
 const CheckDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   
   // State management
   const [check, setCheck] = useState(null);
@@ -104,6 +105,15 @@ const CheckDetails = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  // Check for clarificationId in URL and auto-switch to clarifications tab
+  useEffect(() => {
+    const clarificationIdParam = searchParams.get('clarificationId');
+    if (clarificationIdParam && id) {
+      setActiveTab('clarifications');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, id]);
+
   // Fetch clarifications when clarifications tab is active
   useEffect(() => {
     if (id && activeTab === 'clarifications') {
@@ -111,6 +121,30 @@ const CheckDetails = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, activeTab]);
+
+  // Expand specific clarification after clarifications are loaded
+  useEffect(() => {
+    const clarificationIdParam = searchParams.get('clarificationId');
+    if (clarificationIdParam && clarifications.length > 0 && activeTab === 'clarifications') {
+      const clarification = clarifications.find(c => c.clarificationId === clarificationIdParam);
+      if (clarification) {
+        setExpandedClarificationId(clarificationIdParam);
+        // Scroll to the clarification card after a short delay to ensure it's rendered
+        setTimeout(() => {
+          const element = document.querySelector(`[data-clarification-id="${clarificationIdParam}"]`);
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Highlight the clarification briefly
+            element.style.backgroundColor = '#fef3c7';
+            setTimeout(() => {
+              element.style.backgroundColor = '';
+            }, 2000);
+          }
+        }, 300);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clarifications, searchParams, activeTab]);
 
   const fetchCheckDetails = async () => {
     setLoading(true);
@@ -523,8 +557,18 @@ const CheckDetails = () => {
       <div className={`check-details-page ${showActivityDrawer ? 'activity-sidebar-open' : ''}`}>
         <div className="error-state">
           <p>{error || 'Check not found'}</p>
-          <button className="btn-primary" onClick={() => navigate('/checks')}>
-            Back to Checks
+          <button 
+            className="btn-primary" 
+            onClick={() => {
+              const source = searchParams.get('source');
+              if (source === 'clarifications') {
+                navigate('/clarifications');
+              } else {
+                navigate('/checks');
+              }
+            }}
+          >
+            Back to {searchParams.get('source') === 'clarifications' ? 'Clarifications' : 'Checks'}
           </button>
         </div>
       </div>
@@ -537,7 +581,17 @@ const CheckDetails = () => {
       <div className="page-header">
         <div className="header-left">
           <div className="header-top-row">
-            <button className="back-btn" onClick={() => navigate('/checks')}>
+            <button 
+              className="back-btn" 
+              onClick={() => {
+                const source = searchParams.get('source');
+                if (source === 'clarifications') {
+                  navigate('/clarifications');
+                } else {
+                  navigate('/checks');
+                }
+              }}
+            >
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                 <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
@@ -1156,7 +1210,11 @@ const CheckDetails = () => {
               ) : clarifications.length > 0 ? (
                 <div className="clarifications-list">
                   {clarifications.map((clarification) => (
-                    <div key={clarification.clarificationId} className="clarification-card">
+                    <div 
+                      key={clarification.clarificationId} 
+                      className="clarification-card"
+                      data-clarification-id={clarification.clarificationId}
+                    >
                       {editingClarificationId === clarification.clarificationId ? (
                         // Edit Mode
                         <div className="clarification-edit-form">

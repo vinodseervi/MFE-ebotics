@@ -103,6 +103,15 @@
   background: #f9fafb;
 }
 
+.column-item.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.column-item.disabled .column-checkbox {
+  cursor: not-allowed;
+}
+
 .column-item.always-visible .drag-handle {
   display: none;
 }

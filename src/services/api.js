@@ -53,10 +53,32 @@ class ApiService {
    */
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
+    
+    // Handle FormData - don't set Content-Type header, let browser set it with boundary
+    const isFormData = options.body instanceof FormData;
+    let defaultHeaders = {};
+    
+    if (!isFormData) {
+      // For non-FormData, use normal headers with Content-Type
+      defaultHeaders = this.getHeaders(options.includeAuth !== false);
+    } else {
+      // For FormData, only include auth headers (no Content-Type)
+      if (options.includeAuth !== false) {
+        const token = this.getToken();
+        const userId = this.getUserId();
+        if (token) {
+          defaultHeaders['Authorization'] = `Bearer ${token}`;
+        }
+        if (userId) {
+          defaultHeaders['x-user-id'] = userId;
+        }
+      }
+    }
+    
     const config = {
       ...options,
       headers: {
-        ...this.getHeaders(options.includeAuth !== false),
+        ...defaultHeaders,
         ...options.headers,
       },
     };
@@ -782,6 +804,112 @@ class ApiService {
    */
   async updateClarification(checkId, clarificationId, clarificationData) {
     return this.patch(`/api/v1/checks/${checkId}/clarifications/${clarificationId}`, clarificationData);
+  }
+
+  // ==================== Bulk Import APIs ====================
+
+  /**
+   * Upload CSV/XLSX file for bulk import
+   * POST /api/v1/bulk-import
+   * @param {File} file - CSV or XLSX file
+   * @param {string} [jobName] - Optional job name
+   * @param {string} [assigneeId] - Optional assignee ID (UUID)
+   */
+  async uploadBulkImportFile(file, jobName = null, assigneeId = null) {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    let queryParams = [];
+    if (jobName) {
+      queryParams.push(`jobName=${encodeURIComponent(jobName)}`);
+    }
+    if (assigneeId) {
+      queryParams.push(`assigneeId=${encodeURIComponent(assigneeId)}`);
+    }
+    
+    const endpoint = `/api/v1/bulk-import${queryParams.length > 0 ? `?${queryParams.join('&')}` : ''}`;
+    
+    return this.request(endpoint, {
+      method: 'POST',
+      body: formData,
+    });
+  }
+
+  /**
+   * Get bulk import dashboard (all jobs)
+   * GET /api/v1/bulk-import/dashboard
+   */
+  async getBulkImportDashboard() {
+    return this.get('/api/v1/bulk-import/dashboard');
+  }
+
+  /**
+   * Get bulk import job by ID
+   * GET /api/v1/bulk-import/{jobId}
+   * @param {string} jobId - Job ID (UUID)
+   */
+  async getBulkImportJob(jobId) {
+    return this.get(`/api/v1/bulk-import/${jobId}`);
+  }
+
+  /**
+   * Update bulk import job (assignee/reporter defaults)
+   * PUT /api/v1/bulk-import/{jobId}
+   * @param {string} jobId - Job ID (UUID)
+   * @param {Object} updateData - Update data
+   * @param {string} [updateData.assigneeId] - Assignee ID (UUID)
+   * @param {string} [updateData.reporterId] - Reporter ID (UUID)
+   */
+  async updateBulkImportJob(jobId, updateData) {
+    return this.put(`/api/v1/bulk-import/${jobId}`, updateData);
+  }
+
+  /**
+   * Get staged checks for a bulk import job
+   * GET /api/v1/bulk-import/{jobId}/checks
+   * @param {string} jobId - Job ID (UUID)
+   * @param {number} [page=0] - Page number
+   * @param {number} [size=50] - Page size
+   */
+  async getBulkImportJobChecks(jobId, page = 0, size = 50) {
+    const queryParams = new URLSearchParams();
+    queryParams.append('page', page);
+    queryParams.append('size', size);
+    
+    return this.get(`/api/v1/bulk-import/${jobId}/checks?${queryParams.toString()}`);
+  }
+
+  /**
+   * Re-validate bulk import job
+   * POST /api/v1/bulk-import/{jobId}/re-validate
+   * @param {string} jobId - Job ID (UUID)
+   */
+  async revalidateBulkImportJob(jobId) {
+    return this.post(`/api/v1/bulk-import/${jobId}/re-validate`, {});
+  }
+
+  /**
+   * Promote valid staged rows from bulk import job
+   * POST /api/v1/bulk-import/{jobId}/promote
+   * @param {string} jobId - Job ID (UUID)
+   * @param {boolean} [allowPartials=false] - Allow partial promotion
+   */
+  async promoteBulkImportJob(jobId, allowPartials = false) {
+    const queryParams = new URLSearchParams();
+    queryParams.append('allowPartials', allowPartials);
+    
+    return this.post(`/api/v1/bulk-import/${jobId}/promote?${queryParams.toString()}`, {});
+  }
+
+  /**
+   * Update a single staged check
+   * PATCH /api/v1/bulk-import/{jobId}/checks/{stagingCheckId}
+   * @param {string} jobId - Job ID (UUID)
+   * @param {string} stagingCheckId - Staging check ID (UUID)
+   * @param {Object} checkData - Check data to update
+   */
+  async updateStagedCheck(jobId, stagingCheckId, checkData) {
+    return this.patch(`/api/v1/bulk-import/${jobId}/checks/${stagingCheckId}`, checkData);
   }
 }
 

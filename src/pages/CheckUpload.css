@@ -167,9 +167,19 @@
   transition: all 0.2s;
 }
 
-.btn-remove:hover {
+.btn-remove:hover:not(:disabled) {
   background: #f9fafb;
   border-color: #d1d5db;
+}
+
+.btn-remove:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .requirements-section {
@@ -245,5 +255,227 @@
 
 .btn-upload:hover {
   background: #059669;
+}
+
+.btn-upload:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  padding: 10px 20px;
+  background: #2563eb;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  color: white;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-primary:hover {
+  background: #1d4ed8;
+}
+
+.btn-primary:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* Processing Overlay */
+.processing-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(4px);
+}
+
+.processing-content {
+  background: white;
+  border-radius: 12px;
+  padding: 40px;
+  text-align: center;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  max-width: 400px;
+  width: 90%;
+}
+
+.processing-spinner {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  animation: rotate 2s linear infinite;
+}
+
+.path {
+  stroke: #14b8a6;
+  stroke-linecap: round;
+  animation: dash 1.5s ease-in-out infinite;
+}
+
+@keyframes rotate {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes dash {
+  0% {
+    stroke-dasharray: 1, 150;
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dasharray: 90, 150;
+    stroke-dashoffset: -35;
+  }
+  100% {
+    stroke-dasharray: 90, 150;
+    stroke-dashoffset: -124;
+  }
+}
+
+.processing-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 8px 0;
+}
+
+.processing-subtitle {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0;
+}
+
+/* Jobs and Checks Table Styles */
+.jobs-section {
+  background: white;
+  border-radius: 8px;
+  padding: 30px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+}
+
+.jobs-table-wrapper {
+  overflow-x: auto;
+}
+
+.jobs-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.jobs-table th {
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+  background: #f9fafb;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.jobs-table td {
+  padding: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.jobs-table tr:hover {
+  background: #f9fafb;
+}
+
+.checks-table-wrapper {
+  overflow-x: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.checks-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.checks-table th {
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+  background: #f9fafb;
+  border-bottom: 2px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+}
+
+.checks-table th:first-child {
+  min-width: 80px;
+  width: 80px;
+}
+
+.checks-table td {
+  padding: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.checks-table td:first-child {
+  min-width: 80px;
+  width: 80px;
+  white-space: nowrap;
+}
+
+.checks-table tr:hover {
+  background: #f9fafb;
+}
+
+.error-message {
+  margin-bottom: 20px;
+  padding: 12px;
+  background: #fee2e2;
+  color: #dc2626;
+  border-radius: 6px;
+  border: 1px solid #fecaca;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.success-message {
+  margin-bottom: 20px;
+  padding: 12px;
+  background: #d1fae5;
+  color: #059669;
+  border-radius: 6px;
+  border: 1px solid #a7f3d0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.message-close-btn {
+  color: inherit;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.message-close-btn:hover {
+  opacity: 1;
+}
+
+.truncated-text {
+  cursor: help;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
 }
 

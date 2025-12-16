@@ -8,6 +8,7 @@ import SearchableDropdown from '../components/SearchableDropdown';
 import ColumnSelector from '../components/ColumnSelector';
 import Tooltip from '../components/Tooltip';
 import UserTimestamp from '../components/UserTimestamp';
+import BulkActionModal from '../components/BulkActionModal';
 import { Info } from 'lucide-react';
 import { formatDateUS, formatDateRange, getCurrentMonthYear, formatMonthYear, getMonthRange } from '../utils/dateUtils';
 import { filterEmojis } from '../utils/emojiFilter';
@@ -59,9 +60,8 @@ const Checks = () => {
   // Bulk actions
   const [selectedChecks, setSelectedChecks] = useState(new Set());
   const [showBulkActions, setShowBulkActions] = useState(false);
+  const [showBulkActionModal, setShowBulkActionModal] = useState(false);
   const { users, getUserName, getUserById } = useUsers(); // Get users from context
-  const [bulkAssigneeId, setBulkAssigneeId] = useState('');
-  const [bulkReporterId, setBulkReporterId] = useState('');
 
   // Column selector
   const [showColumnSelector, setShowColumnSelector] = useState(false);
@@ -426,25 +426,25 @@ const Checks = () => {
     }
   };
 
-  const handleBulkAssign = async () => {
+  const handleBulkUpdate = async (payload) => {
     if (selectedChecks.size === 0) return;
     
     try {
-      await api.bulkAssignChecks(
-        Array.from(selectedChecks),
-        bulkAssigneeId || null,
-        bulkReporterId || null
-      );
+      const checkIds = Array.from(selectedChecks);
+      await api.bulkUpdateChecks({
+        checkIds,
+        ...payload
+      });
       
       // Refresh checks
-      fetchChecks(true);
+      await fetchChecks(currentPage);
       setSelectedChecks(new Set());
       setShowBulkActions(false);
-      setBulkAssigneeId('');
-      setBulkReporterId('');
+      setShowBulkActionModal(false);
     } catch (error) {
-      console.error('Error bulk assigning checks:', error);
-      alert('Failed to assign checks. Please try again.');
+      console.error('Error bulk updating checks:', error);
+      const errorMessage = error?.data?.message || error?.message || 'Failed to update checks. Please try again.';
+      alert(errorMessage);
     }
   };
 
@@ -902,38 +902,8 @@ const Checks = () => {
             <span>{selectedChecks.size} check(s) selected</span>
           </div>
           <div className="bulk-actions-controls">
-            <SearchableDropdown
-              options={[
-                { value: '', label: 'Select Assignee' },
-                ...users.map(user => ({
-                  value: user.userId || user.id,
-                  label: user.firstName && user.lastName 
-                    ? `${user.firstName} ${user.lastName}` 
-                    : user.email || 'Unknown User'
-                }))
-              ]}
-              value={bulkAssigneeId}
-              onChange={(value) => setBulkAssigneeId(value)}
-              placeholder="Select Assignee"
-              maxVisibleItems={5}
-            />
-            <SearchableDropdown
-              options={[
-                { value: '', label: 'Select Reporter' },
-                ...users.map(user => ({
-                  value: user.userId || user.id,
-                  label: user.firstName && user.lastName 
-                    ? `${user.firstName} ${user.lastName}` 
-                    : user.email || 'Unknown User'
-                }))
-              ]}
-              value={bulkReporterId}
-              onChange={(value) => setBulkReporterId(value)}
-              placeholder="Select Reporter"
-              maxVisibleItems={5}
-            />
-            <button className="btn-bulk-assign" onClick={handleBulkAssign}>
-              Assign
+            <button className="btn-bulk-update" onClick={() => setShowBulkActionModal(true)}>
+              Update
             </button>
             <button className="btn-bulk-cancel" onClick={() => setSelectedChecks(new Set())}>
               Cancel
@@ -941,6 +911,14 @@ const Checks = () => {
           </div>
         </div>
       )}
+
+      <BulkActionModal
+        isOpen={showBulkActionModal}
+        onClose={() => setShowBulkActionModal(false)}
+        onSave={handleBulkUpdate}
+        selectedCount={selectedChecks.size}
+        users={users}
+      />
 
       {error && (
         <div className="error-message">

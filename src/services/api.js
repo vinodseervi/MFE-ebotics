@@ -596,23 +596,23 @@ class ApiService {
   }
 
   /**
-   * Bulk assign checks
+   * Bulk update checks (assignee/reporter/unknown and optionally create clarifications)
    * POST /api/v1/checks/bulk-actions
-   * @param {Array<string>} checkIds - Array of check IDs (UUIDs)
-   * @param {string} assigneeId - Assignee user ID (UUID)
-   * @param {string} reporterId - Reporter user ID (UUID)
+   * @param {Object} payload - Bulk action payload
+   * @param {Array<string>} payload.checkIds - Array of check IDs (UUIDs)
+   * @param {string} [payload.assigneeId] - Assignee user ID (UUID)
+   * @param {string} [payload.reporterId] - Reporter user ID (UUID)
+   * @param {boolean} [payload.unknown] - Mark checks as unknown
+   * @param {Object} [payload.clarification] - Optional clarification object
+   * @param {string} [payload.clarification.clarificationType] - Type of clarification
+   * @param {string} [payload.clarification.details] - Clarification details
+   * @param {string} [payload.clarification.status] - Clarification status (OPEN/RESOLVED)
+   * @param {string} [payload.clarification.assigneeId] - Clarification assignee ID
+   * @param {string} [payload.clarification.reporterId] - Clarification reporter ID
+   * @param {string} [payload.clarification.assignee] - Assignee type (ON-SHORE/OFF-SHORE)
+   * @param {string} [payload.clarification.reportee] - Reportee type (EBOTICS)
    */
-  async bulkAssignChecks(checkIds, assigneeId = null, reporterId = null) {
-    const payload = { checkIds };
-    
-    if (assigneeId) {
-      payload.assigneeId = assigneeId;
-    }
-    
-    if (reporterId) {
-      payload.reporterId = reporterId;
-    }
-    
+  async bulkUpdateChecks(payload) {
     return this.post('/api/v1/checks/bulk-actions', payload);
   }
 

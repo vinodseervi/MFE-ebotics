@@ -366,7 +366,7 @@ const Clarifications = () => {
   };
 
   // Truncate text and show tooltip on hover
-  const TruncatedText = ({ text, maxLength = 50 }) => {
+  const TruncatedText = ({ text, maxLength = 20 }) => {
     if (!text) return <span></span>;
     
     const shouldTruncate = text.length > maxLength;
@@ -792,20 +792,20 @@ const Clarifications = () => {
                                 className="link-btn"
                                 onClick={() => navigate(`/checks/${clarification.checkId}?clarificationId=${clarification.clarificationId}&source=clarifications`)}
                               >
-                                {clarification.checkNumber || 'N/A'}
+                                <TruncatedText text={clarification.checkNumber || 'N/A'} maxLength={20} />
                               </button>
                             </td>
                           );
                         case 'clarificationType':
                           return (
                             <td key={colKey}>
-                              {clarification.clarificationType || 'N/A'}
+                              <TruncatedText text={clarification.clarificationType || 'N/A'} maxLength={20} />
                             </td>
                           );
                         case 'details':
                           return (
                             <td key={colKey} className="details-cell">
-                              <TruncatedText text={clarification.details || ''} maxLength={50} />
+                              <TruncatedText text={clarification.details || ''} maxLength={20} />
                             </td>
                           );
                         case 'assignee':

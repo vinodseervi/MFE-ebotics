@@ -31,17 +31,21 @@ const Checks = () => {
   const [selectedPractice, setSelectedPractice] = useState('');
   const [practices, setPractices] = useState([]);
   
-  // Advanced filters
+  // Advanced filters - now support arrays for multiple selections
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [advancedFilters, setAdvancedFilters] = useState({
-    status: '',
-    practiceCode: '',
-    locationCode: '',
-    assigneeId: '',
-    reporterId: '',
+    statuses: [], // Array for multiple status selections
+    practiceCodes: [], // Array for multiple practice selections
+    locationCodes: [], // Array for multiple location selections
+    assigneeIds: [], // Array for multiple assignee selections
+    reporterIds: [], // Array for multiple reporter selections
     checkNumber: '',
-    startDate: '',
-    endDate: '',
+    depositDateFrom: '',
+    depositDateTo: '',
+    receivedDateFrom: '',
+    receivedDateTo: '',
+    completedDateFrom: '',
+    completedDateTo: '',
     month: null,
     year: null
   });
@@ -53,7 +57,7 @@ const Checks = () => {
   // Bulk actions
   const [selectedChecks, setSelectedChecks] = useState(new Set());
   const [showBulkActions, setShowBulkActions] = useState(false);
-  const { users } = useUsers(); // Get users from context
+  const { users, getUserName } = useUsers(); // Get users from context
   const [bulkAssigneeId, setBulkAssigneeId] = useState('');
   const [bulkReporterId, setBulkReporterId] = useState('');
 
@@ -129,76 +133,92 @@ const Checks = () => {
     setError(null);
     
     try {
-      
-      // Build filter parameters
-      const params = {
+      // Build search parameters for POST request
+      const searchParams = {
         page: page,
-        size: 50
+        size: 50,
+        unknown: false  // Always false for Checks page
       };
 
-      // Default filters
+      // Collect statuses from both default and advanced filters
+      const statuses = [];
       if (selectedStatus) {
-        params.status = selectedStatus;
+        statuses.push(selectedStatus);
       }
-      
+      if (advancedFilters.statuses && advancedFilters.statuses.length > 0) {
+        statuses.push(...advancedFilters.statuses);
+      }
+      // Remove duplicates
+      if (statuses.length > 0) {
+        searchParams.statuses = [...new Set(statuses)];
+      }
+
+      // Collect practice codes
+      const practiceCodes = [];
       if (selectedPractice) {
-        params.practiceCode = selectedPractice;
+        practiceCodes.push(selectedPractice);
       }
-      
-      // Note: searchTerm will be handled client-side for multiple fields
-      // Don't send searchTerm to API as checkNumber anymore
+      if (advancedFilters.practiceCodes && advancedFilters.practiceCodes.length > 0) {
+        practiceCodes.push(...advancedFilters.practiceCodes);
+      }
+      // Remove duplicates
+      if (practiceCodes.length > 0) {
+        searchParams.practiceCodes = [...new Set(practiceCodes)];
+      }
 
-      // Advanced filters
-      if (advancedFilters.status) {
-        params.status = advancedFilters.status;
+      // Location codes (array)
+      if (advancedFilters.locationCodes && advancedFilters.locationCodes.length > 0) {
+        searchParams.locationCodes = [...new Set(advancedFilters.locationCodes)];
       }
-      
-      if (advancedFilters.practiceCode) {
-        params.practiceCode = advancedFilters.practiceCode;
+
+      // Assignee IDs (array)
+      if (advancedFilters.assigneeIds && advancedFilters.assigneeIds.length > 0) {
+        searchParams.assigneeIds = [...new Set(advancedFilters.assigneeIds)];
       }
-      
-      if (advancedFilters.locationCode) {
-        params.locationCode = advancedFilters.locationCode;
+
+      // Reporter IDs (array)
+      if (advancedFilters.reporterIds && advancedFilters.reporterIds.length > 0) {
+        searchParams.reporterIds = [...new Set(advancedFilters.reporterIds)];
       }
-      
-      if (advancedFilters.assigneeId) {
-        params.assigneeId = advancedFilters.assigneeId;
-      }
-      
-      if (advancedFilters.reporterId) {
-        params.reporterId = advancedFilters.reporterId;
-      }
-      
+
+      // Check number (supports wildcards)
       if (advancedFilters.checkNumber) {
-        params.checkNumber = advancedFilters.checkNumber;
-      }
-      
-      if (advancedFilters.startDate) {
-        params.startDate = advancedFilters.startDate;
-      }
-      
-      if (advancedFilters.endDate) {
-        params.endDate = advancedFilters.endDate;
-      }
-      
-      if (advancedFilters.month) {
-        params.month = advancedFilters.month;
-      }
-      
-      if (advancedFilters.year) {
-        params.year = advancedFilters.year;
+        searchParams.checkNumber = advancedFilters.checkNumber;
+      } else if (searchTerm) {
+        // Use searchTerm as checkNumber if no explicit checkNumber filter
+        searchParams.checkNumber = searchTerm;
       }
 
-      // Default to selected month if no date filters
-      if (!params.startDate && !params.endDate && !params.month && !params.year) {
-        params.month = selectedMonth;
-        params.year = selectedYear;
+      // Date filters - map to new field names
+      if (advancedFilters.depositDateFrom) {
+        searchParams.depositDateFrom = advancedFilters.depositDateFrom;
+      }
+      if (advancedFilters.depositDateTo) {
+        searchParams.depositDateTo = advancedFilters.depositDateTo;
+      }
+      if (advancedFilters.receivedDateFrom) {
+        searchParams.receivedDateFrom = advancedFilters.receivedDateFrom;
+      }
+      if (advancedFilters.receivedDateTo) {
+        searchParams.receivedDateTo = advancedFilters.receivedDateTo;
+      }
+      if (advancedFilters.completedDateFrom) {
+        searchParams.completedDateFrom = advancedFilters.completedDateFrom;
+      }
+      if (advancedFilters.completedDateTo) {
+        searchParams.completedDateTo = advancedFilters.completedDateTo;
       }
 
-      // Note: Sorting would typically be handled by backend, but for now we'll sort client-side
-      // In a real implementation, you'd add sort params to the API call
+      // Legacy date filters mapping
+      if (advancedFilters.startDate && !searchParams.depositDateFrom) {
+        searchParams.depositDateFrom = advancedFilters.startDate;
+      }
+      if (advancedFilters.endDate && !searchParams.depositDateTo) {
+        searchParams.depositDateTo = advancedFilters.endDate;
+      }
 
-      const response = await api.getChecksDashboard(params);
+      // Use POST endpoint with search
+      const response = await api.searchChecksDashboard(searchParams);
       
       let checksList = response.items || [];
       const totalElements = response.totalElements || 0;
@@ -325,12 +345,18 @@ const Checks = () => {
 
   const handleResetAdvancedFilters = () => {
     setAdvancedFilters({
-      status: '',
-      practiceCode: '',
-      locationCode: '',
-      assigneeId: '',
-      reporterId: '',
+      statuses: [],
+      practiceCodes: [],
+      locationCodes: [],
+      assigneeIds: [],
+      reporterIds: [],
       checkNumber: '',
+      depositDateFrom: '',
+      depositDateTo: '',
+      receivedDateFrom: '',
+      receivedDateTo: '',
+      completedDateFrom: '',
+      completedDateTo: '',
       startDate: '',
       endDate: '',
       month: null,
@@ -459,15 +485,21 @@ const Checks = () => {
 
   // Check if any advanced filter is active
   const hasAdvancedFilters = () => {
-    return !!(
-      advancedFilters.status ||
-      advancedFilters.practiceCode ||
-      advancedFilters.locationCode ||
-      advancedFilters.assigneeId ||
-      advancedFilters.reporterId ||
-      advancedFilters.checkNumber ||
-      advancedFilters.startDate ||
-      advancedFilters.endDate ||
+    return (
+      (advancedFilters.statuses && advancedFilters.statuses.length > 0) ||
+      (advancedFilters.practiceCodes && advancedFilters.practiceCodes.length > 0) ||
+      (advancedFilters.locationCodes && advancedFilters.locationCodes.length > 0) ||
+      (advancedFilters.assigneeIds && advancedFilters.assigneeIds.length > 0) ||
+      (advancedFilters.reporterIds && advancedFilters.reporterIds.length > 0) ||
+      (advancedFilters.checkNumber && advancedFilters.checkNumber.trim() !== '') ||
+      (advancedFilters.depositDateFrom && advancedFilters.depositDateFrom.trim() !== '') ||
+      (advancedFilters.depositDateTo && advancedFilters.depositDateTo.trim() !== '') ||
+      (advancedFilters.receivedDateFrom && advancedFilters.receivedDateFrom.trim() !== '') ||
+      (advancedFilters.receivedDateTo && advancedFilters.receivedDateTo.trim() !== '') ||
+      (advancedFilters.completedDateFrom && advancedFilters.completedDateFrom.trim() !== '') ||
+      (advancedFilters.completedDateTo && advancedFilters.completedDateTo.trim() !== '') ||
+      (advancedFilters.startDate && advancedFilters.startDate.trim() !== '') ||
+      (advancedFilters.endDate && advancedFilters.endDate.trim() !== '') ||
       advancedFilters.month ||
       advancedFilters.year
     );
@@ -656,35 +688,55 @@ const Checks = () => {
                 </button>
               </div>
             )}
-            {advancedFilters.status && (
-              <div className="filter-chip">
-                <span>Status: {[
-                  { value: 'NOT_STARTED', label: 'Not Started' },
-                  { value: 'IN_PROGRESS', label: 'In Progress' },
-                  { value: 'UNDER_CLARIFICATIONS', label: 'Under Clarifications' },
-                  { value: 'COMPLETED', label: 'Completed' },
-                  { value: 'OVER_POSTED', label: 'Over Posted' }
-                ].find(s => s.value === advancedFilters.status)?.label || advancedFilters.status}</span>
+            {/* Multiple Status Filters */}
+            {advancedFilters.statuses && advancedFilters.statuses.length > 0 && advancedFilters.statuses.map((status) => {
+              const statusLabels = {
+                'NOT_STARTED': 'Not Started',
+                'IN_PROGRESS': 'In Progress',
+                'UNDER_CLARIFICATIONS': 'Under Clarifications',
+                'COMPLETED': 'Completed',
+                'OVER_POSTED': 'Over Posted'
+              };
+              return (
+                <div key={status} className="filter-chip">
+                  <span>Status: {statusLabels[status] || status}</span>
+                  <button
+                    className="chip-close-btn"
+                    onClick={() => {
+                      setAdvancedFilters(prev => ({
+                        ...prev,
+                        statuses: prev.statuses.filter(s => s !== status)
+                      }));
+                    }}
+                    title="Remove status filter"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                      <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                </div>
+              );
+            })}
+            {/* Multiple Practice Filters */}
+            {advancedFilters.practiceCodes && advancedFilters.practiceCodes.length > 0 && advancedFilters.practiceCodes.map((practiceCode) => (
+              <div key={practiceCode} className="filter-chip">
+                <span>Practice: {practices.find(p => p.code === practiceCode)?.name || practiceCode}</span>
                 <button
                   className="chip-close-btn"
                   onClick={() => {
-                    setAdvancedFilters(prev => ({ ...prev, status: '' }));
-                  }}
-                  title="Remove status filter"
-                >
-                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
-                    <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
-              </div>
-            )}
-            {advancedFilters.practiceCode && (
-              <div className="filter-chip">
-                <span>Practice: {practices.find(p => p.code === advancedFilters.practiceCode)?.name || advancedFilters.practiceCode}</span>
-                <button
-                  className="chip-close-btn"
-                  onClick={() => {
-                    setAdvancedFilters(prev => ({ ...prev, practiceCode: '', locationCode: '' }));
+                    setAdvancedFilters(prev => ({
+                      ...prev,
+                      practiceCodes: prev.practiceCodes.filter(p => p !== practiceCode),
+                      locationCodes: prev.locationCodes.filter(loc => {
+                        // Remove locations that belong to this practice
+                        const practice = practices.find(p => p.code === practiceCode);
+                        if (practice && practice.practiceId) {
+                          // This would need location data to check, for now just remove all
+                          return false;
+                        }
+                        return true;
+                      })
+                    }));
                   }}
                   title="Remove practice filter"
                 >
@@ -693,14 +745,18 @@ const Checks = () => {
                   </svg>
                 </button>
               </div>
-            )}
-            {advancedFilters.locationCode && (
-              <div className="filter-chip">
-                <span>Location: {advancedFilters.locationCode}</span>
+            ))}
+            {/* Multiple Location Filters */}
+            {advancedFilters.locationCodes && advancedFilters.locationCodes.length > 0 && advancedFilters.locationCodes.map((locationCode) => (
+              <div key={locationCode} className="filter-chip">
+                <span>Location: {locationCode}</span>
                 <button
                   className="chip-close-btn"
                   onClick={() => {
-                    setAdvancedFilters(prev => ({ ...prev, locationCode: '' }));
+                    setAdvancedFilters(prev => ({
+                      ...prev,
+                      locationCodes: prev.locationCodes.filter(l => l !== locationCode)
+                    }));
                   }}
                   title="Remove location filter"
                 >
@@ -709,7 +765,47 @@ const Checks = () => {
                   </svg>
                 </button>
               </div>
-            )}
+            ))}
+            {/* Multiple Assignee Filters */}
+            {advancedFilters.assigneeIds && advancedFilters.assigneeIds.length > 0 && advancedFilters.assigneeIds.map((assigneeId) => (
+              <div key={assigneeId} className="filter-chip">
+                <span>Assignee: {getUserName(assigneeId)}</span>
+                <button
+                  className="chip-close-btn"
+                  onClick={() => {
+                    setAdvancedFilters(prev => ({
+                      ...prev,
+                      assigneeIds: prev.assigneeIds.filter(id => id !== assigneeId)
+                    }));
+                  }}
+                  title="Remove assignee filter"
+                >
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                    <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            ))}
+            {/* Multiple Reporter Filters */}
+            {advancedFilters.reporterIds && advancedFilters.reporterIds.length > 0 && advancedFilters.reporterIds.map((reporterId) => (
+              <div key={reporterId} className="filter-chip">
+                <span>Reporter: {getUserName(reporterId)}</span>
+                <button
+                  className="chip-close-btn"
+                  onClick={() => {
+                    setAdvancedFilters(prev => ({
+                      ...prev,
+                      reporterIds: prev.reporterIds.filter(id => id !== reporterId)
+                    }));
+                  }}
+                  title="Remove reporter filter"
+                >
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                    <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            ))}
             {advancedFilters.checkNumber && (
               <div className="filter-chip">
                 <span>Check: {advancedFilters.checkNumber}</span>

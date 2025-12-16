@@ -200,3 +200,59 @@
   background: #059669;
 }
 
+/* Multi-select wrapper and chips */
+.multi-select-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.multi-select-input {
+  width: 100%;
+}
+
+.selected-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.selected-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: #dbeafe;
+  border: 1px solid #93c5fd;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #1e40af;
+}
+
+.selected-chip span {
+  white-space: nowrap;
+}
+
+.chip-remove-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: #1e40af;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.chip-remove-btn:hover {
+  background: #bfdbfe;
+  color: #1e3a8a;
+}
+

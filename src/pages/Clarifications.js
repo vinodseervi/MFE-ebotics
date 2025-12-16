@@ -52,15 +52,17 @@ const Clarifications = () => {
     return allColumns.map(col => col.key);
   });
   
-  // Advanced filters
+  // Advanced filters - now support arrays for multiple selections
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [advancedFilters, setAdvancedFilters] = useState({
-    status: '',
-    assigneeId: '',
-    reporterId: '',
+    statuses: [], // Array for multiple status selections
+    assigneeIds: [], // Array for multiple assignee selections
+    reporterIds: [], // Array for multiple reporter selections
     checkNumber: '',
-    startDate: '',
-    endDate: '',
+    openedDateFrom: '',
+    openedDateTo: '',
+    startDate: '', // Legacy support
+    endDate: '', // Legacy support
     month: null,
     year: null
   });
@@ -95,61 +97,61 @@ const Clarifications = () => {
     setError(null);
     
     try {
-      // Build filter parameters
-      const params = {
+      // Build search parameters for POST request
+      const searchParams = {
         page: page,
         size: 50
       };
 
-      // Default filters
+      // Collect statuses from both default and advanced filters
+      const statuses = [];
       if (selectedStatus) {
-        params.status = selectedStatus;
+        statuses.push(selectedStatus);
       }
-      
-      if (searchTerm) {
-        params.checkNumber = searchTerm;
+      if (advancedFilters.statuses && advancedFilters.statuses.length > 0) {
+        statuses.push(...advancedFilters.statuses);
+      }
+      // Remove duplicates
+      if (statuses.length > 0) {
+        searchParams.statuses = [...new Set(statuses)];
       }
 
-      // Advanced filters
-      if (advancedFilters.status) {
-        params.status = advancedFilters.status;
+      // Assignee IDs (array)
+      if (advancedFilters.assigneeIds && advancedFilters.assigneeIds.length > 0) {
+        searchParams.assigneeIds = [...new Set(advancedFilters.assigneeIds)];
       }
-      
-      if (advancedFilters.assigneeId) {
-        params.assigneeId = advancedFilters.assigneeId;
+
+      // Reporter IDs (array)
+      if (advancedFilters.reporterIds && advancedFilters.reporterIds.length > 0) {
+        searchParams.reporterIds = [...new Set(advancedFilters.reporterIds)];
       }
-      
-      if (advancedFilters.reporterId) {
-        params.reporterId = advancedFilters.reporterId;
-      }
-      
+
+      // Check number (supports wildcards)
       if (advancedFilters.checkNumber) {
-        params.checkNumber = advancedFilters.checkNumber;
-      }
-      
-      if (advancedFilters.startDate) {
-        params.startDate = advancedFilters.startDate;
-      }
-      
-      if (advancedFilters.endDate) {
-        params.endDate = advancedFilters.endDate;
-      }
-      
-      if (advancedFilters.month) {
-        params.month = advancedFilters.month;
-      }
-      
-      if (advancedFilters.year) {
-        params.year = advancedFilters.year;
+        searchParams.checkNumber = advancedFilters.checkNumber;
+      } else if (searchTerm) {
+        // Use searchTerm as checkNumber if no explicit checkNumber filter
+        searchParams.checkNumber = searchTerm;
       }
 
-      // Default to selected month if no date filters
-      if (!params.startDate && !params.endDate && !params.month && !params.year) {
-        params.month = selectedMonth;
-        params.year = selectedYear;
+      // Date filters - use openedDateFrom/To
+      if (advancedFilters.openedDateFrom) {
+        searchParams.openedDateFrom = advancedFilters.openedDateFrom;
+      }
+      if (advancedFilters.openedDateTo) {
+        searchParams.openedDateTo = advancedFilters.openedDateTo;
       }
 
-      const response = await api.getClarificationsDashboard(params);
+      // Legacy date filters mapping
+      if (advancedFilters.startDate && !searchParams.openedDateFrom) {
+        searchParams.openedDateFrom = advancedFilters.startDate;
+      }
+      if (advancedFilters.endDate && !searchParams.openedDateTo) {
+        searchParams.openedDateTo = advancedFilters.endDate;
+      }
+
+      // Use POST endpoint with search
+      const response = await api.searchClarificationsDashboard(searchParams);
       
       let clarificationsList = response.items || [];
       const totalPages = response.totalPages || 0;
@@ -267,10 +269,12 @@ const Clarifications = () => {
 
   const handleResetAdvancedFilters = () => {
     setAdvancedFilters({
-      status: '',
-      assigneeId: '',
-      reporterId: '',
+      statuses: [],
+      assigneeIds: [],
+      reporterIds: [],
       checkNumber: '',
+      openedDateFrom: '',
+      openedDateTo: '',
       startDate: '',
       endDate: '',
       month: null,
@@ -290,13 +294,15 @@ const Clarifications = () => {
 
   // Check if any advanced filter is active
   const hasAdvancedFilters = () => {
-    return !!(
-      advancedFilters.status ||
-      advancedFilters.assigneeId ||
-      advancedFilters.reporterId ||
-      advancedFilters.checkNumber ||
-      advancedFilters.startDate ||
-      advancedFilters.endDate ||
+    return (
+      (advancedFilters.statuses && advancedFilters.statuses.length > 0) ||
+      (advancedFilters.assigneeIds && advancedFilters.assigneeIds.length > 0) ||
+      (advancedFilters.reporterIds && advancedFilters.reporterIds.length > 0) ||
+      (advancedFilters.checkNumber && advancedFilters.checkNumber.trim() !== '') ||
+      (advancedFilters.openedDateFrom && advancedFilters.openedDateFrom.trim() !== '') ||
+      (advancedFilters.openedDateTo && advancedFilters.openedDateTo.trim() !== '') ||
+      (advancedFilters.startDate && advancedFilters.startDate.trim() !== '') ||
+      (advancedFilters.endDate && advancedFilters.endDate.trim() !== '') ||
       advancedFilters.month ||
       advancedFilters.year
     );
@@ -478,25 +484,72 @@ const Clarifications = () => {
                 </button>
               </div>
             )}
-            {advancedFilters.status && (
-              <div className="filter-chip">
-                <span>Status: {[
-                  { value: 'OPEN', label: 'Open' },
-                  { value: 'RESOLVED', label: 'Resolved' }
-                ].find(s => s.value === advancedFilters.status)?.label || advancedFilters.status}</span>
+            {/* Multiple Status Filters */}
+            {advancedFilters.statuses && advancedFilters.statuses.length > 0 && advancedFilters.statuses.map((status) => {
+              const statusLabels = {
+                'OPEN': 'Open',
+                'RESOLVED': 'Resolved'
+              };
+              return (
+                <div key={status} className="filter-chip">
+                  <span>Status: {statusLabels[status] || status}</span>
+                  <button
+                    className="chip-close-btn"
+                    onClick={() => {
+                      setAdvancedFilters(prev => ({
+                        ...prev,
+                        statuses: prev.statuses.filter(s => s !== status)
+                      }));
+                    }}
+                    title="Remove status filter"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                      <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                </div>
+              );
+            })}
+            {/* Multiple Assignee Filters */}
+            {advancedFilters.assigneeIds && advancedFilters.assigneeIds.length > 0 && advancedFilters.assigneeIds.map((assigneeId) => (
+              <div key={assigneeId} className="filter-chip">
+                <span>Assignee: {getUserName(assigneeId)}</span>
                 <button
                   className="chip-close-btn"
                   onClick={() => {
-                    setAdvancedFilters(prev => ({ ...prev, status: '' }));
+                    setAdvancedFilters(prev => ({
+                      ...prev,
+                      assigneeIds: prev.assigneeIds.filter(id => id !== assigneeId)
+                    }));
                   }}
-                  title="Remove status filter"
+                  title="Remove assignee filter"
                 >
                   <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
                     <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 </button>
               </div>
-            )}
+            ))}
+            {/* Multiple Reporter Filters */}
+            {advancedFilters.reporterIds && advancedFilters.reporterIds.length > 0 && advancedFilters.reporterIds.map((reporterId) => (
+              <div key={reporterId} className="filter-chip">
+                <span>Reporter: {getUserName(reporterId)}</span>
+                <button
+                  className="chip-close-btn"
+                  onClick={() => {
+                    setAdvancedFilters(prev => ({
+                      ...prev,
+                      reporterIds: prev.reporterIds.filter(id => id !== reporterId)
+                    }));
+                  }}
+                  title="Remove reporter filter"
+                >
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                    <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            ))}
             {advancedFilters.checkNumber && (
               <div className="filter-chip">
                 <span>Check: {advancedFilters.checkNumber}</span>
@@ -513,13 +566,22 @@ const Clarifications = () => {
                 </button>
               </div>
             )}
-            {(advancedFilters.startDate || advancedFilters.endDate) && (
+            {(advancedFilters.openedDateFrom || advancedFilters.openedDateTo || advancedFilters.startDate || advancedFilters.endDate) && (
               <div className="filter-chip">
-                <span>Date Range: {formatDateRange(advancedFilters.startDate || '', advancedFilters.endDate || '')}</span>
+                <span>Opened Date: {formatDateRange(
+                  advancedFilters.openedDateFrom || advancedFilters.startDate || '',
+                  advancedFilters.openedDateTo || advancedFilters.endDate || ''
+                )}</span>
                 <button
                   className="chip-close-btn"
                   onClick={() => {
-                    setAdvancedFilters(prev => ({ ...prev, startDate: '', endDate: '' }));
+                    setAdvancedFilters(prev => ({
+                      ...prev,
+                      openedDateFrom: '',
+                      openedDateTo: '',
+                      startDate: '',
+                      endDate: ''
+                    }));
                   }}
                   title="Remove date range filter"
                 >

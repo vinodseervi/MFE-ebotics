@@ -510,6 +510,83 @@ class ApiService {
   }
 
   /**
+   * Search checks dashboard with filters (POST)
+   * POST /api/v1/checks/dashboard/search?unknown={true|false}
+   * @param {Object} searchParams - Search parameters in request body
+   * @param {boolean} searchParams.unknown - Whether to search for unknown checks (default: false)
+   * @param {Array<string>} searchParams.statuses - Check statuses array
+   * @param {Array<string>} searchParams.practiceCodes - Practice codes array
+   * @param {Array<string>} searchParams.locationCodes - Location codes array
+   * @param {Array<string>} searchParams.assigneeIds - Assignee user IDs array (UUIDs)
+   * @param {Array<string>} searchParams.reporterIds - Reporter user IDs array (UUIDs)
+   * @param {string} searchParams.checkNumber - Check number (supports wildcards like "*CHE")
+   * @param {string} searchParams.depositDateFrom - Deposit date from (YYYY-MM-DD)
+   * @param {string} searchParams.depositDateTo - Deposit date to (YYYY-MM-DD)
+   * @param {string} searchParams.receivedDateFrom - Received date from (YYYY-MM-DD)
+   * @param {string} searchParams.receivedDateTo - Received date to (YYYY-MM-DD)
+   * @param {string} searchParams.completedDateFrom - Completed date from (YYYY-MM-DD)
+   * @param {string} searchParams.completedDateTo - Completed date to (YYYY-MM-DD)
+   * @param {number} searchParams.page - Page number (default: 0)
+   * @param {number} searchParams.size - Page size (default: 50)
+   */
+  async searchChecksDashboard(searchParams = {}) {
+    // Pass unknown parameter (default: false for Checks page, true for Unknown page)
+    const unknown = searchParams.unknown !== undefined ? searchParams.unknown : false;
+    const endpoint = `/api/v1/checks/dashboard/search?unknown=${unknown}`;
+    
+    // Build request body, only including non-empty values
+    const body = {};
+    
+    // Arrays - only include if not empty
+    if (searchParams.statuses && Array.isArray(searchParams.statuses) && searchParams.statuses.length > 0) {
+      body.statuses = searchParams.statuses;
+    }
+    if (searchParams.practiceCodes && Array.isArray(searchParams.practiceCodes) && searchParams.practiceCodes.length > 0) {
+      body.practiceCodes = searchParams.practiceCodes;
+    }
+    if (searchParams.locationCodes && Array.isArray(searchParams.locationCodes) && searchParams.locationCodes.length > 0) {
+      body.locationCodes = searchParams.locationCodes;
+    }
+    if (searchParams.assigneeIds && Array.isArray(searchParams.assigneeIds) && searchParams.assigneeIds.length > 0) {
+      body.assigneeIds = searchParams.assigneeIds;
+    }
+    if (searchParams.reporterIds && Array.isArray(searchParams.reporterIds) && searchParams.reporterIds.length > 0) {
+      body.reporterIds = searchParams.reporterIds;
+    }
+    
+    // Strings - only include if not empty
+    if (searchParams.checkNumber && searchParams.checkNumber.trim() !== '') {
+      body.checkNumber = searchParams.checkNumber.trim();
+    }
+    
+    // Dates - only include if not empty
+    if (searchParams.depositDateFrom && searchParams.depositDateFrom.trim() !== '') {
+      body.depositDateFrom = searchParams.depositDateFrom.trim();
+    }
+    if (searchParams.depositDateTo && searchParams.depositDateTo.trim() !== '') {
+      body.depositDateTo = searchParams.depositDateTo.trim();
+    }
+    if (searchParams.receivedDateFrom && searchParams.receivedDateFrom.trim() !== '') {
+      body.receivedDateFrom = searchParams.receivedDateFrom.trim();
+    }
+    if (searchParams.receivedDateTo && searchParams.receivedDateTo.trim() !== '') {
+      body.receivedDateTo = searchParams.receivedDateTo.trim();
+    }
+    if (searchParams.completedDateFrom && searchParams.completedDateFrom.trim() !== '') {
+      body.completedDateFrom = searchParams.completedDateFrom.trim();
+    }
+    if (searchParams.completedDateTo && searchParams.completedDateTo.trim() !== '') {
+      body.completedDateTo = searchParams.completedDateTo.trim();
+    }
+    
+    // Pagination - always include
+    body.page = searchParams.page !== undefined ? searchParams.page : 0;
+    body.size = searchParams.size !== undefined ? searchParams.size : 50;
+    
+    return this.post(endpoint, body);
+  }
+
+  /**
    * Create a new check
    * POST /api/v1/checks
    * @param {Object} checkData - Check data
@@ -625,6 +702,56 @@ class ApiService {
     const endpoint = `/api/v1/clarifications/dashboard${queryString ? `?${queryString}` : ''}`;
     
     return this.get(endpoint);
+  }
+
+  /**
+   * Search clarifications dashboard with filters (POST)
+   * POST /api/v1/clarifications/dashboard/search
+   * @param {Object} searchParams - Search parameters in request body
+   * @param {Array<string>} searchParams.statuses - Clarification statuses array (OPEN, RESOLVED)
+   * @param {Array<string>} searchParams.assigneeIds - Assignee user IDs array (UUIDs)
+   * @param {Array<string>} searchParams.reporterIds - Reporter user IDs array (UUIDs)
+   * @param {string} searchParams.checkNumber - Check number (supports wildcards like "*CHE")
+   * @param {string} searchParams.openedDateFrom - Opened date from (YYYY-MM-DD)
+   * @param {string} searchParams.openedDateTo - Opened date to (YYYY-MM-DD)
+   * @param {number} searchParams.page - Page number (default: 0)
+   * @param {number} searchParams.size - Page size (default: 50)
+   */
+  async searchClarificationsDashboard(searchParams = {}) {
+    const endpoint = '/api/v1/clarifications/dashboard/search';
+    
+    // Build request body, only including non-empty values
+    const body = {};
+    
+    // Arrays - only include if not empty
+    if (searchParams.statuses && Array.isArray(searchParams.statuses) && searchParams.statuses.length > 0) {
+      body.statuses = searchParams.statuses;
+    }
+    if (searchParams.assigneeIds && Array.isArray(searchParams.assigneeIds) && searchParams.assigneeIds.length > 0) {
+      body.assigneeIds = searchParams.assigneeIds;
+    }
+    if (searchParams.reporterIds && Array.isArray(searchParams.reporterIds) && searchParams.reporterIds.length > 0) {
+      body.reporterIds = searchParams.reporterIds;
+    }
+    
+    // Strings - only include if not empty
+    if (searchParams.checkNumber && searchParams.checkNumber.trim() !== '') {
+      body.checkNumber = searchParams.checkNumber.trim();
+    }
+    
+    // Dates - only include if not empty
+    if (searchParams.openedDateFrom && searchParams.openedDateFrom.trim() !== '') {
+      body.openedDateFrom = searchParams.openedDateFrom.trim();
+    }
+    if (searchParams.openedDateTo && searchParams.openedDateTo.trim() !== '') {
+      body.openedDateTo = searchParams.openedDateTo.trim();
+    }
+    
+    // Pagination - always include
+    body.page = searchParams.page !== undefined ? searchParams.page : 0;
+    body.size = searchParams.size !== undefined ? searchParams.size : 50;
+    
+    return this.post(endpoint, body);
   }
 
   /**

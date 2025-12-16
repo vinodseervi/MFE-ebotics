@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import { useUsers } from '../context/UsersContext';
@@ -31,6 +31,10 @@ const CheckDetails = () => {
   const [editingClarificationId, setEditingClarificationId] = useState(null);
   const [expandedClarificationId, setExpandedClarificationId] = useState(null);
   const [showActivityDrawer, setShowActivityDrawer] = useState(false);
+  const hasScrolledToClarification = useRef(false);
+  const hasScrolledToBatch = useRef(false);
+  const lastClarificationId = useRef(null);
+  const lastBatchId = useRef(null);
   
   // Navigation state
   const [checkIds, setCheckIds] = useState([]);
@@ -123,6 +127,14 @@ const CheckDetails = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, id]);
 
+  // Reset scroll flags when check ID changes
+  useEffect(() => {
+    hasScrolledToClarification.current = false;
+    hasScrolledToBatch.current = false;
+    lastClarificationId.current = null;
+    lastBatchId.current = null;
+  }, [id]);
+
   // Fetch clarifications when clarifications tab is active
   useEffect(() => {
     if (id && activeTab === 'clarifications') {
@@ -138,19 +150,32 @@ const CheckDetails = () => {
       const clarification = clarifications.find(c => c.clarificationId === clarificationIdParam);
       if (clarification) {
         setExpandedClarificationId(clarificationIdParam);
-        // Scroll to the clarification card after a short delay to ensure it's rendered
-        setTimeout(() => {
-          const element = document.querySelector(`[data-clarification-id="${clarificationIdParam}"]`);
-          if (element) {
-            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            // Highlight the clarification briefly
-            element.style.backgroundColor = '#fef3c7';
-            setTimeout(() => {
-              element.style.backgroundColor = '';
-            }, 2000);
-          }
-        }, 300);
+        
+        // Only scroll if this is a new clarification ID or we haven't scrolled yet
+        const isNewClarification = lastClarificationId.current !== clarificationIdParam;
+        if (isNewClarification || !hasScrolledToClarification.current) {
+          lastClarificationId.current = clarificationIdParam;
+          hasScrolledToClarification.current = false; // Reset to allow scroll
+          
+          // Scroll to the clarification card after a short delay to ensure it's rendered
+          setTimeout(() => {
+            const element = document.querySelector(`[data-clarification-id="${clarificationIdParam}"]`);
+            if (element) {
+              element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              // Highlight the clarification briefly
+              element.style.backgroundColor = '#fef3c7';
+              setTimeout(() => {
+                element.style.backgroundColor = '';
+              }, 2000);
+              hasScrolledToClarification.current = true;
+            }
+          }, 300);
+        }
       }
+    } else if (!clarificationIdParam) {
+      // Reset when clarificationId is removed from URL
+      hasScrolledToClarification.current = false;
+      lastClarificationId.current = null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clarifications, searchParams, activeTab]);
@@ -161,19 +186,31 @@ const CheckDetails = () => {
     if (batchIdParam && check?.batches && check.batches.length > 0 && activeTab === 'batches') {
       const batch = check.batches.find(b => b.batchId === batchIdParam);
       if (batch) {
-        // Scroll to the batch row after a short delay to ensure it's rendered
-        setTimeout(() => {
-          const element = document.querySelector(`[data-batch-id="${batchIdParam}"]`);
-          if (element) {
-            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            // Highlight the batch row briefly
-            element.style.backgroundColor = '#fef3c7';
-            setTimeout(() => {
-              element.style.backgroundColor = '';
-            }, 2000);
-          }
-        }, 300);
+        // Only scroll if this is a new batch ID or we haven't scrolled yet
+        const isNewBatch = lastBatchId.current !== batchIdParam;
+        if (isNewBatch || !hasScrolledToBatch.current) {
+          lastBatchId.current = batchIdParam;
+          hasScrolledToBatch.current = false; // Reset to allow scroll
+          
+          // Scroll to the batch row after a short delay to ensure it's rendered
+          setTimeout(() => {
+            const element = document.querySelector(`[data-batch-id="${batchIdParam}"]`);
+            if (element) {
+              element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              // Highlight the batch row briefly
+              element.style.backgroundColor = '#fef3c7';
+              setTimeout(() => {
+                element.style.backgroundColor = '';
+              }, 2000);
+              hasScrolledToBatch.current = true;
+            }
+          }, 300);
+        }
       }
+    } else if (!batchIdParam) {
+      // Reset when batchId is removed from URL
+      hasScrolledToBatch.current = false;
+      lastBatchId.current = null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [check?.batches, searchParams, activeTab]);

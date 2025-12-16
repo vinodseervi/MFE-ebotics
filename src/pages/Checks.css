@@ -151,6 +151,9 @@
   border-radius: 6px;
   font-size: 14px;
   background: white;
+  height: 40px;
+  box-sizing: border-box;
+  line-height: 20px;
 }
 
 .search-bar input:focus {
@@ -164,6 +167,12 @@
   gap: 8px;
   flex-wrap: wrap;
   flex-shrink: 0;
+  align-items: center;
+}
+
+.filter-dropdowns .searchable-dropdown-trigger {
+  height: 40px;
+  box-sizing: border-box;
 }
 
 .filter-select {
@@ -175,6 +184,9 @@
   color: #374151;
   cursor: pointer;
   min-width: 150px;
+  height: 40px;
+  box-sizing: border-box;
+  line-height: 20px;
 }
 
 .btn-advanced-filter {
@@ -191,6 +203,8 @@
   transition: all 0.2s;
   white-space: nowrap;
   position: relative;
+  height: 40px;
+  box-sizing: border-box;
 }
 
 .btn-advanced-filter:hover {

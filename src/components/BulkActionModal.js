@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import SearchableDropdown from './SearchableDropdown';
 import './BulkActionModal.css';
 
-const BulkActionModal = ({ isOpen, onClose, onSave, selectedCount, users }) => {
+const BulkActionModal = ({ isOpen, onClose, onSave, selectedCount, users, isUnknownPage = false }) => {
   const detailsTextareaRef = useRef(null);
   const [formData, setFormData] = useState({
     assigneeId: '',
@@ -32,10 +32,30 @@ const BulkActionModal = ({ isOpen, onClose, onSave, selectedCount, users }) => {
   if (!isOpen) return null;
 
   const handleChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setFormData(prev => {
+      const newData = {
+        ...prev,
+        [field]: value
+      };
+      
+      // When "Mark as Unknown" is checked, automatically check "Add Clarification" (only if not on Unknown page)
+      // On Unknown page, when marking as Known, unknown becomes false, so we don't auto-check clarification
+      if (field === 'unknown' && value === true && !isUnknownPage) {
+        newData.includeClarification = true;
+      }
+      
+      // On Unknown page, when marking as Known (unknown = false), we don't need clarification
+      if (field === 'unknown' && value === false && isUnknownPage) {
+        newData.includeClarification = false;
+      }
+      
+      // When "Mark as Unknown" is unchecked, allow unchecking clarification
+      if (field === 'unknown' && value === false) {
+        // Keep clarification state as is, user can manually uncheck if needed
+      }
+      
+      return newData;
+    });
   };
 
   const handleClarificationChange = (field, value) => {
@@ -62,8 +82,21 @@ const BulkActionModal = ({ isOpen, onClose, onSave, selectedCount, users }) => {
       payload.reporterId = formData.reporterId;
     }
     
-    if (formData.unknown) {
-      payload.unknown = true;
+    // On Unknown page, if "Mark as Known" checkbox is checked, set unknown to false
+    // On Checks page, if "Mark as Unknown" checkbox is checked, set unknown to true
+    if (isUnknownPage) {
+      // On Unknown page, checkbox checked means marking as Known (unknown = false)
+      // Checkbox unchecked means keeping as Unknown (unknown = true, but we don't need to send it)
+      // Only send unknown: false when marking as Known
+      const isMarkingAsKnown = !formData.unknown;
+      if (isMarkingAsKnown) {
+        payload.unknown = false;
+      }
+    } else {
+      // On Checks page, if unknown checkbox is checked, set unknown to true
+      if (formData.unknown) {
+        payload.unknown = true;
+      }
     }
 
     // Add clarification if enabled and has required fields
@@ -190,29 +223,46 @@ const BulkActionModal = ({ isOpen, onClose, onSave, selectedCount, users }) => {
                   <label className="checkbox-label">
                     <input
                       type="checkbox"
-                      checked={formData.unknown}
-                      onChange={(e) => handleChange('unknown', e.target.checked)}
+                      checked={isUnknownPage ? !formData.unknown : formData.unknown}
+                      onChange={(e) => {
+                        if (isUnknownPage) {
+                          // On Unknown page, checking means marking as Known (unknown = false)
+                          handleChange('unknown', !e.target.checked);
+                        } else {
+                          // On Checks page, checking means marking as Unknown (unknown = true)
+                          handleChange('unknown', e.target.checked);
+                        }
+                      }}
                     />
-                    <span>Mark as Unknown</span>
+                    <span>{isUnknownPage ? 'Mark as Known' : 'Mark as Unknown'}</span>
                   </label>
                 </div>
 
-                <div className="form-group checkbox-group">
-                  <label className="checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={formData.includeClarification}
-                      onChange={(e) => handleChange('includeClarification', e.target.checked)}
-                    />
-                    <span>Add Clarification</span>
-                  </label>
-                </div>
+                {!isUnknownPage && (
+                  <div className="form-group checkbox-group">
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={formData.includeClarification || formData.unknown}
+                        onChange={(e) => {
+                          // If unknown is checked, don't allow unchecking clarification
+                          if (formData.unknown && !e.target.checked) {
+                            return;
+                          }
+                          handleChange('includeClarification', e.target.checked);
+                        }}
+                        disabled={formData.unknown}
+                      />
+                      <span>Add Clarification{formData.unknown && <span className="checkbox-hint"> (Auto selected)</span>}</span>
+                    </label>
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="form-section">
-
-              {formData.includeClarification && (
+            {!isUnknownPage && (
+              <div className="form-section">
+                {(formData.includeClarification || formData.unknown) && (
                 <div className="clarification-section">
                   <h4 className="clarification-title">Clarification Details</h4>
                   
@@ -322,7 +372,8 @@ const BulkActionModal = ({ isOpen, onClose, onSave, selectedCount, users }) => {
                   </div>
                 </div>
               )}
-            </div>
+              </div>
+            )}
 
             <div className="bulk-action-modal-actions">
               <button type="button" className="btn-cancel" onClick={handleCancel}>

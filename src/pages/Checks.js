@@ -61,6 +61,8 @@ const Checks = () => {
   const [selectedChecks, setSelectedChecks] = useState(new Set());
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [showBulkActionModal, setShowBulkActionModal] = useState(false);
+  const [bulkUpdateMessage, setBulkUpdateMessage] = useState(null);
+  const [bulkUpdateMessageType, setBulkUpdateMessageType] = useState('success');
   const { users, getUserName, getUserById } = useUsers(); // Get users from context
 
   // Column selector
@@ -431,10 +433,21 @@ const Checks = () => {
     
     try {
       const checkIds = Array.from(selectedChecks);
-      await api.bulkUpdateChecks({
+      const response = await api.bulkUpdateChecks({
         checkIds,
         ...payload
       });
+      
+      // Show success message from API response
+      if (response) {
+        setBulkUpdateMessage(response.message || `Successfully updated ${response.succeeded || checkIds.length} check(s)`);
+        setBulkUpdateMessageType(response.failed > 0 ? 'warning' : 'success');
+        
+        // Auto-hide message after 5 seconds
+        setTimeout(() => {
+          setBulkUpdateMessage(null);
+        }, 5000);
+      }
       
       // Refresh checks
       await fetchChecks(currentPage);
@@ -444,7 +457,13 @@ const Checks = () => {
     } catch (error) {
       console.error('Error bulk updating checks:', error);
       const errorMessage = error?.data?.message || error?.message || 'Failed to update checks. Please try again.';
-      alert(errorMessage);
+      setBulkUpdateMessage(errorMessage);
+      setBulkUpdateMessageType('error');
+      
+      // Auto-hide error message after 5 seconds
+      setTimeout(() => {
+        setBulkUpdateMessage(null);
+      }, 5000);
     }
   };
 
@@ -923,6 +942,22 @@ const Checks = () => {
       {error && (
         <div className="error-message">
           {error}
+        </div>
+      )}
+
+      {bulkUpdateMessage && (
+        <div className={`bulk-update-message ${bulkUpdateMessageType}`}>
+          <div className="message-content">
+            <span>{bulkUpdateMessage}</span>
+            <button 
+              className="message-close-btn"
+              onClick={() => setBulkUpdateMessage(null)}
+            >
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          </div>
         </div>
       )}
 

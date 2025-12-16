@@ -79,9 +79,13 @@ export const getCurrentMonthRange = () => {
  * @returns {Object} Object with startDate and endDate in YYYY-MM-DD format
  */
 export const getMonthRange = (month, year) => {
+  // month is 1-12, convert to 0-based for JavaScript Date
+  const monthIndex = month - 1;
   const monthStr = String(month).padStart(2, '0');
   const firstDay = `${year}-${monthStr}-01`;
-  const lastDay = new Date(year, month, 0).getDate();
+  
+  // Get last day of the month: new Date(year, monthIndex + 1, 0) gives last day of monthIndex
+  const lastDay = new Date(year, monthIndex + 1, 0).getDate();
   const lastDayStr = `${year}-${monthStr}-${String(lastDay).padStart(2, '0')}`;
   
   return {
@@ -148,5 +152,65 @@ export const formatDateTime = (dateTime) => {
   const displayHoursStr = String(displayHours).padStart(2, '0');
   
   return `${month}/${day}/${year} ${displayHoursStr}:${minutes} ${ampm}`;
+};
+
+/**
+ * Format date time for tooltip display (e.g., "Jan 12, 2025, 02:42pm")
+ * @param {string|Date} dateTime - Date time string or Date object
+ * @returns {string} Formatted date time for tooltip
+ */
+export const formatDateTimeTooltip = (dateTime) => {
+  if (!dateTime) return '';
+  const date = typeof dateTime === 'string' ? new Date(dateTime) : dateTime;
+  if (isNaN(date.getTime())) return '';
+  
+  // Format date as "Jan 12, 2025"
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const month = monthNames[date.getMonth()];
+  const day = date.getDate();
+  const year = date.getFullYear();
+  
+  // Format time as "02:42pm"
+  const hours = date.getHours();
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const ampm = hours >= 12 ? 'pm' : 'am';
+  const displayHours = hours % 12 || 12;
+  const displayHoursStr = String(displayHours).padStart(2, '0');
+  
+  return `${month} ${day}, ${year}, ${displayHoursStr}:${minutes}${ampm}`;
+};
+
+/**
+ * Get relative time string (e.g., "2 days ago", "2 months ago")
+ * @param {string|Date} dateTime - Date time string or Date object
+ * @returns {string} Relative time string
+ */
+export const getRelativeTime = (dateTime) => {
+  if (!dateTime) return '';
+  const date = typeof dateTime === 'string' ? new Date(dateTime) : dateTime;
+  if (isNaN(date.getTime())) return '';
+  
+  const now = new Date();
+  const diffMs = now - date;
+  const diffSeconds = Math.floor(diffMs / 1000);
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  const diffHours = Math.floor(diffMinutes / 60);
+  const diffDays = Math.floor(diffHours / 24);
+  const diffMonths = Math.floor(diffDays / 30);
+  const diffYears = Math.floor(diffDays / 365);
+  
+  if (diffSeconds < 60) {
+    return 'just now';
+  } else if (diffMinutes < 60) {
+    return `${diffMinutes} minute${diffMinutes === 1 ? '' : 's'} ago`;
+  } else if (diffHours < 24) {
+    return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
+  } else if (diffDays < 30) {
+    return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
+  } else if (diffMonths < 12) {
+    return `${diffMonths} month${diffMonths === 1 ? '' : 's'} ago`;
+  } else {
+    return `${diffYears} year${diffYears === 1 ? '' : 's'} ago`;
+  }
 };
 

@@ -1,0 +1,47 @@
+.user-timestamp {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.user-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  flex-shrink: 0;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.user-avatar.created {
+  background: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%);
+}
+
+.user-avatar.updated {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+}
+
+.relative-time {
+  font-size: 13px;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.user-timestamp:hover .user-avatar.created {
+  background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
+}
+
+.user-timestamp:hover .user-avatar.updated {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+}
+
+.user-timestamp:hover .relative-time {
+  color: #374151;
+}

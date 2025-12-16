@@ -7,6 +7,7 @@ import { MdOutlineHistory } from 'react-icons/md';
 import ActivityDrawer from '../components/ActivityDrawer';
 import SearchableDropdown from '../components/SearchableDropdown';
 import USDateInput from '../components/USDateInput';
+import UserTimestamp from '../components/UserTimestamp';
 import { filterEmojis } from '../utils/emojiFilter';
 import './CheckDetails.css';
 
@@ -23,11 +24,9 @@ const CheckDetails = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingBatchId, setEditingBatchId] = useState(null);
   const [isAddingBatch, setIsAddingBatch] = useState(false);
-  const { users } = useUsers(); // Get users from context
+  const { users, getUserName, getUserById } = useUsers(); // Get users from context
   
   // Clarifications state
-  const [clarifications, setClarifications] = useState([]);
-  const [loadingClarifications, setLoadingClarifications] = useState(false);
   const [isAddingClarification, setIsAddingClarification] = useState(false);
   const [editingClarificationId, setEditingClarificationId] = useState(null);
   const [expandedClarificationId, setExpandedClarificationId] = useState(null);
@@ -136,17 +135,10 @@ const CheckDetails = () => {
     lastBatchId.current = null;
   }, [id]);
 
-  // Fetch clarifications when clarifications tab is active
-  useEffect(() => {
-    if (id && activeTab === 'clarifications') {
-      fetchClarifications();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, activeTab]);
-
   // Expand specific clarification after clarifications are loaded
   useEffect(() => {
     const clarificationIdParam = searchParams.get('clarificationId');
+    const clarifications = check?.clarifications || [];
     if (clarificationIdParam && clarifications.length > 0 && activeTab === 'clarifications') {
       const clarification = clarifications.find(c => c.clarificationId === clarificationIdParam);
       if (clarification) {
@@ -179,7 +171,7 @@ const CheckDetails = () => {
       lastClarificationId.current = null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clarifications, searchParams, activeTab]);
+  }, [check?.clarifications, searchParams, activeTab]);
 
   // Highlight specific batch after batches are loaded
   useEffect(() => {
@@ -247,18 +239,7 @@ const CheckDetails = () => {
   };
 
   // Removed: Users are now loaded from context on login, no need to fetch here
-
-  const fetchClarifications = async () => {
-    setLoadingClarifications(true);
-    try {
-      const data = await api.getClarifications(id);
-      setClarifications(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error('Error fetching clarifications:', err);
-    } finally {
-      setLoadingClarifications(false);
-    }
-  };
+  // Removed: Clarifications are now included in check details, no need for separate API call
 
   const handleFormChange = (field, value) => {
     // Filter emojis from string inputs
@@ -383,7 +364,7 @@ const CheckDetails = () => {
   const handleAddClarification = async () => {
     try {
       await api.createClarification(id, clarificationFormData);
-      await fetchClarifications();
+      await fetchCheckDetails(); // Refresh check data to get updated clarifications
       setIsAddingClarification(false);
       setClarificationFormData({
         clarificationType: '',
@@ -412,7 +393,7 @@ const CheckDetails = () => {
   const handleUpdateClarification = async () => {
     try {
       await api.updateClarification(id, editingClarificationId, clarificationFormData);
-      await fetchClarifications();
+      await fetchCheckDetails(); // Refresh check data to get updated clarifications
       setEditingClarificationId(null);
       setClarificationFormData({
         clarificationType: '',
@@ -450,7 +431,7 @@ const CheckDetails = () => {
       await api.updateClarification(id, clarificationId, {
         newComment: comment
       });
-      await fetchClarifications();
+      await fetchCheckDetails(); // Refresh check data to get updated clarifications
       setCommentText(prev => ({
         ...prev,
         [clarificationId]: ''
@@ -695,7 +676,7 @@ const CheckDetails = () => {
               disabled={navigationLoading || (currentIndex <= 0 && checkIds.length > 0)}
               title="Previous check"
             >
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
                 <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
               <span>Previous</span>
@@ -707,7 +688,7 @@ const CheckDetails = () => {
               title="Next check"
             >
               <span>Next</span>
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
                 <path d="M7.5 5L12.5 10L7.5 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </button>
@@ -717,7 +698,7 @@ const CheckDetails = () => {
             onClick={() => setShowActivityDrawer(true)}
             title="View Activity History"
           >
-            <MdOutlineHistory size={20} />
+            <MdOutlineHistory size={16} />
             <span>Activity</span>
           </button>
         </div>
@@ -927,19 +908,21 @@ const CheckDetails = () => {
               <h3 className="card-title">Processing & Status Overview</h3>
               <div className="form-grid">
                 <div className="form-group">
-                  <label>Assignee ID</label>
+                  <label>Assignee</label>
                   <input 
                     type="text" 
-                    value={check.assigneeId || ''}
+                    value={check.assigneeId ? getUserName(check.assigneeId) : 'N/A'}
                     disabled
+                    title={check.assigneeId ? `ID: ${check.assigneeId}` : ''}
                   />
                 </div>
                 <div className="form-group">
-                  <label>Reporter ID</label>
+                  <label>Reporter</label>
                   <input 
                     type="text" 
-                    value={check.reporterId || ''}
+                    value={check.reporterId ? getUserName(check.reporterId) : 'N/A'}
                     disabled
+                    title={check.reporterId ? `ID: ${check.reporterId}` : ''}
                   />
                 </div>
               </div>
@@ -1083,6 +1066,8 @@ const CheckDetails = () => {
                       <th>Type</th>
                       <th>Amount</th>
                       <th>Notes</th>
+                      <th>Created At</th>
+                      <th>Updated At</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
@@ -1141,6 +1126,24 @@ const CheckDetails = () => {
                               />
                             </td>
                             <td>
+                              <UserTimestamp
+                                userId={batch.createdBy}
+                                dateTime={batch.createdAt}
+                                action="created"
+                                getUserName={getUserName}
+                                getUserById={getUserById}
+                              />
+                            </td>
+                            <td>
+                              <UserTimestamp
+                                userId={batch.updatedBy}
+                                dateTime={batch.updatedAt}
+                                action="updated"
+                                getUserName={getUserName}
+                                getUserById={getUserById}
+                              />
+                            </td>
+                            <td>
                               <div className="inline-actions">
                                 <button className="btn-icon save" onClick={handleUpdateBatch} title="Save">
                                   <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
@@ -1164,6 +1167,24 @@ const CheckDetails = () => {
                             <td>{formatCurrency(batch.batchAmount)}</td>
                             <td>{batch.batchNotes || 'N/A'}</td>
                             <td>
+                              <UserTimestamp
+                                userId={batch.createdBy}
+                                dateTime={batch.createdAt}
+                                action="created"
+                                getUserName={getUserName}
+                                getUserById={getUserById}
+                              />
+                            </td>
+                            <td>
+                              <UserTimestamp
+                                userId={batch.updatedBy}
+                                dateTime={batch.updatedAt}
+                                action="updated"
+                                getUserName={getUserName}
+                                getUserById={getUserById}
+                              />
+                            </td>
+                            <td>
                               <button 
                                 className="btn-icon edit"
                                 onClick={() => handleEditBatch(batch)}
@@ -1180,7 +1201,7 @@ const CheckDetails = () => {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="7" className="empty-state">No batches found</td>
+                        <td colSpan="9" className="empty-state">No batches found</td>
                       </tr>
                     )}
                   </tbody>
@@ -1232,35 +1253,39 @@ const CheckDetails = () => {
                     </div>
                     <div className="form-group">
                       <label>Assignee</label>
-                      <select 
-                        value={clarificationFormData.assigneeId}
-                        onChange={(e) => handleClarificationFormChange('assigneeId', e.target.value)}
-                      >
-                        <option value="">Select Assignee</option>
-                        {users.map(user => (
-                          <option key={user.userId || user.id} value={user.userId || user.id}>
-                            {user.firstName && user.lastName 
+                      <SearchableDropdown
+                        options={[
+                          { value: '', label: 'Select Assignee' },
+                          ...users.map(user => ({
+                            value: user.userId || user.id,
+                            label: user.firstName && user.lastName 
                               ? `${user.firstName} ${user.lastName}` 
-                              : user.email || 'Unknown User'}
-                          </option>
-                        ))}
-                      </select>
+                              : user.email || 'Unknown User'
+                          }))
+                        ]}
+                        value={clarificationFormData.assigneeId}
+                        onChange={(value) => handleClarificationFormChange('assigneeId', value)}
+                        placeholder="Select Assignee"
+                        maxVisibleItems={5}
+                      />
                     </div>
                     <div className="form-group">
                       <label>Reporter</label>
-                      <select 
-                        value={clarificationFormData.reporterId}
-                        onChange={(e) => handleClarificationFormChange('reporterId', e.target.value)}
-                      >
-                        <option value="">Select Reporter</option>
-                        {users.map(user => (
-                          <option key={user.userId || user.id} value={user.userId || user.id}>
-                            {user.firstName && user.lastName 
+                      <SearchableDropdown
+                        options={[
+                          { value: '', label: 'Select Reporter' },
+                          ...users.map(user => ({
+                            value: user.userId || user.id,
+                            label: user.firstName && user.lastName 
                               ? `${user.firstName} ${user.lastName}` 
-                              : user.email || 'Unknown User'}
-                          </option>
-                        ))}
-                      </select>
+                              : user.email || 'Unknown User'
+                          }))
+                        ]}
+                        value={clarificationFormData.reporterId}
+                        onChange={(value) => handleClarificationFormChange('reporterId', value)}
+                        placeholder="Select Reporter"
+                        maxVisibleItems={5}
+                      />
                     </div>
                     <div className="form-group full-width">
                       <label>Details</label>
@@ -1279,12 +1304,10 @@ const CheckDetails = () => {
                 </div>
               )}
 
-              {/* Loading State */}
-              {loadingClarifications ? (
-                <div className="empty-state">Loading clarifications...</div>
-              ) : clarifications.length > 0 ? (
+              {/* Clarifications List */}
+              {check?.clarifications && check.clarifications.length > 0 ? (
                 <div className="clarifications-list">
-                  {clarifications.map((clarification) => (
+                  {check.clarifications.map((clarification) => (
                     <div 
                       key={clarification.clarificationId} 
                       className="clarification-card"
@@ -1315,35 +1338,39 @@ const CheckDetails = () => {
                             </div>
                             <div className="form-group">
                               <label>Assignee</label>
-                              <select 
-                                value={clarificationFormData.assigneeId}
-                                onChange={(e) => handleClarificationFormChange('assigneeId', e.target.value)}
-                              >
-                                <option value="">Select Assignee</option>
-                                {users.map(user => (
-                                  <option key={user.userId || user.id} value={user.userId || user.id}>
-                                    {user.firstName && user.lastName 
+                              <SearchableDropdown
+                                options={[
+                                  { value: '', label: 'Select Assignee' },
+                                  ...users.map(user => ({
+                                    value: user.userId || user.id,
+                                    label: user.firstName && user.lastName 
                                       ? `${user.firstName} ${user.lastName}` 
-                                      : user.email || 'Unknown User'}
-                                  </option>
-                                ))}
-                              </select>
+                                      : user.email || 'Unknown User'
+                                  }))
+                                ]}
+                                value={clarificationFormData.assigneeId}
+                                onChange={(value) => handleClarificationFormChange('assigneeId', value)}
+                                placeholder="Select Assignee"
+                                maxVisibleItems={5}
+                              />
                             </div>
                             <div className="form-group">
                               <label>Reporter</label>
-                              <select 
-                                value={clarificationFormData.reporterId}
-                                onChange={(e) => handleClarificationFormChange('reporterId', e.target.value)}
-                              >
-                                <option value="">Select Reporter</option>
-                                {users.map(user => (
-                                  <option key={user.userId || user.id} value={user.userId || user.id}>
-                                    {user.firstName && user.lastName 
+                              <SearchableDropdown
+                                options={[
+                                  { value: '', label: 'Select Reporter' },
+                                  ...users.map(user => ({
+                                    value: user.userId || user.id,
+                                    label: user.firstName && user.lastName 
                                       ? `${user.firstName} ${user.lastName}` 
-                                      : user.email || 'Unknown User'}
-                                  </option>
-                                ))}
-                              </select>
+                                      : user.email || 'Unknown User'
+                                  }))
+                                ]}
+                                value={clarificationFormData.reporterId}
+                                onChange={(value) => handleClarificationFormChange('reporterId', value)}
+                                placeholder="Select Reporter"
+                                maxVisibleItems={5}
+                              />
                             </div>
                             <div className="form-group full-width">
                               <label>Details</label>

@@ -17,7 +17,10 @@ const ColumnSelector = ({ availableColumns, visibleColumns, defaultColumns, onCh
   const [draggedIndex, setDraggedIndex] = useState(null);
   const [position, setPosition] = useState(null);
   const [isSmallScreen, setIsSmallScreen] = useState(false);
+  const [showLimitMessage, setShowLimitMessage] = useState(false);
   const popupRef = React.useRef(null);
+  
+  const MAX_COLUMNS = 10; // Maximum number of columns user can select
 
   // Check if we're on a small screen (matching media queries)
   useEffect(() => {
@@ -150,20 +153,21 @@ const ColumnSelector = ({ availableColumns, visibleColumns, defaultColumns, onCh
     if (isVisible) {
       // Allow removing columns
       setLocalVisibleColumns(prev => prev.filter(key => key !== columnKey));
+      setShowLimitMessage(false); // Hide message when removing columns
     } else {
-      // On small screens, limit to 9 columns (excluding always-visible)
-      if (isSmallScreen) {
-        const alwaysVisibleCount = availableColumns.filter(col => col.alwaysVisible).length;
-        const currentVisibleCount = localVisibleColumns.length;
-        const maxAllowed = 9;
-        
-        // Check if adding this column would exceed the limit
-        if (currentVisibleCount >= maxAllowed) {
-          return; // Don't add, already at limit
-        }
+      // Check if adding this column would exceed the limit
+      const currentVisibleCount = localVisibleColumns.length;
+      
+      if (currentVisibleCount >= MAX_COLUMNS) {
+        // Show message that limit is reached
+        setShowLimitMessage(true);
+        // Hide message after 3 seconds
+        setTimeout(() => setShowLimitMessage(false), 3000);
+        return; // Don't add, already at limit
       }
       
       setLocalVisibleColumns(prev => [...prev, columnKey]);
+      setShowLimitMessage(false); // Hide message when successfully adding
     }
   };
 
@@ -198,12 +202,13 @@ const ColumnSelector = ({ availableColumns, visibleColumns, defaultColumns, onCh
       // Fallback: reset to all columns if no defaultColumns provided
       let resetColumns = availableColumns.map(col => col.key);
       
-      // On small screens, limit to 9 columns
-      if (isSmallScreen && resetColumns.length > 9) {
-        resetColumns = resetColumns.slice(0, 9);
+      // Limit to MAX_COLUMNS
+      if (resetColumns.length > MAX_COLUMNS) {
+        resetColumns = resetColumns.slice(0, MAX_COLUMNS);
       }
       
       setLocalVisibleColumns(resetColumns);
+      setShowLimitMessage(false);
       return;
     }
     
@@ -216,12 +221,13 @@ const ColumnSelector = ({ availableColumns, visibleColumns, defaultColumns, onCh
       .filter(col => col.alwaysVisible || defaultSet.has(col.key))
       .map(col => col.key);
     
-    // On small screens, limit to 9 columns
-    if (isSmallScreen && resetColumns.length > 9) {
-      resetColumns = resetColumns.slice(0, 9);
+    // Limit to MAX_COLUMNS
+    if (resetColumns.length > MAX_COLUMNS) {
+      resetColumns = resetColumns.slice(0, MAX_COLUMNS);
     }
     
     setLocalVisibleColumns(resetColumns);
+    setShowLimitMessage(false);
   };
 
   if (!position) return null;
@@ -251,9 +257,12 @@ const ColumnSelector = ({ availableColumns, visibleColumns, defaultColumns, onCh
       <div className="column-selector-content">
         <div className="column-selector-info">
           Drag to reorder, check to show/hide
-          {isSmallScreen && (
-            <div style={{ marginTop: '6px', fontSize: '11px', color: '#f59e0b', fontWeight: '500' }}>
-              Maximum 9 columns allowed on small screens
+          <div style={{ marginTop: '6px', fontSize: '11px', color: '#6b7280', fontWeight: '500' }}>
+            Maximum {MAX_COLUMNS} columns allowed
+          </div>
+          {showLimitMessage && (
+            <div style={{ marginTop: '6px', fontSize: '11px', color: '#ef4444', fontWeight: '500' }}>
+              You can only select {MAX_COLUMNS} columns maximum
             </div>
           )}
         </div>
@@ -301,8 +310,8 @@ const ColumnSelector = ({ availableColumns, visibleColumns, defaultColumns, onCh
           {availableColumns
             .filter(col => !localVisibleColumns.includes(col.key))
             .map(column => {
-              // Check if we're at the limit on small screens
-              const isDisabled = isSmallScreen && localVisibleColumns.length >= 9;
+              // Check if we're at the limit
+              const isDisabled = localVisibleColumns.length >= MAX_COLUMNS;
               
               return (
                 <div key={column.key} className={`column-item ${isDisabled ? 'disabled' : ''}`}>

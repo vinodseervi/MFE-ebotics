@@ -150,11 +150,22 @@ const Clarifications = () => {
       }
 
       // Date filters - use openedDateFrom/To
+      // For clarifications, we use the selected month for openedDate filters
+      // Get month range once for both From and To dates
+      const monthRange = getMonthRange(selectedMonth, selectedYear);
+      
       if (advancedFilters.openedDateFrom) {
         searchParams.openedDateFrom = advancedFilters.openedDateFrom;
+      } else {
+        // Use selected month for opened date filter (e.g., Nov 2025 = 2025-11-01 to 2025-11-30)
+        searchParams.openedDateFrom = monthRange.startDate;
       }
+      
       if (advancedFilters.openedDateTo) {
         searchParams.openedDateTo = advancedFilters.openedDateTo;
+      } else {
+        // Use selected month for opened date filter (e.g., Nov 2025 = 2025-11-01 to 2025-11-30)
+        searchParams.openedDateTo = monthRange.endDate;
       }
 
       // Legacy date filters mapping

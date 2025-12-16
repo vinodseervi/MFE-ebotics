@@ -7,8 +7,9 @@ import MonthYearPicker from '../components/MonthYearPicker';
 import SearchableDropdown from '../components/SearchableDropdown';
 import ColumnSelector from '../components/ColumnSelector';
 import Tooltip from '../components/Tooltip';
+import UserTimestamp from '../components/UserTimestamp';
 import { Info } from 'lucide-react';
-import { formatDateUS, formatDateRange, getCurrentMonthYear, formatMonthYear } from '../utils/dateUtils';
+import { formatDateUS, formatDateRange, getCurrentMonthYear, formatMonthYear, getMonthRange } from '../utils/dateUtils';
 import { filterEmojis } from '../utils/emojiFilter';
 import './Checks.css';
 
@@ -60,7 +61,7 @@ const Unknown = () => {
   // Bulk actions
   const [selectedChecks, setSelectedChecks] = useState(new Set());
   const [showBulkActions, setShowBulkActions] = useState(false);
-  const { users, getUserName } = useUsers(); // Get users from context
+  const { users, getUserName, getUserById } = useUsers(); // Get users from context
   const [bulkAssigneeId, setBulkAssigneeId] = useState('');
   const [bulkReporterId, setBulkReporterId] = useState('');
 
@@ -83,7 +84,9 @@ const Unknown = () => {
     { key: 'totalAmount', label: 'Total Amount' },
     { key: 'postedAmount', label: 'Posted' },
     { key: 'remainingAmount', label: 'Remaining' },
-    { key: 'status', label: 'Status' }
+    { key: 'status', label: 'Status' },
+    { key: 'createdAt', label: 'Created At' },
+    { key: 'updatedAt', label: 'Updated At' }
   ];
 
   // Default visible columns (exclude altCheckNumber, checkType, practiceCode, locationCode)
@@ -206,11 +209,22 @@ const Unknown = () => {
       }
 
       // Date filters - map to new field names
+      // If no explicit deposit date filters, use selected month
+      // Get month range once for both From and To dates
+      const monthRange = getMonthRange(selectedMonth, selectedYear);
+      
       if (advancedFilters.depositDateFrom) {
         searchParams.depositDateFrom = advancedFilters.depositDateFrom;
+      } else {
+        // Use selected month for deposit date filter (e.g., Nov 2025 = 2025-11-01 to 2025-11-30)
+        searchParams.depositDateFrom = monthRange.startDate;
       }
+      
       if (advancedFilters.depositDateTo) {
         searchParams.depositDateTo = advancedFilters.depositDateTo;
+      } else {
+        // Use selected month for deposit date filter (e.g., Nov 2025 = 2025-11-01 to 2025-11-30)
+        searchParams.depositDateTo = monthRange.endDate;
       }
       if (advancedFilters.receivedDateFrom) {
         searchParams.receivedDateFrom = advancedFilters.receivedDateFrom;
@@ -246,6 +260,9 @@ const Unknown = () => {
           let bVal = b[sortField];
           
           if (sortField === 'depositDate') {
+            aVal = aVal ? new Date(aVal) : new Date(0);
+            bVal = bVal ? new Date(bVal) : new Date(0);
+          } else if (sortField === 'createdAt' || sortField === 'updatedAt') {
             aVal = aVal ? new Date(aVal) : new Date(0);
             bVal = bVal ? new Date(bVal) : new Date(0);
           } else if (sortField === 'totalAmount' || sortField === 'postedAmount' || sortField === 'remainingAmount') {
@@ -1087,6 +1104,26 @@ const Unknown = () => {
                       );
                     case 'status':
                       return <th key={colKey}>Status</th>;
+                    case 'createdAt':
+                      return (
+                        <th 
+                          key={colKey}
+                          className="sortable"
+                          onClick={() => handleSort('createdAt')}
+                        >
+                          Created At <SortArrow field="createdAt" />
+                        </th>
+                      );
+                    case 'updatedAt':
+                      return (
+                        <th 
+                          key={colKey}
+                          className="sortable"
+                          onClick={() => handleSort('updatedAt')}
+                        >
+                          Updated At <SortArrow field="updatedAt" />
+                        </th>
+                      );
                     default:
                       return null;
                   }
@@ -1222,6 +1259,30 @@ const Unknown = () => {
                               <span className={`status-badge ${getStatusClass(check.status)}`}>
                                 {formatStatus(check.status)}
                               </span>
+                            </td>
+                          );
+                        case 'createdAt':
+                          return (
+                            <td key={colKey}>
+                              <UserTimestamp
+                                userId={check.createdBy}
+                                dateTime={check.createdAt}
+                                action="created"
+                                getUserName={getUserName}
+                                getUserById={getUserById}
+                              />
+                            </td>
+                          );
+                        case 'updatedAt':
+                          return (
+                            <td key={colKey}>
+                              <UserTimestamp
+                                userId={check.updatedBy}
+                                dateTime={check.updatedAt}
+                                action="updated"
+                                getUserName={getUserName}
+                                getUserById={getUserById}
+                              />
                             </td>
                           );
                         default:

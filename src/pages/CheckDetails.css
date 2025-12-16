@@ -101,16 +101,16 @@
 }
 
 .page-title {
-  font-size: 28px;
+  font-size: 16px;
   font-weight: 600;
   color: #111827;
   margin: 0;
 }
 
 .status-badge-large {
-  padding: 6px 16px;
-  border-radius: 20px;
-  font-size: 14px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -170,14 +170,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 8px 12px;
+  gap: 4px;
+  padding: 6px 10px;
   background: white;
   border: 1px solid #e5e7eb;
   border-radius: 6px;
   color: #6b7280;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 500;
   transition: all 0.2s;
 }
@@ -246,14 +246,14 @@
 .activity-btn {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
+  gap: 6px;
+  padding: 6px 12px;
   background: #10b981;
   border: 1px solid #10b981;
   border-radius: 6px;
   color: white;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 500;
   transition: all 0.2s;
 }

@@ -2,7 +2,7 @@
   padding: 20px;
   background: #f9fafb;
   min-height: 100vh;
-  transition: margin-right 0.3s ease-out;
+  transition: margin-right 0.3s ease-out, padding 0.3s ease-out;
   overflow-x: hidden;
   max-width: 100%;
   box-sizing: border-box;
@@ -14,13 +14,37 @@
   }
 }
 
+@media (max-width: 1024px) {
+  .check-details-page {
+    padding: 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .check-details-page {
+    padding: 12px 8px;
+  }
+}
+
 .check-details-page.activity-sidebar-open {
-  margin-right: 450px;
+  margin-right: 380px;
 }
 
 @media (max-width: 1400px) {
   .check-details-page.activity-sidebar-open {
-    margin-right: 400px;
+    margin-right: 360px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .check-details-page.activity-sidebar-open {
+    margin-right: 320px;
+  }
+}
+
+@media (max-width: 768px) {
+  .check-details-page.activity-sidebar-open {
+    margin-right: 0;
   }
 }
 

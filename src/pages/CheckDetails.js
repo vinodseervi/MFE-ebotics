@@ -107,11 +107,18 @@ const CheckDetails = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  // Check for clarificationId in URL and auto-switch to clarifications tab
+  // Check for tab, clarificationId, or batchId in URL and auto-switch tabs
   useEffect(() => {
+    const tabParam = searchParams.get('tab');
     const clarificationIdParam = searchParams.get('clarificationId');
-    if (clarificationIdParam && id) {
+    const batchIdParam = searchParams.get('batchId');
+    
+    if (tabParam && ['overview', 'batches', 'clarifications'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    } else if (clarificationIdParam && id) {
       setActiveTab('clarifications');
+    } else if (batchIdParam && id) {
+      setActiveTab('batches');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, id]);
@@ -147,6 +154,29 @@ const CheckDetails = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clarifications, searchParams, activeTab]);
+
+  // Highlight specific batch after batches are loaded
+  useEffect(() => {
+    const batchIdParam = searchParams.get('batchId');
+    if (batchIdParam && check?.batches && check.batches.length > 0 && activeTab === 'batches') {
+      const batch = check.batches.find(b => b.batchId === batchIdParam);
+      if (batch) {
+        // Scroll to the batch row after a short delay to ensure it's rendered
+        setTimeout(() => {
+          const element = document.querySelector(`[data-batch-id="${batchIdParam}"]`);
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Highlight the batch row briefly
+            element.style.backgroundColor = '#fef3c7';
+            setTimeout(() => {
+              element.style.backgroundColor = '';
+            }, 2000);
+          }
+        }, 300);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [check?.batches, searchParams, activeTab]);
 
   const fetchCheckDetails = async () => {
     setLoading(true);
@@ -1081,7 +1111,7 @@ const CheckDetails = () => {
                             </td>
                           </tr>
                         ) : (
-                          <tr key={batch.batchId}>
+                          <tr key={batch.batchId} data-batch-id={batch.batchId}>
                             <td>{batch.batchNumber || 'N/A'}</td>
                             <td>{batch.batchRunNumber || 'N/A'}</td>
                             <td>{batch.batchDate ? formatDateUS(batch.batchDate) : 'N/A'}</td>

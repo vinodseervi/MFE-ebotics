@@ -7,6 +7,7 @@ import MonthYearPicker from '../components/MonthYearPicker';
 import SearchableDropdown from '../components/SearchableDropdown';
 import ColumnSelector from '../components/ColumnSelector';
 import Tooltip from '../components/Tooltip';
+import { Info } from 'lucide-react';
 import { formatDateUS, formatDateRange, getCurrentMonthYear, formatMonthYear } from '../utils/dateUtils';
 import { filterEmojis } from '../utils/emojiFilter';
 import './Checks.css';
@@ -85,22 +86,21 @@ const Unknown = () => {
     { key: 'status', label: 'Status' }
   ];
 
-  // Initialize visible columns with default columns (excluding new optional columns)
-  const [visibleColumns, setVisibleColumns] = useState(() => {
-    // Default visible columns (exclude altCheckNumber, checkType, practiceCode, locationCode)
-    const defaultColumns = [
-      'depositDate',
-      'checkNumber',
-      'payer',
-      'batchDescription',
-      'exchange',
-      'totalAmount',
-      'postedAmount',
-      'remainingAmount',
-      'status'
-    ];
-    return defaultColumns;
-  });
+  // Default visible columns (exclude altCheckNumber, checkType, practiceCode, locationCode)
+  const defaultColumns = [
+    'depositDate',
+    'checkNumber',
+    'payer',
+    'batchDescription',
+    'exchange',
+    'totalAmount',
+    'postedAmount',
+    'remainingAmount',
+    'status'
+  ];
+
+  // Initialize visible columns with default columns
+  const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
 
   // Month/Year selection
   const currentMonthYear = getCurrentMonthYear();
@@ -184,11 +184,25 @@ const Unknown = () => {
       }
 
       // Check number (supports wildcards)
+      // Convert pattern like "ch*" to "*CHE" format
+      const formatCheckNumberPattern = (input) => {
+        if (!input || input.trim() === '') return '';
+        let pattern = input.trim().toUpperCase();
+        // If pattern ends with *, remove it and add * at the beginning
+        if (pattern.endsWith('*')) {
+          pattern = '*' + pattern.slice(0, -1);
+        } else if (!pattern.startsWith('*')) {
+          // If pattern doesn't start with *, add it
+          pattern = '*' + pattern;
+        }
+        return pattern;
+      };
+
       if (advancedFilters.checkNumber) {
-        searchParams.checkNumber = advancedFilters.checkNumber;
+        searchParams.checkNumber = formatCheckNumberPattern(advancedFilters.checkNumber);
       } else if (searchTerm) {
         // Use searchTerm as checkNumber if no explicit checkNumber filter
-        searchParams.checkNumber = searchTerm;
+        searchParams.checkNumber = formatCheckNumberPattern(searchTerm);
       }
 
       // Date filters - map to new field names
@@ -583,7 +597,7 @@ const Unknown = () => {
           </svg>
           <input
             type="text"
-            placeholder="Search by check number, payer, amount..."
+            placeholder="Search by check number (e.g., ch* or ch), payer, amount..."
             value={searchTerm}
             onChange={(e) => {
               const filteredValue = filterEmojis(e.target.value);
@@ -961,7 +975,26 @@ const Unknown = () => {
           <table className="checks-table">
             <thead>
               <tr className="totals-row">
-                <th>Totals:</th>
+                <th>
+                  <Tooltip text="Totals reflect only the rows currently displayed on this page" position="top">
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <Info 
+                        size={16} 
+                        style={{ 
+                          color: '#374151', 
+                          cursor: 'pointer',
+                          transition: 'color 0.2s',
+                          fontWeight: 'bold',
+                          strokeWidth: 2.5,
+                          flexShrink: 0
+                        }}
+                        onMouseEnter={(e) => e.target.style.color = '#0d9488'}
+                        onMouseLeave={(e) => e.target.style.color = '#374151'}
+                      />
+                      Totals:
+                    </span>
+                  </Tooltip>
+                </th>
                 {visibleColumns.map(colKey => {
                   switch (colKey) {
                     case 'totalAmount':
@@ -1116,7 +1149,7 @@ const Unknown = () => {
                                   };
                                   sessionStorage.setItem('checksNavigationIds', JSON.stringify(checkIds));
                                   sessionStorage.setItem('checksNavigationFilters', JSON.stringify(filters));
-                                  navigate(`/checks/${check.checkId}`);
+                                  navigate(`/checks/${check.checkId}?source=unknown`);
                                 }}
                               >
                                 <TruncatedText text={check.checkNumber || ''} maxLength={12} />
@@ -1216,6 +1249,7 @@ const Unknown = () => {
         <ColumnSelector
           availableColumns={allColumns}
           visibleColumns={visibleColumns}
+          defaultColumns={defaultColumns}
           onChange={setVisibleColumns}
           onClose={() => setShowColumnSelector(false)}
           triggerRef={columnSelectorTriggerRef}

@@ -47,10 +47,11 @@ const Clarifications = () => {
     { key: 'actions', label: 'Actions', alwaysVisible: true }
   ];
 
+  // Default visible columns (all columns by default)
+  const defaultColumns = allColumns.map(col => col.key);
+
   // Initialize visible columns
-  const [visibleColumns, setVisibleColumns] = useState(() => {
-    return allColumns.map(col => col.key);
-  });
+  const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
   
   // Advanced filters - now support arrays for multiple selections
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
@@ -127,11 +128,25 @@ const Clarifications = () => {
       }
 
       // Check number (supports wildcards)
+      // Convert pattern like "ch*" to "*CHE" format
+      const formatCheckNumberPattern = (input) => {
+        if (!input || input.trim() === '') return '';
+        let pattern = input.trim().toUpperCase();
+        // If pattern ends with *, remove it and add * at the beginning
+        if (pattern.endsWith('*')) {
+          pattern = '*' + pattern.slice(0, -1);
+        } else if (!pattern.startsWith('*')) {
+          // If pattern doesn't start with *, add it
+          pattern = '*' + pattern;
+        }
+        return pattern;
+      };
+
       if (advancedFilters.checkNumber) {
-        searchParams.checkNumber = advancedFilters.checkNumber;
+        searchParams.checkNumber = formatCheckNumberPattern(advancedFilters.checkNumber);
       } else if (searchTerm) {
         // Use searchTerm as checkNumber if no explicit checkNumber filter
-        searchParams.checkNumber = searchTerm;
+        searchParams.checkNumber = formatCheckNumberPattern(searchTerm);
       }
 
       // Date filters - use openedDateFrom/To
@@ -416,7 +431,7 @@ const Clarifications = () => {
           </svg>
           <input
             type="text"
-            placeholder="Search by check number, type, details..."
+            placeholder="Search by check number (e.g., ch* or ch), type, details..."
             value={searchTerm}
             onChange={(e) => {
               const filteredValue = filterEmojis(e.target.value);
@@ -854,6 +869,7 @@ const Clarifications = () => {
         <ColumnSelector
           availableColumns={allColumns}
           visibleColumns={visibleColumns}
+          defaultColumns={defaultColumns}
           onChange={setVisibleColumns}
           onClose={() => setShowColumnSelector(false)}
           triggerRef={columnSelectorTriggerRef}

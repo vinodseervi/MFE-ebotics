@@ -7,15 +7,30 @@ import './ColumnSelector.css';
  * @param {Object} props
  * @param {Array} props.availableColumns - All available columns
  * @param {Array} props.visibleColumns - Currently visible columns
+ * @param {Array} props.defaultColumns - Default columns to reset to
  * @param {Function} props.onChange - Callback when columns change
  * @param {Function} props.onClose - Callback to close the selector
  * @param {Object} props.triggerRef - Ref to the trigger button for positioning
  */
-const ColumnSelector = ({ availableColumns, visibleColumns, onChange, onClose, triggerRef }) => {
+const ColumnSelector = ({ availableColumns, visibleColumns, defaultColumns, onChange, onClose, triggerRef }) => {
   const [localVisibleColumns, setLocalVisibleColumns] = useState(visibleColumns);
   const [draggedIndex, setDraggedIndex] = useState(null);
   const [position, setPosition] = useState(null);
+  const [isSmallScreen, setIsSmallScreen] = useState(false);
   const popupRef = React.useRef(null);
+
+  // Check if we're on a small screen (matching media queries)
+  useEffect(() => {
+    const checkScreenSize = () => {
+      // Match the media queries used in App.css: max-width: 1024px or max-width: 768px
+      const isSmall = window.innerWidth <= 1024;
+      setIsSmallScreen(isSmall);
+    };
+
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
 
   useEffect(() => {
     setLocalVisibleColumns(visibleColumns);
@@ -133,8 +148,21 @@ const ColumnSelector = ({ availableColumns, visibleColumns, onChange, onClose, t
 
     const isVisible = localVisibleColumns.includes(columnKey);
     if (isVisible) {
+      // Allow removing columns
       setLocalVisibleColumns(prev => prev.filter(key => key !== columnKey));
     } else {
+      // On small screens, limit to 9 columns (excluding always-visible)
+      if (isSmallScreen) {
+        const alwaysVisibleCount = availableColumns.filter(col => col.alwaysVisible).length;
+        const currentVisibleCount = localVisibleColumns.length;
+        const maxAllowed = 9;
+        
+        // Check if adding this column would exceed the limit
+        if (currentVisibleCount >= maxAllowed) {
+          return; // Don't add, already at limit
+        }
+      }
+      
       setLocalVisibleColumns(prev => [...prev, columnKey]);
     }
   };
@@ -165,7 +193,35 @@ const ColumnSelector = ({ availableColumns, visibleColumns, onChange, onClose, t
   };
 
   const handleReset = () => {
-    setLocalVisibleColumns(availableColumns.map(col => col.key));
+    // Reset to default columns, ensuring always-visible columns are included
+    if (!defaultColumns) {
+      // Fallback: reset to all columns if no defaultColumns provided
+      let resetColumns = availableColumns.map(col => col.key);
+      
+      // On small screens, limit to 9 columns
+      if (isSmallScreen && resetColumns.length > 9) {
+        resetColumns = resetColumns.slice(0, 9);
+      }
+      
+      setLocalVisibleColumns(resetColumns);
+      return;
+    }
+    
+    // Get default columns as a set for quick lookup
+    const defaultSet = new Set(defaultColumns);
+    
+    // Build reset columns by going through availableColumns in order
+    // Include columns that are either always-visible OR in defaultColumns
+    let resetColumns = availableColumns
+      .filter(col => col.alwaysVisible || defaultSet.has(col.key))
+      .map(col => col.key);
+    
+    // On small screens, limit to 9 columns
+    if (isSmallScreen && resetColumns.length > 9) {
+      resetColumns = resetColumns.slice(0, 9);
+    }
+    
+    setLocalVisibleColumns(resetColumns);
   };
 
   if (!position) return null;
@@ -195,6 +251,11 @@ const ColumnSelector = ({ availableColumns, visibleColumns, onChange, onClose, t
       <div className="column-selector-content">
         <div className="column-selector-info">
           Drag to reorder, check to show/hide
+          {isSmallScreen && (
+            <div style={{ marginTop: '6px', fontSize: '11px', color: '#f59e0b', fontWeight: '500' }}>
+              Maximum 9 columns allowed on small screens
+            </div>
+          )}
         </div>
         <div className="column-list">
           {localVisibleColumns.map((columnKey, index) => {
@@ -239,18 +300,24 @@ const ColumnSelector = ({ availableColumns, visibleColumns, onChange, onClose, t
           <div className="hidden-columns-title">Hidden Columns</div>
           {availableColumns
             .filter(col => !localVisibleColumns.includes(col.key))
-            .map(column => (
-              <div key={column.key} className="column-item">
-                <label className="column-checkbox">
-                  <input
-                    type="checkbox"
-                    checked={false}
-                    onChange={() => handleToggleColumn(column.key)}
-                  />
-                  <span>{column.label}</span>
-                </label>
-              </div>
-            ))}
+            .map(column => {
+              // Check if we're at the limit on small screens
+              const isDisabled = isSmallScreen && localVisibleColumns.length >= 9;
+              
+              return (
+                <div key={column.key} className={`column-item ${isDisabled ? 'disabled' : ''}`}>
+                  <label className="column-checkbox" style={{ opacity: isDisabled ? 0.5 : 1 }}>
+                    <input
+                      type="checkbox"
+                      checked={false}
+                      onChange={() => handleToggleColumn(column.key)}
+                      disabled={isDisabled}
+                    />
+                    <span>{column.label}</span>
+                  </label>
+                </div>
+              );
+            })}
         </div>
       </div>
 

@@ -493,7 +493,7 @@ const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onRese
               type="text"
               value={localFilters.checkNumber || ''}
               onChange={(e) => handleChange('checkNumber', e.target.value)}
-              placeholder="Enter check number"
+              placeholder="Enter check number (e.g., ch* or ch)"
             />
           </div>
 

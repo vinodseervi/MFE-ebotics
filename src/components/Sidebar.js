@@ -32,10 +32,29 @@ const Sidebar = ({ showAdminSubmenu, onAdminClick, isCollapsed, onToggleCollapse
     if (path === '/admin') {
       return location.pathname.startsWith('/admin');
     }
-    // Highlight Checks when on /checks, /checks/new, or /checks/:id
+    // Highlight Checks when on /checks, /checks/new, or /checks/:id (unless source=unknown)
     if (path === '/checks') {
+      const searchParams = new URLSearchParams(location.search);
+      const source = searchParams.get('source');
+      // Don't highlight Checks if source is 'unknown' - highlight Unknown instead
+      if (source === 'unknown' && location.pathname.startsWith('/checks/')) {
+        return false;
+      }
       return location.pathname === '/checks' || 
              location.pathname.startsWith('/checks/');
+    }
+    // Highlight Unknown when on /unknown or /checks/:id with source=unknown
+    if (path === '/unknown') {
+      if (location.pathname === '/unknown') {
+        return true;
+      }
+      // Also highlight Unknown when viewing a check from Unknown page
+      if (location.pathname.startsWith('/checks/')) {
+        const searchParams = new URLSearchParams(location.search);
+        const source = searchParams.get('source');
+        return source === 'unknown';
+      }
+      return false;
     }
     return location.pathname === path;
   };

@@ -6,6 +6,7 @@ import { formatDateUS, parseDateUS, formatDateTime } from '../utils/dateUtils';
 import { MdOutlineHistory } from 'react-icons/md';
 import ActivityDrawer from '../components/ActivityDrawer';
 import SearchableDropdown from '../components/SearchableDropdown';
+import USDateInput from '../components/USDateInput';
 import { filterEmojis } from '../utils/emojiFilter';
 import './CheckDetails.css';
 
@@ -297,7 +298,8 @@ const CheckDetails = () => {
     try {
       const batchData = {
         ...batchFormData,
-        batchDate: parseDateUS(batchFormData.batchDate) || batchFormData.batchDate,
+        // USDateInput returns YYYY-MM-DD format, but parseDateUS handles both formats
+        batchDate: batchFormData.batchDate ? (parseDateUS(batchFormData.batchDate) || batchFormData.batchDate) : '',
         batchAmount: parseFloat(batchFormData.batchAmount) || 0
       };
       await api.createBatch(id, batchData);
@@ -322,7 +324,8 @@ const CheckDetails = () => {
     setBatchFormData({
       batchRunNumber: batch.batchRunNumber || '',
       batchNumber: batch.batchNumber || '',
-      batchDate: batch.batchDate ? formatDateUS(batch.batchDate) : '',
+      // Keep date in YYYY-MM-DD format for USDateInput (it will display as MM/DD/YYYY)
+      batchDate: batch.batchDate || '',
       batchType: batch.batchType || '',
       batchAmount: batch.batchAmount || '',
       batchNotes: batch.batchNotes || ''
@@ -333,7 +336,8 @@ const CheckDetails = () => {
     try {
       const batchData = {
         ...batchFormData,
-        batchDate: parseDateUS(batchFormData.batchDate) || batchFormData.batchDate,
+        // USDateInput returns YYYY-MM-DD format, but parseDateUS handles both formats
+        batchDate: batchFormData.batchDate ? (parseDateUS(batchFormData.batchDate) || batchFormData.batchDate) : '',
         batchAmount: parseFloat(batchFormData.batchAmount) || 0
       };
       await api.updateBatch(id, editingBatchId, batchData);
@@ -630,12 +634,14 @@ const CheckDetails = () => {
               const source = searchParams.get('source');
               if (source === 'clarifications') {
                 navigate('/clarifications');
+              } else if (source === 'unknown') {
+                navigate('/unknown');
               } else {
                 navigate('/checks');
               }
             }}
           >
-            Back to {searchParams.get('source') === 'clarifications' ? 'Clarifications' : 'Checks'}
+            Back to {searchParams.get('source') === 'clarifications' ? 'Clarifications' : searchParams.get('source') === 'unknown' ? 'Unknown' : 'Checks'}
           </button>
         </div>
       </div>
@@ -654,6 +660,8 @@ const CheckDetails = () => {
                 const source = searchParams.get('source');
                 if (source === 'clarifications') {
                   navigate('/clarifications');
+                } else if (source === 'unknown') {
+                  navigate('/unknown');
                 } else {
                   navigate('/checks');
                 }
@@ -1025,8 +1033,8 @@ const CheckDetails = () => {
                     </div>
                     <div className="form-group">
                       <label>Batch Date (MM/DD/YYYY)</label>
-                      <input 
-                        type="text" 
+                      <USDateInput
+                        name="batchDate"
                         value={batchFormData.batchDate}
                         onChange={(e) => handleBatchFormChange('batchDate', e.target.value)}
                         placeholder="MM/DD/YYYY"
@@ -1100,8 +1108,8 @@ const CheckDetails = () => {
                               />
                             </td>
                             <td>
-                              <input 
-                                type="text" 
+                              <USDateInput
+                                name="batchDate"
                                 value={batchFormData.batchDate}
                                 onChange={(e) => handleBatchFormChange('batchDate', e.target.value)}
                                 placeholder="MM/DD/YYYY"

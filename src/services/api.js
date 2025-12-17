@@ -911,6 +911,18 @@ class ApiService {
   async updateStagedCheck(jobId, stagingCheckId, checkData) {
     return this.patch(`/api/v1/bulk-import/${jobId}/checks/${stagingCheckId}`, checkData);
   }
+
+  /**
+   * Bulk update staged checks, then re-validate
+   * PUT /api/v1/bulk-import/{jobId}/checks
+   * @param {string} jobId - Job ID (UUID)
+   * @param {Array<Object>} items - Array of check items to update
+   * @param {string} items[].stagingCheckId - Staging check ID (UUID)
+   * @param {Object} items[].checkData - Check data fields to update
+   */
+  async bulkUpdateStagedChecks(jobId, items) {
+    return this.put(`/api/v1/bulk-import/${jobId}/checks`, { items });
+  }
 }
 
 // Export singleton instance

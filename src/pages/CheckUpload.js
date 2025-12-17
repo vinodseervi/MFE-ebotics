@@ -4,6 +4,7 @@ import { useUsers } from '../context/UsersContext';
 import SearchableDropdown from '../components/SearchableDropdown';
 import Tooltip from '../components/Tooltip';
 import { formatDateUS } from '../utils/dateUtils';
+import * as XLSX from 'xlsx';
 import './CheckUpload.css';
 
 const CheckUpload = () => {
@@ -32,6 +33,7 @@ const CheckUpload = () => {
   const [editingCheck, setEditingCheck] = useState(null);
   const [editFormData, setEditFormData] = useState({});
   const [localEdits, setLocalEdits] = useState({}); // Store local edits by stagingCheckId
+  const [expandedComments, setExpandedComments] = useState(new Set()); // Track expanded comment rows
   
   // Job update state
   const [revalidating, setRevalidating] = useState(false);
@@ -40,6 +42,7 @@ const CheckUpload = () => {
   
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
+  const [messageType, setMessageType] = useState('success'); // 'success' or 'warning' (for invalid status)
 
   // Auto-dismiss messages after 5 seconds
   useEffect(() => {
@@ -161,6 +164,7 @@ const CheckUpload = () => {
     
     try {
       const response = await api.uploadBulkImportFile(file, jobName || null, assigneeId || null);
+      setMessageType('success');
       setSuccessMessage('File uploaded successfully!');
       setFile(null);
       setJobName('');
@@ -230,18 +234,97 @@ const CheckUpload = () => {
     setEditFormData({});
   };
 
-  const handleSaveEdit = () => {
-    if (!editingCheck) return;
+  const handleSaveEdit = async () => {
+    if (!editingCheck || !selectedJob) return;
     
-    // Save edit locally
-    setLocalEdits(prev => ({
-      ...prev,
-      [editingCheck]: { ...editFormData }
-    }));
+    setRevalidating(true);
+    setError(null);
+    setSuccessMessage(null);
     
-    setSuccessMessage('Changes saved locally. Click "Re-validate" to apply changes.');
-    setEditingCheck(null);
-    setEditFormData({});
+    try {
+      // Find the original check to get stagingCheckId
+      const originalCheck = checks.find(c => c.stagingCheckId === editingCheck);
+      if (!originalCheck) {
+        setError('Check not found');
+        setRevalidating(false);
+        return;
+      }
+
+      // Prepare the update payload according to API spec
+      // Use edited values if provided, otherwise fall back to original check values
+      const updateItem = {
+        stagingCheckId: editingCheck,
+        location: editFormData.location !== undefined ? editFormData.location : (originalCheck.location || ''),
+        practice: editFormData.practice !== undefined ? editFormData.practice : (originalCheck.practice || ''),
+        checkNumber: editFormData.checkNumber !== undefined ? editFormData.checkNumber : (originalCheck.checkNumber || ''),
+        dateOfDeposit: editFormData.dateOfDeposit || originalCheck.dateOfDeposit || '',
+        checkAmount: editFormData.checkAmount !== undefined ? editFormData.checkAmount : (originalCheck.checkAmount || 0),
+        exchangeDescription: editFormData.exchangeDescription !== undefined ? editFormData.exchangeDescription : (originalCheck.exchangeDescription || ''),
+        bankStatementTrnDetails: editFormData.bankStatementTrnDetails !== undefined ? editFormData.bankStatementTrnDetails : (originalCheck.bankStatementTrnDetails || ''),
+        comments: editFormData.comments !== undefined ? editFormData.comments : (originalCheck.comments || ''),
+        type: editFormData.type !== undefined ? editFormData.type : (originalCheck.type || ''),
+        payer: editFormData.payer !== undefined ? editFormData.payer : (originalCheck.payer || ''),
+        assigneeId: editFormData.assigneeId || originalCheck.assigneeId || '',
+        reporterId: editFormData.reporterId || originalCheck.reporterId || ''
+      };
+
+      // Call bulk update API which also re-validates
+      const updatedJob = await api.bulkUpdateStagedChecks(selectedJob.jobId, [updateItem]);
+      setSelectedJob(updatedJob);
+      
+      // Clear local edits for this check
+      setLocalEdits(prev => {
+        const newEdits = { ...prev };
+        delete newEdits[editingCheck];
+        return newEdits;
+      });
+      
+      // Refresh checks to get updated validation status
+      const response = await api.getBulkImportJobChecks(selectedJob.jobId, currentPage, 50);
+      const updatedChecks = response.items || [];
+      
+      // Find the updated check to check its validation status
+      const updatedCheck = updatedChecks.find(c => c.stagingCheckId === editingCheck);
+      
+      // Update checks state
+      setChecks(updatedChecks);
+      setTotalElements(response.totalElements || 0);
+      setTotalPages(response.totalPages || 0);
+      
+      // Show appropriate message based on validation status
+      if (updatedCheck) {
+        const isNowValid = updatedCheck.valid === true || updatedCheck.rowStatus === 'VALID';
+        const wasValid = originalCheck.valid === true || originalCheck.rowStatus === 'VALID';
+        
+        if (isNowValid) {
+          setMessageType('success');
+          if (wasValid) {
+            setSuccessMessage('Check updated and remains VALID.');
+          } else {
+            setSuccessMessage('Check updated and is now VALID! ✓');
+          }
+        } else {
+          setMessageType('warning');
+          if (wasValid) {
+            setSuccessMessage('Check updated but is now INVALID. Please review the errors.');
+          } else {
+            setSuccessMessage('Check updated but remains INVALID. Please review the errors.');
+          }
+        }
+      } else {
+        setMessageType('success');
+        setSuccessMessage('Check updated and re-validated successfully!');
+      }
+      
+      setEditingCheck(null);
+      setEditFormData({});
+    } catch (err) {
+      console.error('Error updating check:', err);
+      const errorMessage = err?.data?.message || err?.message || 'Failed to update check. Please try again.';
+      setError(errorMessage);
+    } finally {
+      setRevalidating(false);
+    }
   };
 
   const handleRevalidate = async () => {
@@ -252,28 +335,46 @@ const CheckUpload = () => {
     setSuccessMessage(null);
     
     try {
-      // First, apply all local edits to the server
+      // First, apply all local edits to the server using bulk update
       const editEntries = Object.entries(localEdits);
       if (editEntries.length > 0) {
-        // Apply all edits sequentially
-        for (const [stagingCheckId, editData] of editEntries) {
-          try {
-            await api.updateStagedCheck(selectedJob.jobId, stagingCheckId, editData);
-          } catch (err) {
-            console.error(`Error updating check ${stagingCheckId}:`, err);
-            // Continue with other edits even if one fails
-          }
-        }
+        // Prepare bulk update items
+        const updateItems = editEntries.map(([stagingCheckId, editData]) => {
+          const originalCheck = checks.find(c => c.stagingCheckId === stagingCheckId);
+          return {
+            stagingCheckId: stagingCheckId,
+            location: editData.location !== undefined ? editData.location : (originalCheck?.location || ''),
+            practice: editData.practice !== undefined ? editData.practice : (originalCheck?.practice || ''),
+            checkNumber: editData.checkNumber !== undefined ? editData.checkNumber : (originalCheck?.checkNumber || ''),
+            dateOfDeposit: editData.dateOfDeposit !== undefined ? editData.dateOfDeposit : (originalCheck?.dateOfDeposit || ''),
+            checkAmount: editData.checkAmount !== undefined ? editData.checkAmount : (originalCheck?.checkAmount || 0),
+            exchangeDescription: editData.exchangeDescription !== undefined ? editData.exchangeDescription : (originalCheck?.exchangeDescription || ''),
+            bankStatementTrnDetails: editData.bankStatementTrnDetails !== undefined ? editData.bankStatementTrnDetails : (originalCheck?.bankStatementTrnDetails || ''),
+            comments: editData.comments !== undefined ? editData.comments : (originalCheck?.comments || ''),
+            type: editData.type !== undefined ? editData.type : (originalCheck?.type || ''),
+            payer: editData.payer !== undefined ? editData.payer : (originalCheck?.payer || ''),
+            assigneeId: editData.assigneeId !== undefined ? editData.assigneeId : (originalCheck?.assigneeId || ''),
+            reporterId: editData.reporterId !== undefined ? editData.reporterId : (originalCheck?.reporterId || '')
+          };
+        });
+        
+        // Bulk update and re-validate in one call
+        const updatedJob = await api.bulkUpdateStagedChecks(selectedJob.jobId, updateItems);
+        setSelectedJob(updatedJob);
+        
+        // Clear local edits after successful update
+        setLocalEdits({});
+        
+        setMessageType('success');
+        setSuccessMessage('Checks updated and job re-validated successfully!');
+      } else {
+        // No local edits, just re-validate
+        const updatedJob = await api.revalidateBulkImportJob(selectedJob.jobId);
+        setSelectedJob(updatedJob);
+        setMessageType('success');
+        setSuccessMessage('Job re-validated successfully!');
       }
       
-      // Then re-validate the job
-      const updatedJob = await api.revalidateBulkImportJob(selectedJob.jobId);
-      setSelectedJob(updatedJob);
-      
-      // Clear local edits after successful re-validation
-      setLocalEdits({});
-      
-      setSuccessMessage('Job re-validated successfully!');
       // Refresh checks
       await fetchJobChecks(selectedJob.jobId, currentPage);
     } catch (err) {
@@ -302,6 +403,7 @@ const CheckUpload = () => {
     try {
       const updatedJob = await api.promoteBulkImportJob(selectedJob.jobId, false);
       setSelectedJob(updatedJob);
+      setMessageType('success');
       setSuccessMessage(`Successfully promoted ${updatedJob.promotedRows || 0} checks!`);
       // Refresh dashboard and checks
       await fetchDashboard();
@@ -318,6 +420,97 @@ const CheckUpload = () => {
 
   const handlePromoteCancel = () => {
     setShowPromoteConfirm(false);
+  };
+
+  const handleDownloadInvalidChecks = async () => {
+    if (!selectedJob) return;
+    
+    try {
+      // Fetch all invalid checks (we'll need to get all pages or use a different endpoint)
+      // For now, let's get all checks and filter invalid ones
+      let allInvalidChecks = [];
+      let currentPageNum = 0;
+      let hasMore = true;
+      
+      while (hasMore) {
+        const response = await api.getBulkImportJobChecks(selectedJob.jobId, currentPageNum, 100);
+        const pageChecks = response.items || [];
+        const invalidChecks = pageChecks.filter(check => 
+          check.valid === false || check.rowStatus === 'INVALID'
+        );
+        allInvalidChecks = [...allInvalidChecks, ...invalidChecks];
+        
+        hasMore = currentPageNum < (response.totalPages - 1);
+        currentPageNum++;
+        
+        // Limit to prevent infinite loops
+        if (currentPageNum > 100) break;
+      }
+      
+      if (allInvalidChecks.length === 0) {
+        setError('No invalid checks to download.');
+        return;
+      }
+      
+      // Prepare data for Excel - match the original upload format
+      const excelData = allInvalidChecks.map(check => ({
+        'Row #': check.sheetRowNumber || '',
+        'Check Number': check.checkNumber || '',
+        'Date of Deposit': check.dateOfDeposit || '',
+        'Check Amount': check.checkAmount || '',
+        'Payer': check.payer || '',
+        'Location': check.location || '',
+        'Practice': check.practice || '',
+        'Type': check.type || '',
+        'Exchange Description': check.exchangeDescription || '',
+        'Bank Statement TRN Details': check.bankStatementTrnDetails || '',
+        'Comments': check.comments || '',
+        'Assignee ID': check.assigneeId || '',
+        'Reporter ID': check.reporterId || '',
+        'Error': check.validationErrors && check.validationErrors.length > 0 
+          ? check.validationErrors.join('; ') 
+          : 'Invalid check'
+      }));
+      
+      // Create workbook and worksheet
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(excelData);
+      
+      // Set column widths
+      const colWidths = [
+        { wch: 8 },   // Row #
+        { wch: 20 },  // Check Number
+        { wch: 15 },  // Date of Deposit
+        { wch: 15 },  // Check Amount
+        { wch: 20 },  // Payer
+        { wch: 15 },  // Location
+        { wch: 15 },  // Practice
+        { wch: 15 },  // Type
+        { wch: 25 },  // Exchange Description
+        { wch: 30 },  // Bank Statement TRN Details
+        { wch: 30 },  // Comments
+        { wch: 20 },  // Assignee ID
+        { wch: 20 },  // Reporter ID
+        { wch: 50 }   // Error
+      ];
+      ws['!cols'] = colWidths;
+      
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(wb, ws, 'Invalid Checks');
+      
+      // Generate filename
+      const fileName = `${selectedJob.jobName || 'InvalidChecks'}_${new Date().toISOString().split('T')[0]}.xlsx`;
+      
+      // Write file
+      XLSX.writeFile(wb, fileName);
+      
+      setMessageType('success');
+      setSuccessMessage(`Downloaded ${allInvalidChecks.length} invalid check(s) to ${fileName}`);
+    } catch (err) {
+      console.error('Error downloading invalid checks:', err);
+      const errorMessage = err?.data?.message || err?.message || 'Failed to download invalid checks. Please try again.';
+      setError(errorMessage);
+    }
   };
 
   const formatCurrency = (amount) => {
@@ -436,11 +629,27 @@ const CheckUpload = () => {
       )}
 
       {successMessage && (
-        <div className="success-message">
+        <div 
+          className={messageType === 'warning' ? 'warning-message' : 'success-message'}
+          style={messageType === 'warning' ? {
+            marginBottom: '20px',
+            padding: '12px',
+            background: '#fee2e2',
+            color: '#dc2626',
+            borderRadius: '6px',
+            border: '1px solid #fecaca',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between'
+          } : {}}
+        >
           <span>{successMessage}</span>
           <button 
             className="message-close-btn"
-            onClick={() => setSuccessMessage(null)}
+            onClick={() => {
+              setSuccessMessage(null);
+              setMessageType('success');
+            }}
             style={{ 
               float: 'right', 
               background: 'none', 
@@ -449,7 +658,8 @@ const CheckUpload = () => {
               fontSize: '18px',
               lineHeight: '1',
               padding: '0',
-              marginLeft: '12px'
+              marginLeft: '12px',
+              color: 'inherit'
             }}
           >
             ×
@@ -647,6 +857,24 @@ const CheckUpload = () => {
                   {Object.keys(localEdits).length} pending edit{Object.keys(localEdits).length !== 1 ? 's' : ''}
                 </span>
               )}
+              {selectedJob.invalidRows > 0 && (
+                <button 
+                  className="btn-cancel" 
+                  onClick={handleDownloadInvalidChecks}
+                  disabled={isProcessing || revalidating}
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '6px',
+                    padding: '8px 16px'
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                    <path d="M3 17C3 18.1046 3.89543 19 5 19H15C16.1046 19 17 18.1046 17 17V13M13 10L10 13M10 13L7 10M10 13V1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  Download Invalid ({selectedJob.invalidRows})
+                </button>
+              )}
               <button 
                 className="btn-primary" 
                 onClick={handleRevalidate}
@@ -727,6 +955,7 @@ const CheckUpload = () => {
                       <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Payer</th>
                       <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Location</th>
                       <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Practice</th>
+                      <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Comments</th>
                       <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Errors</th>
                       <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Actions</th>
                     </tr>
@@ -743,9 +972,15 @@ const CheckUpload = () => {
                         payer: localEdit.payer !== undefined ? localEdit.payer : check.payer,
                         location: localEdit.location !== undefined ? localEdit.location : check.location,
                         practice: localEdit.practice !== undefined ? localEdit.practice : check.practice,
-                        type: localEdit.type !== undefined ? localEdit.type : check.type
+                        type: localEdit.type !== undefined ? localEdit.type : check.type,
+                        comments: localEdit.comments !== undefined ? localEdit.comments : check.comments
                       };
                       const hasLocalEdit = !!localEdits[check.stagingCheckId];
+                      const isCommentsExpanded = expandedComments.has(check.stagingCheckId);
+                      const commentsText = displayCheck.comments || '';
+                      const hasComments = commentsText.trim().length > 0;
+                      const maxPreviewLength = 30;
+                      const shouldTruncate = commentsText.length > maxPreviewLength;
                       
                       return (
                       <tr key={check.stagingCheckId} style={{ borderBottom: '1px solid #e5e7eb', background: hasLocalEdit ? '#fef3c7' : 'transparent' }}>
@@ -768,6 +1003,61 @@ const CheckUpload = () => {
                         <td style={{ padding: '12px' }}>{displayCheck.payer || '-'}</td>
                         <td style={{ padding: '12px' }}>{displayCheck.location || '-'}</td>
                         <td style={{ padding: '12px' }}>{displayCheck.practice || '-'}</td>
+                        <td style={{ padding: '12px', maxWidth: '200px' }}>
+                          {hasComments ? (
+                            <div style={{ fontSize: '12px', color: '#374151' }}>
+                              {isCommentsExpanded ? (
+                                <div>
+                                  <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', marginBottom: '4px' }}>
+                                    {commentsText}
+                                  </div>
+                                  <button
+                                    onClick={() => {
+                                      const newExpanded = new Set(expandedComments);
+                                      newExpanded.delete(check.stagingCheckId);
+                                      setExpandedComments(newExpanded);
+                                    }}
+                                    style={{
+                                      background: 'none',
+                                      border: 'none',
+                                      color: '#2563eb',
+                                      cursor: 'pointer',
+                                      fontSize: '11px',
+                                      padding: '0',
+                                      textDecoration: 'underline'
+                                    }}
+                                  >
+                                    Show less
+                                  </button>
+                                </div>
+                              ) : (
+                                <div>
+                                  <span>{shouldTruncate ? commentsText.substring(0, maxPreviewLength) + '...' : commentsText}</span>
+                                  {shouldTruncate && (
+                                    <button
+                                      onClick={() => {
+                                        const newExpanded = new Set(expandedComments);
+                                        newExpanded.add(check.stagingCheckId);
+                                        setExpandedComments(newExpanded);
+                                      }}
+                                      style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        color: '#2563eb',
+                                        cursor: 'pointer',
+                                        fontSize: '11px',
+                                        padding: '0 0 0 4px',
+                                        textDecoration: 'underline'
+                                      }}
+                                    >
+                                      Show more
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          ) : '-'}
+                        </td>
                         <td style={{ padding: '12px' }}>
                           {check.validationErrors && check.validationErrors.length > 0 ? (
                             <div style={{ fontSize: '12px', color: '#dc2626' }}>
@@ -863,29 +1153,55 @@ const CheckUpload = () => {
           <div style={{
             background: 'white',
             borderRadius: '8px',
-            padding: '24px',
-            maxWidth: '600px',
+            padding: '20px',
+            maxWidth: '800px',
             width: '90%',
             maxHeight: '90vh',
-            overflow: 'auto'
+            overflow: 'auto',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
           }}>
-            <h3 style={{ marginTop: 0, marginBottom: '20px' }}>Edit Check</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '600', color: '#111827' }}>Edit Check</h3>
+              <button
+                onClick={handleCancelEdit}
+                disabled={revalidating || isProcessing}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  color: '#6b7280',
+                  cursor: 'pointer',
+                  padding: '0',
+                  width: '28px',
+                  height: '28px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '4px',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => e.target.style.background = '#f3f4f6'}
+                onMouseLeave={(e) => e.target.style.background = 'none'}
+              >
+                ×
+              </button>
+            </div>
             
             {/* Show validation errors in edit modal */}
             {editFormData.validationErrors && editFormData.validationErrors.length > 0 && (
               <div style={{ 
-                marginBottom: '20px', 
-                padding: '12px', 
+                marginBottom: '12px', 
+                padding: '10px', 
                 background: '#fee2e2', 
                 border: '1px solid #fecaca',
                 borderRadius: '6px'
               }}>
-                <div style={{ fontSize: '14px', fontWeight: '600', color: '#dc2626', marginBottom: '8px' }}>
+                <div style={{ fontSize: '13px', fontWeight: '600', color: '#dc2626', marginBottom: '6px' }}>
                   Validation Errors:
                 </div>
-                <div style={{ fontSize: '13px', color: '#991b1b' }}>
+                <div style={{ fontSize: '12px', color: '#991b1b' }}>
                   {editFormData.validationErrors.map((error, index) => (
-                    <div key={index} style={{ marginBottom: '4px' }}>
+                    <div key={index} style={{ marginBottom: '2px' }}>
                       • {error}
                     </div>
                   ))}
@@ -893,33 +1209,33 @@ const CheckUpload = () => {
               </div>
             )}
             
-            <div style={{ display: 'grid', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500' }}>
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', fontWeight: '500', color: '#374151' }}>
                   Check Number
                 </label>
                 <input
                   type="text"
                   value={editFormData.checkNumber || ''}
                   onChange={(e) => setEditFormData({...editFormData, checkNumber: e.target.value})}
-                  style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '6px' }}
+                  style={{ width: '100%', padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px' }}
                 />
               </div>
               
               <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500' }}>
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', fontWeight: '500', color: '#374151' }}>
                   Date of Deposit
                 </label>
                 <input
                   type="date"
                   value={editFormData.dateOfDeposit || ''}
                   onChange={(e) => setEditFormData({...editFormData, dateOfDeposit: e.target.value})}
-                  style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '6px' }}
+                  style={{ width: '100%', padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px' }}
                 />
               </div>
               
               <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500' }}>
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', fontWeight: '500', color: '#374151' }}>
                   Check Amount
                 </label>
                 <input
@@ -927,76 +1243,145 @@ const CheckUpload = () => {
                   step="0.01"
                   value={editFormData.checkAmount || 0}
                   onChange={(e) => setEditFormData({...editFormData, checkAmount: parseFloat(e.target.value) || 0})}
-                  style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '6px' }}
+                  style={{ width: '100%', padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px' }}
                 />
               </div>
               
               <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500' }}>
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', fontWeight: '500', color: '#374151' }}>
                   Payer
                 </label>
                 <input
                   type="text"
                   value={editFormData.payer || ''}
                   onChange={(e) => setEditFormData({...editFormData, payer: e.target.value})}
-                  style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '6px' }}
+                  style={{ width: '100%', padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px' }}
                 />
               </div>
               
               <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500' }}>
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', fontWeight: '500', color: '#374151' }}>
                   Location
                 </label>
                 <input
                   type="text"
                   value={editFormData.location || ''}
                   onChange={(e) => setEditFormData({...editFormData, location: e.target.value})}
-                  style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '6px' }}
+                  style={{ width: '100%', padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px' }}
                 />
               </div>
               
               <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500' }}>
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', fontWeight: '500', color: '#374151' }}>
                   Practice
                 </label>
                 <input
                   type="text"
                   value={editFormData.practice || ''}
                   onChange={(e) => setEditFormData({...editFormData, practice: e.target.value})}
-                  style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '6px' }}
+                  style={{ width: '100%', padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px' }}
+                />
+              </div>
+              
+              <div style={{ width: '100%' }}>
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', fontWeight: '500', color: '#374151' }}>
+                  Type
+                </label>
+                <div style={{ width: '100%', minWidth: 0 }}>
+                  <SearchableDropdown
+                    options={[
+                      { value: '', label: 'Select Type' },
+                      { value: 'EFT', label: 'EFT' },
+                      { value: 'ERA', label: 'ERA' },
+                      { value: 'DIT/DRL', label: 'DIT/DRL' },
+                      { value: 'NON_AR', label: 'NON_AR' },
+                      { value: 'REFUND', label: 'REFUND' },
+                      { value: 'LOCK_BOX', label: 'LOCK_BOX' },
+                      { value: 'DEBIT', label: 'DEBIT' },
+                      { value: 'FEE', label: 'FEE' },
+                      { value: 'RBO', label: 'RBO' }
+                    ]}
+                    value={editFormData.type || ''}
+                    onChange={(value) => setEditFormData({...editFormData, type: value})}
+                    placeholder="Select Type"
+                    maxVisibleItems={5}
+                    compact={true}
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', fontWeight: '500', color: '#374151' }}>
+                  Exchange Description
+                </label>
+                <input
+                  type="text"
+                  value={editFormData.exchangeDescription || ''}
+                  onChange={(e) => setEditFormData({...editFormData, exchangeDescription: e.target.value})}
+                  style={{ width: '100%', padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px' }}
                 />
               </div>
               
               <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500' }}>
-                  Type
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', fontWeight: '500', color: '#374151' }}>
+                  Bank Statement TRN Details
                 </label>
-                <SearchableDropdown
-                  options={[
-                    { value: '', label: 'Select Type' },
-                    { value: 'EFT', label: 'EFT' },
-                    { value: 'ERA', label: 'ERA' },
-                    { value: 'DIT/DRL', label: 'DIT/DRL' },
-                    { value: 'NON_AR', label: 'NON_AR' },
-                    { value: 'REFUND', label: 'REFUND' },
-                    { value: 'LOCK_BOX', label: 'LOCK_BOX' },
-                    { value: 'DEBIT', label: 'DEBIT' },
-                    { value: 'FEE', label: 'FEE' },
-                    { value: 'RBO', label: 'RBO' }
-                  ]}
-                  value={editFormData.type || ''}
-                  onChange={(value) => setEditFormData({...editFormData, type: value})}
-                  placeholder="Select Type"
-                  maxVisibleItems={5}
+                <input
+                  type="text"
+                  value={editFormData.bankStatementTrnDetails || ''}
+                  onChange={(e) => setEditFormData({...editFormData, bankStatementTrnDetails: e.target.value})}
+                  style={{ width: '100%', padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px' }}
                 />
               </div>
               
-              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                  <button className="btn-cancel" onClick={handleCancelEdit} disabled={isProcessing} style={{ flex: 1 }}>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', fontWeight: '500', color: '#374151' }}>
+                  Comments
+                </label>
+                <textarea
+                  value={editFormData.comments || ''}
+                  onChange={(e) => setEditFormData({...editFormData, comments: e.target.value})}
+                  style={{ width: '100%', padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: '6px', minHeight: '70px', resize: 'vertical', fontSize: '14px' }}
+                  rows={3}
+                />
+              </div>
+              
+              <div style={{ width: '100%' }}>
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', fontWeight: '500', color: '#374151' }}>
+                  Assignee
+                </label>
+                <div style={{ width: '100%', minWidth: 0 }}>
+                  <SearchableDropdown
+                    options={userOptions}
+                    value={editFormData.assigneeId || ''}
+                    onChange={(value) => setEditFormData({...editFormData, assigneeId: value})}
+                    placeholder="Select Assignee"
+                    compact={true}
+                  />
+                </div>
+              </div>
+              
+              <div style={{ width: '100%' }}>
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', fontWeight: '500', color: '#374151' }}>
+                  Reporter
+                </label>
+                <div style={{ width: '100%', minWidth: 0 }}>
+                  <SearchableDropdown
+                    options={userOptions}
+                    value={editFormData.reporterId || ''}
+                    onChange={(value) => setEditFormData({...editFormData, reporterId: value})}
+                    placeholder="Select Reporter"
+                    compact={true}
+                  />
+                </div>
+              </div>
+              
+              <div style={{ display: 'flex', gap: '10px', marginTop: '8px', gridColumn: '1 / -1' }}>
+                  <button className="btn-cancel" onClick={handleCancelEdit} disabled={revalidating || isProcessing} style={{ flex: 1 }}>
                     Cancel
                   </button>
-                  <button className="btn-upload" onClick={handleSaveEdit} disabled={isProcessing} style={{ flex: 1 }}>
-                    Save
+                  <button className="btn-upload" onClick={handleSaveEdit} disabled={revalidating || isProcessing} style={{ flex: 1 }}>
+                    {revalidating ? 'Saving...' : 'Save & Re-validate'}
                   </button>
               </div>
             </div>

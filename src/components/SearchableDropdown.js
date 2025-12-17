@@ -20,7 +20,8 @@ const SearchableDropdown = ({
   placeholder = 'Select...',
   disabled = false,
   getDisplayValue,
-  maxVisibleItems = 10
+  maxVisibleItems = 10,
+  compact = false
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -181,7 +182,7 @@ const SearchableDropdown = ({
     <>
       <div
         ref={triggerRef}
-        className={`searchable-dropdown-trigger ${disabled ? 'disabled' : ''} ${isOpen ? 'open' : ''}`}
+        className={`searchable-dropdown-trigger ${disabled ? 'disabled' : ''} ${isOpen ? 'open' : ''} ${compact ? 'compact' : ''}`}
         onClick={handleToggle}
       >
         <span className="dropdown-value">{getSelectedDisplayValue()}</span>

@@ -310,63 +310,22 @@ const BulkActionModal = ({ isOpen, onClose, onSave, selectedCount, users, isUnkn
 
                   <div className="form-row">
                     <div className="form-group">
-                      <label>Clarification Assignee</label>
-                      <SearchableDropdown
-                        options={[
-                          { value: '', label: 'Select Assignee' },
-                          ...users.map(user => ({
-                            value: user.userId || user.id,
-                            label: user.firstName && user.lastName 
-                              ? `${user.firstName} ${user.lastName}` 
-                              : user.email || 'Unknown User'
-                          }))
-                        ]}
-                        value={formData.clarification.assigneeId}
-                        onChange={(value) => handleClarificationChange('assigneeId', value)}
-                        placeholder="Select Assignee"
-                        maxVisibleItems={5}
-                      />
-                    </div>
-
-                    <div className="form-group">
-                      <label>Clarification Reporter</label>
-                      <SearchableDropdown
-                        options={[
-                          { value: '', label: 'Select Reporter' },
-                          ...users.map(user => ({
-                            value: user.userId || user.id,
-                            label: user.firstName && user.lastName 
-                              ? `${user.firstName} ${user.lastName}` 
-                              : user.email || 'Unknown User'
-                          }))
-                        ]}
-                        value={formData.clarification.reporterId}
-                        onChange={(value) => handleClarificationChange('reporterId', value)}
-                        placeholder="Select Reporter"
-                        maxVisibleItems={5}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label>Assignee Type</label>
-                      <select
-                        value={formData.clarification.assignee}
-                        onChange={(e) => handleClarificationChange('assignee', e.target.value)}
-                      >
-                        <option value="ON-SHORE">ON-SHORE</option>
-                        <option value="OFF-SHORE">OFF-SHORE</option>
-                      </select>
-                    </div>
-
-                    <div className="form-group">
-                      <label>Reportee Type</label>
+                      <label>Assignee</label>
                       <input
                         type="text"
-                        value={formData.clarification.reportee}
+                        value={formData.clarification.assignee || 'ON-SHORE'}
+                        onChange={(e) => handleClarificationChange('assignee', e.target.value)}
+                        placeholder="ON-SHORE"
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label>Reporter</label>
+                      <input
+                        type="text"
+                        value={formData.clarification.reportee || 'EBOTICS'}
                         onChange={(e) => handleClarificationChange('reportee', e.target.value)}
-                        placeholder="e.g., EBOTICS"
+                        placeholder="EBOTICS"
                       />
                     </div>
                   </div>

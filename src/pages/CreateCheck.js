@@ -24,7 +24,11 @@ const CreateCheck = () => {
     totalAmount: '',
     checkType: 'EFT',
     legacyNotes: '',
-    againstCheckAdditional: ''
+    againstCheckAdditional: '',
+    correctionBatchDate: '',
+    edmNumber: '',
+    transferIn: '',
+    transferOut: ''
   });
   const [formErrors, setFormErrors] = useState({});
   const [error, setError] = useState('');
@@ -144,7 +148,11 @@ const CreateCheck = () => {
         totalAmount: parseFloat(formData.totalAmount),
         checkType: formData.checkType,
         legacyNotes: formData.legacyNotes.trim() || null,
-        againstCheckAdditional: formData.againstCheckAdditional.trim() || null
+        againstCheckAdditional: formData.againstCheckAdditional.trim() || null,
+        correctionBatchDate: formData.correctionBatchDate || null,
+        edmNumber: formData.edmNumber.trim() || null,
+        transferIn: formData.transferIn.trim() || null,
+        transferOut: formData.transferOut.trim() || null
       };
 
       await api.createCheck(checkData);
@@ -254,7 +262,8 @@ const CreateCheck = () => {
                   { value: 'REFUND', label: 'REFUND' },
                   { value: 'LOCK_BOX', label: 'LOCK_BOX' },
                   { value: 'DEBIT', label: 'DEBIT' },
-                  { value: 'FEE', label: 'FEE' }
+                  { value: 'FEE', label: 'FEE' },
+                  { value: 'RBO', label: 'RBO' }
                 ]}
                 value={formData.checkType}
                 onChange={(value) => {
@@ -436,6 +445,58 @@ const CreateCheck = () => {
                 onChange={handleInputChange}
                 placeholder="e.g., Reference to EFT 123"
                 rows="3"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="form-section">
+          <h2 className="section-title">Additional Fields</h2>
+          <div className="form-grid">
+            <div className="form-group">
+              <label htmlFor="correctionBatchDate">Correction Batch Date</label>
+              <USDateInput
+                id="correctionBatchDate"
+                name="correctionBatchDate"
+                value={formData.correctionBatchDate}
+                onChange={handleInputChange}
+                max={getTodayDate()}
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="edmNumber">EDM Number</label>
+              <input
+                type="text"
+                id="edmNumber"
+                name="edmNumber"
+                value={formData.edmNumber}
+                onChange={handleInputChange}
+                placeholder="e.g., EDM-12345"
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="transferIn">Transfer-In</label>
+              <input
+                type="text"
+                id="transferIn"
+                name="transferIn"
+                value={formData.transferIn}
+                onChange={handleInputChange}
+                placeholder="Transfer-in details"
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="transferOut">Transfer-Out</label>
+              <input
+                type="text"
+                id="transferOut"
+                name="transferOut"
+                value={formData.transferOut}
+                onChange={handleInputChange}
+                placeholder="Transfer-out details"
               />
             </div>
           </div>

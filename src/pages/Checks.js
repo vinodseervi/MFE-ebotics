@@ -55,7 +55,7 @@ const Checks = () => {
   
   // Sorting
   const [sortField, setSortField] = useState('depositDate');
-  const [sortDirection, setSortDirection] = useState('desc'); // Default: newest first
+  const [sortDirection, setSortDirection] = useState('asc'); // Default: oldest first (by Deposit Date)
   
   // Bulk actions
   const [selectedChecks, setSelectedChecks] = useState(new Set());
@@ -203,10 +203,8 @@ const Checks = () => {
 
       if (advancedFilters.checkNumber) {
         searchParams.checkNumber = formatCheckNumberPattern(advancedFilters.checkNumber);
-      } else if (searchTerm) {
-        // Use searchTerm as checkNumber if no explicit checkNumber filter
-        searchParams.checkNumber = formatCheckNumberPattern(searchTerm);
       }
+      // Note: searchTerm is handled client-side after fetching (see useEffect for client-side filtering)
 
       // Date filters - map to new field names
       // If no explicit deposit date filters, use selected month
@@ -339,6 +337,18 @@ const Checks = () => {
       // Search by check number
       if (check.checkNumber && check.checkNumber.toLowerCase().includes(searchLower)) {
         return true;
+      }
+      
+      // Search by batch number (from batchDescription or batches)
+      if (check.batchDescription && check.batchDescription.toLowerCase().includes(searchLower)) {
+        return true;
+      }
+      // Also check batches array if available
+      if (check.batches && Array.isArray(check.batches)) {
+        const hasMatchingBatch = check.batches.some(batch => 
+          batch.batchNumber && batch.batchNumber.toLowerCase().includes(searchLower)
+        );
+        if (hasMatchingBatch) return true;
       }
       
       // Search by payer
@@ -637,7 +647,7 @@ const Checks = () => {
           </svg>
           <input
             type="text"
-            placeholder="Search by check number (e.g., ch* or ch), payer, amount..."
+            placeholder="Search by check number, batch number, payer, amount..."
             value={searchTerm}
             onChange={(e) => {
               const filteredValue = filterEmojis(e.target.value);

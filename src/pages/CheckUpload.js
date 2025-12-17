@@ -7,7 +7,7 @@ import { formatDateUS } from '../utils/dateUtils';
 import './CheckUpload.css';
 
 const CheckUpload = () => {
-  const { users, getUserName } = useUsers();
+  const { users } = useUsers();
   
   // Dashboard state
   const [dashboardJobs, setDashboardJobs] = useState([]);
@@ -34,7 +34,6 @@ const CheckUpload = () => {
   const [localEdits, setLocalEdits] = useState({}); // Store local edits by stagingCheckId
   
   // Job update state
-  const [updatingJob, setUpdatingJob] = useState(false);
   const [revalidating, setRevalidating] = useState(false);
   const [promoting, setPromoting] = useState(false);
   const [showPromoteConfirm, setShowPromoteConfirm] = useState(false);
@@ -245,34 +244,6 @@ const CheckUpload = () => {
     setEditFormData({});
   };
 
-  const handleUpdateJobDefaults = async () => {
-    if (!selectedJob) return;
-    
-    const updateData = {};
-    if (selectedJob.assigneeId) updateData.assigneeId = selectedJob.assigneeId;
-    if (selectedJob.reporterId) updateData.reporterId = selectedJob.reporterId;
-    
-    if (Object.keys(updateData).length === 0) return;
-    
-    setUpdatingJob(true);
-    setError(null);
-    
-    try {
-      const updatedJob = await api.updateBulkImportJob(selectedJob.jobId, updateData);
-      setSelectedJob(updatedJob);
-      setSuccessMessage('Job defaults updated successfully!');
-      // Refresh checks
-      await fetchJobChecks(selectedJob.jobId, currentPage);
-    } catch (err) {
-      console.error('Error updating job:', err);
-      // Extract error message from API response
-      const errorMessage = err.data?.message || err.message || 'Failed to update job. Please try again.';
-      setError(errorMessage);
-    } finally {
-      setUpdatingJob(false);
-    }
-  };
-
   const handleRevalidate = async () => {
     if (!selectedJob) return;
     
@@ -415,8 +386,6 @@ const CheckUpload = () => {
     }))
   ];
 
-  const validChecks = checks.filter(c => c.valid);
-  const invalidChecks = checks.filter(c => !c.valid);
   const startIndex = currentPage * 50 + 1;
   const endIndex = Math.min((currentPage + 1) * 50, totalElements);
 
@@ -1012,7 +981,8 @@ const CheckUpload = () => {
                     { value: 'REFUND', label: 'REFUND' },
                     { value: 'LOCK_BOX', label: 'LOCK_BOX' },
                     { value: 'DEBIT', label: 'DEBIT' },
-                    { value: 'FEE', label: 'FEE' }
+                    { value: 'FEE', label: 'FEE' },
+                    { value: 'RBO', label: 'RBO' }
                   ]}
                   value={editFormData.type || ''}
                   onChange={(value) => setEditFormData({...editFormData, type: value})}

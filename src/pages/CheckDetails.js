@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import { useUsers } from '../context/UsersContext';
+import { usePermissions } from '../hooks/usePermissions';
 import { formatDateUS, parseDateUS, formatDateTime } from '../utils/dateUtils';
 import { MdOutlineHistory } from 'react-icons/md';
 import ActivityDrawer from '../components/ActivityDrawer';
@@ -25,6 +26,13 @@ const CheckDetails = () => {
   const [editingBatchId, setEditingBatchId] = useState(null);
   const [isAddingBatch, setIsAddingBatch] = useState(false);
   const { users, getUserName, getUserById } = useUsers(); // Get users from context
+  const { isSuperAdmin } = usePermissions(); // Get Super Admin status
+  const [batchValidationErrors, setBatchValidationErrors] = useState({});
+  const [batchSortField, setBatchSortField] = useState('batchDate');
+  const [batchSortDirection, setBatchSortDirection] = useState('desc');
+  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
+  const [archiveBatchId, setArchiveBatchId] = useState(null);
+  const [archiveBatchIsArchived, setArchiveBatchIsArchived] = useState(false);
   
   // Clarifications state
   const [isAddingClarification, setIsAddingClarification] = useState(false);
@@ -47,15 +55,17 @@ const CheckDetails = () => {
     batchRunNumber: '',
     batchNumber: '',
     batchDate: '',
-    batchType: '',
+    batchType: 'MANUAL', // Default to MANUAL
     batchAmount: '',
     batchNotes: ''
   });
   const [clarificationFormData, setClarificationFormData] = useState({
     clarificationType: '',
     details: '',
-    assigneeId: '',
-    reporterId: '',
+    assignee: 'ON-SHORE', // Default assignee
+    reportee: 'EBOTICS', // Default reportee
+    assigneeId: '', // Not required for default assignment
+    reporterId: '', // Not required for default assignment
     status: 'OPEN'
   });
   const [commentText, setCommentText] = useState({});
@@ -228,7 +238,11 @@ const CheckDetails = () => {
         medicalRecordsFee: data.medicalRecordsFee || 0,
         correctionsAmount: data.correctionsAmount || 0,
         legacyNotes: data.legacyNotes || '',
-        againstCheckAdditional: data.againstCheckAdditional || ''
+        againstCheckAdditional: data.againstCheckAdditional || '',
+        correctionBatchDate: data.correctionBatchDate || '',
+        edmNumber: data.edmNumber || '',
+        transferIn: data.transferIn || '',
+        transferOut: data.transferOut || ''
       });
     } catch (err) {
       console.error('Error fetching check details:', err);
@@ -253,11 +267,84 @@ const CheckDetails = () => {
   const handleBatchFormChange = (field, value) => {
     // Filter emojis from string inputs
     const filteredValue = typeof value === 'string' ? filterEmojis(value) : value;
-    setBatchFormData(prev => ({
-      ...prev,
-      [field]: filteredValue
-    }));
+    setBatchFormData(prev => {
+      const newData = {
+        ...prev,
+        [field]: filteredValue
+      };
+      
+      // If batch type changes to AUTO, auto-generate run number
+      if (field === 'batchType' && filteredValue === 'AUTO') {
+        // Generate run number: Get the highest existing run number and increment
+        const existingBatches = check?.batches || [];
+        const existingRunNumbers = existingBatches
+          .filter(b => b.batchType === 'AUTO' && b.batchRunNumber) // Only consider AUTO batches
+          .map(b => {
+            const runNum = parseInt(b.batchRunNumber);
+            return isNaN(runNum) ? 0 : runNum;
+          })
+          .filter(n => n > 0);
+        const maxRunNumber = existingRunNumbers.length > 0 ? Math.max(...existingRunNumbers) : 0;
+        newData.batchRunNumber = String(maxRunNumber + 1);
+      } else if (field === 'batchType' && filteredValue === 'MANUAL') {
+        // Clear run number when switching to MANUAL
+        newData.batchRunNumber = '';
+      }
+      
+      // Clear validation errors when field changes
+      if (batchValidationErrors[field]) {
+        setBatchValidationErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors[field];
+          return newErrors;
+        });
+      }
+      
+      return newData;
+    });
   };
+  
+  // Validate batch number and run number uniqueness
+  const validateBatchUniqueness = () => {
+    const errors = {};
+    const existingBatches = check?.batches || [];
+    const currentBatchId = editingBatchId; // null when adding, batchId when editing
+    
+    // Check batch number uniqueness
+    if (batchFormData.batchNumber && batchFormData.batchNumber.trim()) {
+      const duplicateBatch = existingBatches.find(
+        b => b.batchNumber && b.batchNumber.trim() === batchFormData.batchNumber.trim() && 
+        b.batchId !== currentBatchId
+      );
+      if (duplicateBatch) {
+        errors.batchNumber = 'Batch Number must be unique';
+      }
+    }
+    
+    // Check run number uniqueness (only for AUTO type)
+    if (batchFormData.batchType === 'AUTO' && batchFormData.batchRunNumber && batchFormData.batchRunNumber.trim()) {
+      const duplicateRun = existingBatches.find(
+        b => b.batchType === 'AUTO' && 
+        b.batchRunNumber && 
+        b.batchRunNumber.trim() === batchFormData.batchRunNumber.trim() && 
+        b.batchId !== currentBatchId
+      );
+      if (duplicateRun) {
+        errors.batchRunNumber = 'Run Number must be unique';
+      }
+    }
+    
+    setBatchValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+  
+  // Validate on form change
+  useEffect(() => {
+    if (batchFormData.batchNumber || batchFormData.batchRunNumber) {
+      validateBatchUniqueness();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [batchFormData.batchNumber, batchFormData.batchRunNumber, batchFormData.batchType, editingBatchId]);
 
   const handleSave = async () => {
     try {
@@ -276,27 +363,36 @@ const CheckDetails = () => {
   };
 
   const handleAddBatch = async () => {
+    // Validate uniqueness
+    if (!validateBatchUniqueness()) {
+      return;
+    }
+    
     try {
       const batchData = {
         ...batchFormData,
         // USDateInput returns YYYY-MM-DD format, but parseDateUS handles both formats
         batchDate: batchFormData.batchDate ? (parseDateUS(batchFormData.batchDate) || batchFormData.batchDate) : '',
-        batchAmount: parseFloat(batchFormData.batchAmount) || 0
+        batchAmount: parseFloat(batchFormData.batchAmount) || 0,
+        // For AUTO type, ensure run number is set
+        batchRunNumber: batchFormData.batchType === 'AUTO' ? batchFormData.batchRunNumber : (batchFormData.batchRunNumber || '')
       };
       await api.createBatch(id, batchData);
       await fetchCheckDetails();
       setIsAddingBatch(false);
+      setBatchValidationErrors({});
       setBatchFormData({
         batchRunNumber: '',
         batchNumber: '',
         batchDate: '',
-        batchType: '',
+        batchType: 'MANUAL',
         batchAmount: '',
         batchNotes: ''
       });
     } catch (err) {
       console.error('Error creating batch:', err);
-      alert('Failed to create batch. Please try again.');
+      const errorMessage = err?.data?.message || err?.message || 'Failed to create batch. Please try again.';
+      alert(errorMessage);
     }
   };
 
@@ -307,48 +403,149 @@ const CheckDetails = () => {
       batchNumber: batch.batchNumber || '',
       // Keep date in YYYY-MM-DD format for USDateInput (it will display as MM/DD/YYYY)
       batchDate: batch.batchDate || '',
-      batchType: batch.batchType || '',
+      batchType: batch.batchType || 'MANUAL',
       batchAmount: batch.batchAmount || '',
       batchNotes: batch.batchNotes || ''
     });
+    setBatchValidationErrors({});
   };
 
   const handleUpdateBatch = async () => {
+    // Validate uniqueness
+    if (!validateBatchUniqueness()) {
+      return;
+    }
+    
     try {
       const batchData = {
         ...batchFormData,
         // USDateInput returns YYYY-MM-DD format, but parseDateUS handles both formats
         batchDate: batchFormData.batchDate ? (parseDateUS(batchFormData.batchDate) || batchFormData.batchDate) : '',
-        batchAmount: parseFloat(batchFormData.batchAmount) || 0
+        batchAmount: parseFloat(batchFormData.batchAmount) || 0,
+        // For AUTO type, ensure run number is set
+        batchRunNumber: batchFormData.batchType === 'AUTO' ? batchFormData.batchRunNumber : (batchFormData.batchRunNumber || '')
       };
       await api.updateBatch(id, editingBatchId, batchData);
       await fetchCheckDetails();
       setEditingBatchId(null);
+      setBatchValidationErrors({});
       setBatchFormData({
         batchRunNumber: '',
         batchNumber: '',
         batchDate: '',
-        batchType: '',
+        batchType: 'MANUAL',
         batchAmount: '',
         batchNotes: ''
       });
     } catch (err) {
       console.error('Error updating batch:', err);
-      alert('Failed to update batch. Please try again.');
+      const errorMessage = err?.data?.message || err?.message || 'Failed to update batch. Please try again.';
+      alert(errorMessage);
     }
+  };
+  
+  const handleArchiveBatchClick = (batchId, isArchived) => {
+    setArchiveBatchId(batchId);
+    setArchiveBatchIsArchived(isArchived);
+    setShowArchiveConfirm(true);
+  };
+  
+  const handleArchiveBatchConfirm = async () => {
+    if (!archiveBatchId) return;
+    
+    try {
+      await api.updateBatch(id, archiveBatchId, { isArchived: !archiveBatchIsArchived });
+      await fetchCheckDetails();
+      setShowArchiveConfirm(false);
+      setArchiveBatchId(null);
+      setArchiveBatchIsArchived(false);
+    } catch (err) {
+      console.error('Error archiving batch:', err);
+      const errorMessage = err?.data?.message || err?.message || `Failed to ${archiveBatchIsArchived ? 'unarchive' : 'archive'} batch. Please try again.`;
+      alert(errorMessage);
+    }
+  };
+  
+  const handleArchiveBatchCancel = () => {
+    setShowArchiveConfirm(false);
+    setArchiveBatchId(null);
+    setArchiveBatchIsArchived(false);
+  };
+  
+  const handleDeleteBatch = async (batchId) => {
+    if (!isSuperAdmin) {
+      alert('Only Super Admin can delete batches.');
+      return;
+    }
+    
+    if (!window.confirm('Are you sure you want to delete this batch? This action cannot be undone.')) {
+      return;
+    }
+    
+    try {
+      await api.delete(`/api/v1/checks/${id}/batches/${batchId}`);
+      await fetchCheckDetails();
+    } catch (err) {
+      console.error('Error deleting batch:', err);
+      const errorMessage = err?.data?.message || err?.message || 'Failed to delete batch. Please try again.';
+      alert(errorMessage);
+    }
+  };
+  
+  const handleSortBatches = (field) => {
+    if (batchSortField === field) {
+      setBatchSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setBatchSortField(field);
+      setBatchSortDirection('asc');
+    }
+  };
+  
+  const getSortArrow = (field) => {
+    if (batchSortField !== field) return null;
+    return <span className="sort-arrow">{batchSortDirection === 'asc' ? '↑' : '↓'}</span>;
+  };
+  
+  // Get sorted batches
+  const getSortedBatches = () => {
+    if (!check?.batches || check.batches.length === 0) return [];
+    
+    const batches = [...check.batches];
+    return batches.sort((a, b) => {
+      let aVal = a[batchSortField];
+      let bVal = b[batchSortField];
+      
+      if (batchSortField === 'batchDate' || batchSortField === 'createdAt' || batchSortField === 'updatedAt') {
+        aVal = aVal ? new Date(aVal) : new Date(0);
+        bVal = bVal ? new Date(bVal) : new Date(0);
+      } else if (batchSortField === 'batchAmount') {
+        aVal = aVal || 0;
+        bVal = bVal || 0;
+      } else {
+        aVal = aVal || '';
+        bVal = bVal || '';
+      }
+      
+      if (batchSortDirection === 'asc') {
+        return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+      } else {
+        return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
+      }
+    });
   };
 
   const handleCancelBatch = () => {
     setIsAddingBatch(false);
     setEditingBatchId(null);
-    setBatchFormData({
-      batchRunNumber: '',
-      batchNumber: '',
-      batchDate: '',
-      batchType: '',
-      batchAmount: '',
-      batchNotes: ''
-    });
+      setBatchFormData({
+        batchRunNumber: '',
+        batchNumber: '',
+        batchDate: '',
+        batchType: 'MANUAL',
+        batchAmount: '',
+        batchNotes: ''
+      });
+      setBatchValidationErrors({});
   };
 
   // Clarification handlers
@@ -369,8 +566,10 @@ const CheckDetails = () => {
       setClarificationFormData({
         clarificationType: '',
         details: '',
-        assigneeId: '',
-        reporterId: '',
+        assignee: 'ON-SHORE', // Default assignee
+        reportee: 'EBOTICS', // Default reportee
+        assigneeId: '', // Not required for default assignment
+        reporterId: '', // Not required for default assignment
         status: 'OPEN'
       });
     } catch (err) {
@@ -384,6 +583,8 @@ const CheckDetails = () => {
     setClarificationFormData({
       clarificationType: clarification.clarificationType || '',
       details: clarification.details || '',
+      assignee: clarification.assignee || 'ON-SHORE', // Default to ON-SHORE if not set
+      reportee: clarification.reportee || 'EBOTICS', // Default to EBOTICS if not set
       assigneeId: clarification.assigneeId || '',
       reporterId: clarification.reporterId || '',
       status: clarification.status || 'OPEN'
@@ -398,8 +599,10 @@ const CheckDetails = () => {
       setClarificationFormData({
         clarificationType: '',
         details: '',
-        assigneeId: '',
-        reporterId: '',
+        assignee: 'ON-SHORE', // Default assignee
+        reportee: 'EBOTICS', // Default reportee
+        assigneeId: '', // Not required for default assignment
+        reporterId: '', // Not required for default assignment
         status: 'OPEN'
       });
     } catch (err) {
@@ -414,8 +617,10 @@ const CheckDetails = () => {
     setClarificationFormData({
       clarificationType: '',
       details: '',
-      assigneeId: '',
-      reporterId: '',
+      assignee: 'ON-SHORE', // Default assignee
+      reportee: 'EBOTICS', // Default reportee
+      assigneeId: '', // Not required for default assignment
+      reporterId: '', // Not required for default assignment
       status: 'OPEN'
     });
   };
@@ -704,9 +909,9 @@ const CheckDetails = () => {
         </div>
       </div>
 
-      {/* Financial Summary Card */}
+      {/* Check Summary Card */}
       <div className="financial-summary-card">
-        <h3 className="card-title">Financial Summary</h3>
+        <h3 className="card-title">Check Summary</h3>
         <div className="financial-grid">
           <div className="financial-item">
             <span className="financial-label">Received Date</span>
@@ -742,20 +947,6 @@ const CheckDetails = () => {
                 : 'N/A'}
             </span>
           </div>
-          <div className="financial-item">
-            <span className="financial-label">Total Amount</span>
-            <span className="financial-value primary">{formatCurrency(check.totalAmount)}</span>
-          </div>
-          <div className="financial-item">
-            <span className="financial-label">Posted Amount</span>
-            <span className="financial-value">{formatCurrency(check.postedAmount)}</span>
-          </div>
-          <div className="financial-item">
-            <span className="financial-label">Remaining Amount</span>
-            <span className={`financial-value ${check.remainingAmount === 0 ? 'success' : ''}`}>
-              {formatCurrency(check.remainingAmount)}
-            </span>
-          </div>
         </div>
       </div>
 
@@ -787,7 +978,7 @@ const CheckDetails = () => {
           <div className="tab-content">
             <div className="details-card">
               <div className="card-header-with-action">
-                <h3 className="card-title">Check Information</h3>
+                <h3 className="card-title">Check Details</h3>
                 {!isEditMode ? (
                   <button className="btn-primary" onClick={() => setIsEditMode(true)}>
                     <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
@@ -832,7 +1023,8 @@ const CheckDetails = () => {
                       { value: 'REFUND', label: 'REFUND' },
                       { value: 'LOCK_BOX', label: 'LOCK_BOX' },
                       { value: 'DEBIT', label: 'DEBIT' },
-                      { value: 'FEE', label: 'FEE' }
+                      { value: 'FEE', label: 'FEE' },
+                      { value: 'RBO', label: 'RBO' }
                     ]}
                     value={formData.checkType || ''}
                     onChange={(val) => handleFormChange('checkType', val)}
@@ -952,10 +1144,22 @@ const CheckDetails = () => {
               </div>
             </div>
 
-            {/* Advanced Financial Parameters */}
+            {/* Posting Details */}
             <div className="details-card">
-              <h3 className="card-title">Advanced Financial Parameters</h3>
+              <h3 className="card-title">Posting Details</h3>
               <div className="form-grid">
+                <div className="form-group">
+                  <label>Total Amount</label>
+                  <input type="text" value={formatCurrency(check.totalAmount)} disabled />
+                </div>
+                <div className="form-group">
+                  <label>Posted Amount</label>
+                  <input type="text" value={formatCurrency(check.postedAmount)} disabled />
+                </div>
+                <div className="form-group">
+                  <label>Remaining Amount</label>
+                  <input type="text" value={formatCurrency(check.remainingAmount)} disabled />
+                </div>
                 <div className="form-group">
                   <label>Interest Amount</label>
                   <input type="text" value={formatCurrency(check.interestAmount)} disabled />
@@ -971,6 +1175,74 @@ const CheckDetails = () => {
                 <div className="form-group">
                   <label>Corrections Amount</label>
                   <input type="text" value={formatCurrency(check.correctionsAmount)} disabled />
+                </div>
+              </div>
+            </div>
+
+            {/* Additional Fields */}
+            <div className="details-card">
+              <div className="card-header-with-action">
+                <h3 className="card-title">Additional Fields</h3>
+                {!isEditMode ? (
+                  <button className="btn-primary" onClick={() => setIsEditMode(true)}>
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                      <path d="M11 3H5C4.46957 3 3.96086 3.21071 3.58579 3.58579C3.21071 3.96086 3 4.46957 3 5V15C3 15.5304 3.21071 16.0391 3.58579 16.4142C3.96086 16.7893 4.46957 17 5 17H15C15.5304 17 16.0391 16.7893 16.4142 16.4142C16.7893 16.0391 17 15.5304 17 15V9" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                      <path d="M14.5 1.5L18.5 5.5L11 13H7V9L14.5 1.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    Edit
+                  </button>
+                ) : (
+                  <div className="edit-actions-header">
+                    <button className="btn-cancel" onClick={handleCancel}>
+                      Cancel
+                    </button>
+                    <button className="btn-save" onClick={handleSave}>
+                      <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                        <path d="M17 3H3C2.44772 3 2 3.44772 2 4V16C2 16.5523 2.44772 17 3 17H17C17.5523 17 18 16.5523 18 16V4C18 3.44772 17.5523 3 17 3Z" stroke="currentColor" strokeWidth="2"/>
+                        <path d="M6 9L9 12L14 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      Save
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="form-grid">
+                <div className="form-group">
+                  <label>Correction Batch Date</label>
+                  <USDateInput
+                    name="correctionBatchDate"
+                    value={formData.correctionBatchDate || ''}
+                    onChange={(e) => handleFormChange('correctionBatchDate', e.target.value)}
+                    placeholder="MM/DD/YYYY"
+                    disabled={!isEditMode}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>EDM Number</label>
+                  <input 
+                    type="text" 
+                    value={formData.edmNumber || ''}
+                    onChange={(e) => handleFormChange('edmNumber', e.target.value)}
+                    disabled={!isEditMode}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Transfer-In</label>
+                  <input 
+                    type="text" 
+                    value={formData.transferIn || ''}
+                    onChange={(e) => handleFormChange('transferIn', e.target.value)}
+                    disabled={!isEditMode}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Transfer-Out</label>
+                  <input 
+                    type="text" 
+                    value={formData.transferOut || ''}
+                    onChange={(e) => handleFormChange('transferOut', e.target.value)}
+                    disabled={!isEditMode}
+                  />
                 </div>
               </div>
             </div>
@@ -1005,14 +1277,11 @@ const CheckDetails = () => {
                         value={batchFormData.batchNumber}
                         onChange={(e) => handleBatchFormChange('batchNumber', e.target.value)}
                       />
-                    </div>
-                    <div className="form-group">
-                      <label>Batch Run Number</label>
-                      <input 
-                        type="text" 
-                        value={batchFormData.batchRunNumber}
-                        onChange={(e) => handleBatchFormChange('batchRunNumber', e.target.value)}
-                      />
+                      {batchValidationErrors.batchNumber && (
+                        <span className="error-text" style={{ color: '#dc2626', fontSize: '12px', display: 'block', marginTop: '4px' }}>
+                          {batchValidationErrors.batchNumber}
+                        </span>
+                      )}
                     </div>
                     <div className="form-group">
                       <label>Batch Date (MM/DD/YYYY)</label>
@@ -1025,11 +1294,28 @@ const CheckDetails = () => {
                     </div>
                     <div className="form-group">
                       <label>Batch Type</label>
-                      <input 
-                        type="text" 
+                      <select
                         value={batchFormData.batchType}
                         onChange={(e) => handleBatchFormChange('batchType', e.target.value)}
+                      >
+                        <option value="MANUAL">MANUAL</option>
+                        <option value="AUTO">AUTO</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Batch Run Number {batchFormData.batchType === 'AUTO' && '(Auto-generated)'}</label>
+                      <input 
+                        type="text" 
+                        value={batchFormData.batchRunNumber}
+                        onChange={(e) => handleBatchFormChange('batchRunNumber', e.target.value)}
+                        disabled={batchFormData.batchType === 'AUTO'}
+                        placeholder={batchFormData.batchType === 'AUTO' ? 'Auto-generated' : 'Enter run number'}
                       />
+                      {batchValidationErrors.batchRunNumber && (
+                        <span className="error-text" style={{ color: '#dc2626', fontSize: '12px', display: 'block', marginTop: '4px' }}>
+                          {batchValidationErrors.batchRunNumber}
+                        </span>
+                      )}
                     </div>
                     <div className="form-group">
                       <label>Batch Amount</label>
@@ -1060,20 +1346,35 @@ const CheckDetails = () => {
                 <table className="batches-table">
                   <thead>
                     <tr>
-                      <th>Batch Number</th>
-                      <th>Run Number</th>
-                      <th>Date</th>
-                      <th>Type</th>
-                      <th>Amount</th>
+                      <th className="sortable" onClick={() => handleSortBatches('batchNumber')}>
+                        Batch Number {getSortArrow('batchNumber')}
+                      </th>
+                      <th className="sortable" onClick={() => handleSortBatches('batchRunNumber')}>
+                        Run Number {getSortArrow('batchRunNumber')}
+                      </th>
+                      <th className="sortable" onClick={() => handleSortBatches('batchDate')}>
+                        Date {getSortArrow('batchDate')}
+                      </th>
+                      <th className="sortable" onClick={() => handleSortBatches('batchType')}>
+                        Type {getSortArrow('batchType')}
+                      </th>
+                      <th className="sortable" onClick={() => handleSortBatches('batchAmount')}>
+                        Amount {getSortArrow('batchAmount')}
+                      </th>
                       <th>Notes</th>
-                      <th>Created At</th>
-                      <th>Updated At</th>
+                      <th className="sortable" onClick={() => handleSortBatches('createdAt')}>
+                        Created At {getSortArrow('createdAt')}
+                      </th>
+                      <th className="sortable" onClick={() => handleSortBatches('updatedAt')}>
+                        Updated At {getSortArrow('updatedAt')}
+                      </th>
+                      <th>Status</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {check.batches && check.batches.length > 0 ? (
-                      check.batches.map((batch) => (
+                      getSortedBatches().map((batch) => (
                         editingBatchId === batch.batchId ? (
                           <tr key={batch.batchId} className="editing-row">
                             <td>
@@ -1090,6 +1391,8 @@ const CheckDetails = () => {
                                 value={batchFormData.batchRunNumber}
                                 onChange={(e) => handleBatchFormChange('batchRunNumber', e.target.value)}
                                 className="inline-input"
+                                disabled={batchFormData.batchType === 'AUTO'}
+                                placeholder={batchFormData.batchType === 'AUTO' ? 'Auto-generated' : ''}
                               />
                             </td>
                             <td>
@@ -1102,12 +1405,14 @@ const CheckDetails = () => {
                               />
                             </td>
                             <td>
-                              <input 
-                                type="text" 
+                              <select
                                 value={batchFormData.batchType}
                                 onChange={(e) => handleBatchFormChange('batchType', e.target.value)}
                                 className="inline-input"
-                              />
+                              >
+                                <option value="MANUAL">MANUAL</option>
+                                <option value="AUTO">AUTO</option>
+                              </select>
                             </td>
                             <td>
                               <input 
@@ -1144,6 +1449,11 @@ const CheckDetails = () => {
                               />
                             </td>
                             <td>
+                              <span className={`status-badge ${batch.isArchived ? 'status-archived' : 'status-active'}`}>
+                                {batch.isArchived ? 'Archived' : 'Active'}
+                              </span>
+                            </td>
+                            <td>
                               <div className="inline-actions">
                                 <button className="btn-icon save" onClick={handleUpdateBatch} title="Save">
                                   <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
@@ -1159,7 +1469,7 @@ const CheckDetails = () => {
                             </td>
                           </tr>
                         ) : (
-                          <tr key={batch.batchId} data-batch-id={batch.batchId}>
+                          <tr key={batch.batchId} data-batch-id={batch.batchId} className={batch.isArchived ? 'batch-archived' : ''}>
                             <td>{batch.batchNumber || 'N/A'}</td>
                             <td>{batch.batchRunNumber || 'N/A'}</td>
                             <td>{batch.batchDate ? formatDateUS(batch.batchDate) : 'N/A'}</td>
@@ -1185,23 +1495,55 @@ const CheckDetails = () => {
                               />
                             </td>
                             <td>
-                              <button 
-                                className="btn-icon edit"
-                                onClick={() => handleEditBatch(batch)}
-                                title="Edit"
-                              >
-                                <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-                                  <path d="M11 3H5C4.46957 3 3.96086 3.21071 3.58579 3.58579C3.21071 3.96086 3 4.46957 3 5V15C3 15.5304 3.21071 16.0391 3.58579 16.4142C3.96086 16.7893 4.46957 17 5 17H15C15.5304 17 16.0391 16.7893 16.4142 16.4142C16.7893 16.0391 17 15.5304 17 15V9" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                                  <path d="M14.5 1.5L18.5 5.5L11 13H7V9L14.5 1.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                </svg>
-                              </button>
+                              <span className={`status-badge ${batch.isArchived ? 'status-archived' : 'status-active'}`}>
+                                {batch.isArchived ? 'Archived' : 'Active'}
+                              </span>
+                            </td>
+                            <td>
+                              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                <button 
+                                  className="btn-icon edit"
+                                  onClick={() => handleEditBatch(batch)}
+                                  title="Edit"
+                                >
+                                  <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                                    <path d="M11 3H5C4.46957 3 3.96086 3.21071 3.58579 3.58579C3.21071 3.96086 3 4.46957 3 5V15C3 15.5304 3.21071 16.0391 3.58579 16.4142C3.96086 16.7893 4.46957 17 5 17H15C15.5304 17 16.0391 16.7893 16.4142 16.4142C16.7893 16.0391 17 15.5304 17 15V9" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                                    <path d="M14.5 1.5L18.5 5.5L11 13H7V9L14.5 1.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                  </svg>
+                                </button>
+                                <button 
+                                  className={`btn-icon archive ${batch.isArchived ? 'archived' : ''}`}
+                                  onClick={() => handleArchiveBatchClick(batch.batchId, batch.isArchived)}
+                                  title={batch.isArchived ? 'Unarchive' : 'Archive'}
+                                >
+                                  <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                                    {batch.isArchived ? (
+                                      <path d="M3 4H17M4 4V17C4 17.5304 4.21071 18.0391 4.58579 18.4142C4.96086 18.7893 5.46957 19 6 19H14C14.5304 19 15.0391 18.7893 15.4142 18.4142C15.7893 18.0391 16 17.5304 16 17V4M7 8L10 11L13 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                    ) : (
+                                      <path d="M3 4H17M4 4V17C4 17.5304 4.21071 18.0391 4.58579 18.4142C4.96086 18.7893 5.46957 19 6 19H14C14.5304 19 15.0391 18.7893 15.4142 18.4142C15.7893 18.0391 16 17.5304 16 17V4M7 8L10 5L13 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                    )}
+                                  </svg>
+                                </button>
+                                {isSuperAdmin && (
+                                  <button 
+                                    className="btn-icon delete"
+                                    onClick={() => handleDeleteBatch(batch.batchId)}
+                                    title="Delete (Super Admin only)"
+                                    style={{ color: '#dc2626' }}
+                                  >
+                                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                                      <path d="M3 6H5H17M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2C10.5304 2 11.0391 2.21071 11.4142 2.58579C11.7893 2.96086 12 3.46957 12 4V6M15 6V16C15 16.5304 14.7893 17.0391 14.4142 17.4142C14.0391 17.7893 13.5304 18 13 18H7C6.46957 18 5.96086 17.7893 5.58579 17.4142C5.21071 17.0391 5 16.5304 5 16V6H15Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                    </svg>
+                                  </button>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         )
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="9" className="empty-state">No batches found</td>
+                        <td colSpan="10" className="empty-state">No batches found</td>
                       </tr>
                     )}
                   </tbody>
@@ -1253,38 +1595,20 @@ const CheckDetails = () => {
                     </div>
                     <div className="form-group">
                       <label>Assignee</label>
-                      <SearchableDropdown
-                        options={[
-                          { value: '', label: 'Select Assignee' },
-                          ...users.map(user => ({
-                            value: user.userId || user.id,
-                            label: user.firstName && user.lastName 
-                              ? `${user.firstName} ${user.lastName}` 
-                              : user.email || 'Unknown User'
-                          }))
-                        ]}
-                        value={clarificationFormData.assigneeId}
-                        onChange={(value) => handleClarificationFormChange('assigneeId', value)}
-                        placeholder="Select Assignee"
-                        maxVisibleItems={5}
+                      <input 
+                        type="text" 
+                        value={clarificationFormData.assignee || 'ON-SHORE'}
+                        onChange={(e) => handleClarificationFormChange('assignee', e.target.value)}
+                        placeholder="ON-SHORE"
                       />
                     </div>
                     <div className="form-group">
                       <label>Reporter</label>
-                      <SearchableDropdown
-                        options={[
-                          { value: '', label: 'Select Reporter' },
-                          ...users.map(user => ({
-                            value: user.userId || user.id,
-                            label: user.firstName && user.lastName 
-                              ? `${user.firstName} ${user.lastName}` 
-                              : user.email || 'Unknown User'
-                          }))
-                        ]}
-                        value={clarificationFormData.reporterId}
-                        onChange={(value) => handleClarificationFormChange('reporterId', value)}
-                        placeholder="Select Reporter"
-                        maxVisibleItems={5}
+                      <input 
+                        type="text" 
+                        value={clarificationFormData.reportee || 'EBOTICS'}
+                        onChange={(e) => handleClarificationFormChange('reportee', e.target.value)}
+                        placeholder="EBOTICS"
                       />
                     </div>
                     <div className="form-group full-width">
@@ -1338,38 +1662,20 @@ const CheckDetails = () => {
                             </div>
                             <div className="form-group">
                               <label>Assignee</label>
-                              <SearchableDropdown
-                                options={[
-                                  { value: '', label: 'Select Assignee' },
-                                  ...users.map(user => ({
-                                    value: user.userId || user.id,
-                                    label: user.firstName && user.lastName 
-                                      ? `${user.firstName} ${user.lastName}` 
-                                      : user.email || 'Unknown User'
-                                  }))
-                                ]}
-                                value={clarificationFormData.assigneeId}
-                                onChange={(value) => handleClarificationFormChange('assigneeId', value)}
-                                placeholder="Select Assignee"
-                                maxVisibleItems={5}
+                              <input 
+                                type="text" 
+                                value={clarificationFormData.assignee || 'ON-SHORE'}
+                                onChange={(e) => handleClarificationFormChange('assignee', e.target.value)}
+                                placeholder="ON-SHORE"
                               />
                             </div>
                             <div className="form-group">
                               <label>Reporter</label>
-                              <SearchableDropdown
-                                options={[
-                                  { value: '', label: 'Select Reporter' },
-                                  ...users.map(user => ({
-                                    value: user.userId || user.id,
-                                    label: user.firstName && user.lastName 
-                                      ? `${user.firstName} ${user.lastName}` 
-                                      : user.email || 'Unknown User'
-                                  }))
-                                ]}
-                                value={clarificationFormData.reporterId}
-                                onChange={(value) => handleClarificationFormChange('reporterId', value)}
-                                placeholder="Select Reporter"
-                                maxVisibleItems={5}
+                              <input 
+                                type="text" 
+                                value={clarificationFormData.reportee || 'EBOTICS'}
+                                onChange={(e) => handleClarificationFormChange('reportee', e.target.value)}
+                                placeholder="EBOTICS"
                               />
                             </div>
                             <div className="form-group full-width">
@@ -1490,6 +1796,60 @@ const CheckDetails = () => {
         onClose={() => setShowActivityDrawer(false)}
         checkId={check?.checkId}
       />
+
+      {/* Archive/Unarchive Confirmation Modal */}
+      {showArchiveConfirm && (
+        <div 
+          className="modal-overlay"
+          onClick={handleArchiveBatchCancel}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}
+        >
+          <div 
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'white',
+              borderRadius: '8px',
+              padding: '24px',
+              maxWidth: '400px',
+              width: '90%',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+            }}
+          >
+            <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '20px', fontWeight: '600', color: '#111827' }}>
+              {archiveBatchIsArchived ? 'Unarchive Batch' : 'Archive Batch'}
+            </h3>
+            <p style={{ marginBottom: '24px', color: '#374151', fontSize: '14px', lineHeight: '1.5' }}>
+              Are you sure you want to {archiveBatchIsArchived ? 'unarchive' : 'archive'} this batch?
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button 
+                className="btn-cancel" 
+                onClick={handleArchiveBatchCancel}
+              >
+                Cancel
+              </button>
+              <button 
+                className="btn-save" 
+                onClick={handleArchiveBatchConfirm}
+              >
+                {archiveBatchIsArchived ? 'Unarchive' : 'Archive'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

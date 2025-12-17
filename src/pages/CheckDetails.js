@@ -1150,31 +1150,67 @@ const CheckDetails = () => {
               <div className="form-grid">
                 <div className="form-group">
                   <label>Total Amount</label>
-                  <input type="text" value={formatCurrency(check.totalAmount)} disabled />
+                  <input type="text" value={formatCurrency(check?.totalAmount)} disabled />
                 </div>
                 <div className="form-group">
                   <label>Posted Amount</label>
-                  <input type="text" value={formatCurrency(check.postedAmount)} disabled />
+                  <input type="text" value={formatCurrency(check?.postedAmount)} disabled />
                 </div>
                 <div className="form-group">
                   <label>Remaining Amount</label>
-                  <input type="text" value={formatCurrency(check.remainingAmount)} disabled />
+                  <input type="text" value={formatCurrency(check?.remainingAmount)} disabled />
                 </div>
                 <div className="form-group">
                   <label>Interest Amount</label>
-                  <input type="text" value={formatCurrency(check.interestAmount)} disabled />
+                  {isEditMode ? (
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      value={formData.interestAmount !== undefined ? formData.interestAmount : (check?.interestAmount || 0)} 
+                      onChange={(e) => handleFormChange('interestAmount', parseFloat(e.target.value) || 0)}
+                    />
+                  ) : (
+                    <input type="text" value={formatCurrency(check?.interestAmount)} disabled />
+                  )}
                 </div>
                 <div className="form-group">
                   <label>Non-AR Amount</label>
-                  <input type="text" value={formatCurrency(check.nonArAmount)} disabled />
+                  {isEditMode ? (
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      value={formData.nonArAmount !== undefined ? formData.nonArAmount : (check?.nonArAmount || 0)} 
+                      onChange={(e) => handleFormChange('nonArAmount', parseFloat(e.target.value) || 0)}
+                    />
+                  ) : (
+                    <input type="text" value={formatCurrency(check?.nonArAmount)} disabled />
+                  )}
                 </div>
                 <div className="form-group">
                   <label>Medical Records Fee</label>
-                  <input type="text" value={formatCurrency(check.medicalRecordsFee)} disabled />
+                  {isEditMode ? (
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      value={formData.medicalRecordsFee !== undefined ? formData.medicalRecordsFee : (check?.medicalRecordsFee || 0)} 
+                      onChange={(e) => handleFormChange('medicalRecordsFee', parseFloat(e.target.value) || 0)}
+                    />
+                  ) : (
+                    <input type="text" value={formatCurrency(check?.medicalRecordsFee)} disabled />
+                  )}
                 </div>
                 <div className="form-group">
                   <label>Corrections Amount</label>
-                  <input type="text" value={formatCurrency(check.correctionsAmount)} disabled />
+                  {isEditMode ? (
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      value={formData.correctionsAmount !== undefined ? formData.correctionsAmount : (check?.correctionsAmount || 0)} 
+                      onChange={(e) => handleFormChange('correctionsAmount', parseFloat(e.target.value) || 0)}
+                    />
+                  ) : (
+                    <input type="text" value={formatCurrency(check?.correctionsAmount)} disabled />
+                  )}
                 </div>
               </div>
             </div>

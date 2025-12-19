@@ -16,6 +16,8 @@ import CreateCheck from './pages/CreateCheck';
 import Clarifications from './pages/Clarifications';
 import Unknown from './pages/Unknown';
 import DITDRLPayments from './pages/DITDRLPayments';
+import DitDrl from './pages/DitDrl';
+import DitDrlDetails from './pages/DitDrlDetails';
 import Users from './pages/admin/Users';
 import Practices from './pages/admin/Practices';
 import Roles from './pages/admin/Roles';
@@ -163,6 +165,23 @@ function AppContent() {
           <Route path="/dit-drl-payments" element={
             <PermissionRoute permission={PERMISSIONS.PAYMENT_BATCH_LIST}>
               <DITDRLPayments />
+            </PermissionRoute>
+          } />
+          
+          {/* DIT/DRL - Requires PAYMENT_CHECK_LIST permission (using same permission as checks) */}
+          <Route path="/dit-drl" element={
+            <PermissionRoute permission={PERMISSIONS.PAYMENT_CHECK_LIST}>
+              <DitDrl />
+            </PermissionRoute>
+          } />
+          <Route path="/dit-drl/new" element={
+            <PermissionRoute permission={PERMISSIONS.PAYMENT_CHECK_CREATE}>
+              <DitDrlDetails />
+            </PermissionRoute>
+          } />
+          <Route path="/dit-drl/:id" element={
+            <PermissionRoute permission={PERMISSIONS.PAYMENT_CHECK_GET}>
+              <DitDrlDetails />
             </PermissionRoute>
           } />
           

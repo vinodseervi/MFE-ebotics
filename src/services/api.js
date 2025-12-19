@@ -715,6 +715,144 @@ class ApiService {
     return this.get(`/api/v1/checks/${checkId}/activities?${queryParams.toString()}`);
   }
 
+  // ==================== DIT/DRL Management APIs ====================
+
+  /**
+   * Search DIT/DRL dashboard with filters (POST)
+   * POST /api/v1/dit-drl/dashboard/search
+   * @param {Object} searchParams - Search parameters in request body
+   * @param {Array<string>} searchParams.statuses - Status array (NOT_STARTED, IN_PROGRESS, COMPLETED, etc.)
+   * @param {Array<string>} searchParams.siteCodes - Site codes array
+   * @param {Array<string>} searchParams.assigneeIds - Assignee user IDs array (UUIDs)
+   * @param {Array<string>} searchParams.reporterIds - Reporter user IDs array (UUIDs)
+   * @param {string} searchParams.siteCode - Site code (supports wildcards like "*ANN")
+   * @param {string} searchParams.batchNumber - Batch number (supports wildcards like "B-00*")
+   * @param {string} searchParams.dateReceivedFrom - Date received from (YYYY-MM-DD)
+   * @param {string} searchParams.dateReceivedTo - Date received to (YYYY-MM-DD)
+   * @param {string} searchParams.completedDateFrom - Completed date from (YYYY-MM-DD)
+   * @param {string} searchParams.completedDateTo - Completed date to (YYYY-MM-DD)
+   * @param {number} searchParams.page - Page number (default: 0)
+   * @param {number} searchParams.size - Page size (default: 50)
+   */
+  async searchDitDrlDashboard(searchParams = {}) {
+    const endpoint = '/api/v1/dit-drl/dashboard/search';
+    
+    // Build request body, only including non-empty values
+    const body = {};
+    
+    // Arrays - only include if not empty
+    if (searchParams.statuses && Array.isArray(searchParams.statuses) && searchParams.statuses.length > 0) {
+      body.statuses = searchParams.statuses;
+    }
+    if (searchParams.siteCodes && Array.isArray(searchParams.siteCodes) && searchParams.siteCodes.length > 0) {
+      body.siteCodes = searchParams.siteCodes;
+    }
+    if (searchParams.assigneeIds && Array.isArray(searchParams.assigneeIds) && searchParams.assigneeIds.length > 0) {
+      body.assigneeIds = searchParams.assigneeIds;
+    }
+    if (searchParams.reporterIds && Array.isArray(searchParams.reporterIds) && searchParams.reporterIds.length > 0) {
+      body.reporterIds = searchParams.reporterIds;
+    }
+    
+    // Strings - only include if not empty
+    if (searchParams.siteCode && searchParams.siteCode.trim() !== '') {
+      body.siteCode = searchParams.siteCode.trim();
+    }
+    if (searchParams.batchNumber && searchParams.batchNumber.trim() !== '') {
+      body.batchNumber = searchParams.batchNumber.trim();
+    }
+    
+    // Dates - only include if not empty
+    if (searchParams.dateReceivedFrom && searchParams.dateReceivedFrom.trim() !== '') {
+      body.dateReceivedFrom = searchParams.dateReceivedFrom.trim();
+    }
+    if (searchParams.dateReceivedTo && searchParams.dateReceivedTo.trim() !== '') {
+      body.dateReceivedTo = searchParams.dateReceivedTo.trim();
+    }
+    if (searchParams.completedDateFrom && searchParams.completedDateFrom.trim() !== '') {
+      body.completedDateFrom = searchParams.completedDateFrom.trim();
+    }
+    if (searchParams.completedDateTo && searchParams.completedDateTo.trim() !== '') {
+      body.completedDateTo = searchParams.completedDateTo.trim();
+    }
+    
+    // Pagination - always include
+    body.page = searchParams.page !== undefined ? searchParams.page : 0;
+    body.size = searchParams.size !== undefined ? searchParams.size : 50;
+    
+    return this.post(endpoint, body);
+  }
+
+  /**
+   * Get DIT/DRL by ID
+   * GET /api/v1/dit-drl/{ditDrlId}
+   * @param {string} ditDrlId - DIT/DRL ID (UUID)
+   */
+  async getDitDrlById(ditDrlId) {
+    return this.get(`/api/v1/dit-drl/${ditDrlId}`);
+  }
+
+  /**
+   * Create a new DIT/DRL
+   * POST /api/v1/dit-drl
+   * @param {Object} ditDrlData - DIT/DRL data
+   */
+  async createDitDrl(ditDrlData) {
+    return this.post('/api/v1/dit-drl', ditDrlData);
+  }
+
+  /**
+   * Update DIT/DRL
+   * PATCH /api/v1/dit-drl/{ditDrlId}
+   * @param {string} ditDrlId - DIT/DRL ID (UUID)
+   * @param {Object} ditDrlData - DIT/DRL data to update
+   */
+  async updateDitDrl(ditDrlId, ditDrlData) {
+    return this.patch(`/api/v1/dit-drl/${ditDrlId}`, ditDrlData);
+  }
+
+  /**
+   * Create batch for a DIT/DRL
+   * POST /api/v1/dit-drl/{ditDrlId}/batches
+   * @param {string} ditDrlId - DIT/DRL ID (UUID)
+   * @param {Object} batchData - Batch data
+   */
+  async createDitDrlBatch(ditDrlId, batchData) {
+    return this.post(`/api/v1/dit-drl/${ditDrlId}/batches`, batchData);
+  }
+
+  /**
+   * Update DIT/DRL batch
+   * PATCH /api/v1/dit-drl/{ditDrlId}/batches/{batchId}
+   * @param {string} ditDrlId - DIT/DRL ID (UUID)
+   * @param {string} batchId - Batch ID (UUID)
+   * @param {Object} batchData - Batch data to update
+   */
+  async updateDitDrlBatch(ditDrlId, batchId, batchData) {
+    return this.patch(`/api/v1/dit-drl/${ditDrlId}/batches/${batchId}`, batchData);
+  }
+
+  /**
+   * Archive/Unarchive DIT/DRL batch
+   * POST /api/v1/dit-drl/{ditDrlId}/batches/{batchId}/archive?archived={true|false}
+   * @param {string} ditDrlId - DIT/DRL ID (UUID)
+   * @param {string} batchId - Batch ID (UUID)
+   * @param {boolean} archived - Whether to archive (true) or unarchive (false)
+   */
+  async archiveDitDrlBatch(ditDrlId, batchId, archived = true) {
+    return this.post(`/api/v1/dit-drl/${ditDrlId}/batches/${batchId}/archive?archived=${archived}`, {});
+  }
+
+  /**
+   * Delete DIT/DRL batch
+   * DELETE /api/v1/dit-drl/{ditDrlId}/batches/{batchId}
+   * @param {string} ditDrlId - DIT/DRL ID (UUID)
+   * @param {string} batchId - Batch ID (UUID)
+   */
+  async deleteDitDrlBatch(ditDrlId, batchId) {
+    return this.delete(`/api/v1/dit-drl/${ditDrlId}/batches/${batchId}`);
+  }
+
   // ==================== Clarification Management APIs ====================
 
   /**

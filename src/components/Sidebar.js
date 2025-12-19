@@ -56,6 +56,11 @@ const Sidebar = ({ showAdminSubmenu, onAdminClick, isCollapsed, onToggleCollapse
       }
       return false;
     }
+    // Highlight DIT/DRL when on /dit-drl or /dit-drl/:id
+    if (path === '/dit-drl') {
+      return location.pathname === '/dit-drl' || 
+             location.pathname.startsWith('/dit-drl/');
+    }
     return location.pathname === path;
   };
 
@@ -167,7 +172,7 @@ const Sidebar = ({ showAdminSubmenu, onAdminClick, isCollapsed, onToggleCollapse
         </Link>
 
         {/* DIT/DRL Payments - Always visible in sidebar */}
-        <Link to="/dit-drl-payments" className={`nav-item ${isActive('/dit-drl-payments') ? 'active' : ''}`} title={isCollapsed ? 'DIT/DRL Payments' : ''}>
+        <Link to="/dit-drl" className={`nav-item ${isActive('/dit-drl') ? 'active' : ''}`} title={isCollapsed ? 'DIT/DRL Payments' : ''}>
           <MdOutlinePayment className="nav-icon" size={22} />
           {!isCollapsed && <span>DIT/DRL Payments</span>}
         </Link>

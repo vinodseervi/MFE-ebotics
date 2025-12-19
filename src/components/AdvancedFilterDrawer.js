@@ -6,7 +6,7 @@ import USDateInput from './USDateInput';
 import { filterEmojis } from '../utils/emojiFilter';
 import './AdvancedFilterDrawer.css';
 
-const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onResetFilters, isClarifications = false }) => {
+const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onResetFilters, isClarifications = false, isDitDrl = false }) => {
   const [localFilters, setLocalFilters] = useState(filters);
   const { users } = useUsers(); // Get users from context
   const [practices, setPractices] = useState([]);
@@ -16,14 +16,14 @@ const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onRese
     if (isOpen) {
       setLocalFilters(filters);
       // Removed: Users are now loaded from context on login
-      if (!isClarifications) {
+      if (!isClarifications && !isDitDrl) {
         fetchPractices();
       }
     }
-  }, [isOpen, filters, isClarifications]);
+  }, [isOpen, filters, isClarifications, isDitDrl]);
 
   useEffect(() => {
-    if (!isClarifications && localFilters.practiceCodes && localFilters.practiceCodes.length > 0 && practices.length > 0) {
+    if (!isClarifications && !isDitDrl && localFilters.practiceCodes && localFilters.practiceCodes.length > 0 && practices.length > 0) {
       // Fetch locations for all selected practices
       const fetchAllLocations = async () => {
         const allLocations = [];
@@ -46,7 +46,7 @@ const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onRese
       setLocations([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localFilters.practiceCodes, practices, isClarifications]);
+  }, [localFilters.practiceCodes, practices, isClarifications, isDitDrl]);
 
   // Removed: Users are now loaded from context on login, no need to fetch here
 
@@ -163,6 +163,19 @@ const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onRese
       endDate: '',
       month: null,
       year: null
+    } : isDitDrl ? {
+      statuses: [],
+      siteCodes: [],
+      assigneeIds: [],
+      reporterIds: [],
+      siteCode: '',
+      batchNumber: '',
+      dateReceivedFrom: '',
+      dateReceivedTo: '',
+      completedDateFrom: '',
+      completedDateTo: '',
+      month: null,
+      year: null
     } : {
       statuses: [],
       practiceCodes: [],
@@ -274,7 +287,7 @@ const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onRese
             </div>
           </div>
 
-          {!isClarifications && (
+          {!isClarifications && !isDitDrl && (
             <>
               <div className="filter-group">
                 <label>Practice</label>
@@ -489,26 +502,87 @@ const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onRese
             </div>
           </div>
 
-          <div className="filter-group">
-            <label>Check Number</label>
-            <input
-              type="text"
-              value={localFilters.checkNumber || ''}
-              onChange={(e) => handleChange('checkNumber', e.target.value)}
-              placeholder="Enter check number (e.g., ch* or ch)"
-            />
-          </div>
+          {isDitDrl ? (
+            <>
+              <div className="filter-group">
+                <label>Site Code (Wildcard)</label>
+                <input
+                  type="text"
+                  value={localFilters.siteCode || ''}
+                  onChange={(e) => handleChange('siteCode', e.target.value)}
+                  placeholder="Enter site code (e.g., *ANN or ANN)"
+                />
+              </div>
+              <div className="filter-group">
+                <label>Site Codes</label>
+                <div className="multi-select-wrapper">
+                  <div className="multi-select-input">
+                    <input
+                      type="text"
+                      placeholder="Enter site code and press Enter"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && e.target.value.trim()) {
+                          handleAddToArray('siteCodes', e.target.value.trim().toUpperCase());
+                          e.target.value = '';
+                        }
+                      }}
+                    />
+                  </div>
+                  {localFilters.siteCodes && localFilters.siteCodes.length > 0 && (
+                    <div className="selected-chips">
+                      {localFilters.siteCodes.map((siteCode) => (
+                        <div key={siteCode} className="selected-chip">
+                          <span>{siteCode}</span>
+                          <button
+                            type="button"
+                            className="chip-remove-btn"
+                            onClick={() => handleRemoveFromArray('siteCodes', siteCode)}
+                            title="Remove"
+                          >
+                            <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                              <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="filter-group">
+                <label>Batch Number</label>
+                <input
+                  type="text"
+                  value={localFilters.batchNumber || ''}
+                  onChange={(e) => handleChange('batchNumber', e.target.value)}
+                  placeholder="Enter batch number (e.g., B-00* or B-00)"
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="filter-group">
+                <label>Check Number</label>
+                <input
+                  type="text"
+                  value={localFilters.checkNumber || ''}
+                  onChange={(e) => handleChange('checkNumber', e.target.value)}
+                  placeholder="Enter check number (e.g., ch* or ch)"
+                />
+              </div>
 
-          {!isClarifications && (
-            <div className="filter-group">
-              <label>Batch Number</label>
-              <input
-                type="text"
-                value={localFilters.batchNumber || ''}
-                onChange={(e) => handleChange('batchNumber', e.target.value)}
-                placeholder="Enter batch number (e.g., B-00* or B-00)"
-              />
-            </div>
+              {!isClarifications && (
+                <div className="filter-group">
+                  <label>Batch Number</label>
+                  <input
+                    type="text"
+                    value={localFilters.batchNumber || ''}
+                    onChange={(e) => handleChange('batchNumber', e.target.value)}
+                    placeholder="Enter batch number (e.g., B-00* or B-00)"
+                  />
+                </div>
+              )}
+            </>
           )}
 
           {isClarifications ? (
@@ -528,6 +602,44 @@ const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onRese
                   name="openedDateTo"
                   value={localFilters.openedDateTo || ''}
                   onChange={(e) => handleDateChange('openedDateTo', e.target.value)}
+                />
+              </div>
+            </>
+          ) : isDitDrl ? (
+            <>
+              <div className="filter-group">
+                <label>Date Received From</label>
+                <USDateInput
+                  name="dateReceivedFrom"
+                  value={localFilters.dateReceivedFrom || ''}
+                  onChange={(e) => handleDateChange('dateReceivedFrom', e.target.value)}
+                />
+              </div>
+
+              <div className="filter-group">
+                <label>Date Received To</label>
+                <USDateInput
+                  name="dateReceivedTo"
+                  value={localFilters.dateReceivedTo || ''}
+                  onChange={(e) => handleDateChange('dateReceivedTo', e.target.value)}
+                />
+              </div>
+
+              <div className="filter-group">
+                <label>Completed Date From</label>
+                <USDateInput
+                  name="completedDateFrom"
+                  value={localFilters.completedDateFrom || ''}
+                  onChange={(e) => handleDateChange('completedDateFrom', e.target.value)}
+                />
+              </div>
+
+              <div className="filter-group">
+                <label>Completed Date To</label>
+                <USDateInput
+                  name="completedDateTo"
+                  value={localFilters.completedDateTo || ''}
+                  onChange={(e) => handleDateChange('completedDateTo', e.target.value)}
                 />
               </div>
             </>

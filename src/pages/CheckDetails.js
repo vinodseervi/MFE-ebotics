@@ -38,6 +38,10 @@ const CheckDetails = () => {
   const [archiveBatchIsArchived, setArchiveBatchIsArchived] = useState(false);
   const [showDeleteWarning, setShowDeleteWarning] = useState(false);
   const [deleteWarningBatchId, setDeleteWarningBatchId] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmBatchId, setDeleteConfirmBatchId] = useState(null);
+  const [showValidationError, setShowValidationError] = useState(false);
+  const [validationErrorMessages, setValidationErrorMessages] = useState([]);
   
   // Clarifications state
   const [isAddingClarification, setIsAddingClarification] = useState(false);
@@ -375,6 +379,18 @@ const CheckDetails = () => {
   const handleAddBatch = async () => {
     // Validate uniqueness
     if (!validateBatchUniqueness()) {
+      // Show notification for validation errors
+      const errorMessages = [];
+      if (batchValidationErrors.batchNumber) {
+        errorMessages.push(batchValidationErrors.batchNumber);
+      }
+      if (batchValidationErrors.batchRunNumber) {
+        errorMessages.push(batchValidationErrors.batchRunNumber);
+      }
+      if (errorMessages.length > 0) {
+        setValidationErrorMessages(errorMessages);
+        setShowValidationError(true);
+      }
       return;
     }
     
@@ -425,6 +441,18 @@ const CheckDetails = () => {
   const handleUpdateBatch = async () => {
     // Validate uniqueness
     if (!validateBatchUniqueness()) {
+      // Show notification for validation errors
+      const errorMessages = [];
+      if (batchValidationErrors.batchNumber) {
+        errorMessages.push(batchValidationErrors.batchNumber);
+      }
+      if (batchValidationErrors.batchRunNumber) {
+        errorMessages.push(batchValidationErrors.batchRunNumber);
+      }
+      if (errorMessages.length > 0) {
+        setValidationErrorMessages(errorMessages);
+        setShowValidationError(true);
+      }
       return;
     }
     
@@ -507,18 +535,31 @@ const CheckDetails = () => {
       return;
     }
     
-    if (!window.confirm('Are you sure you want to delete this archived batch? This action cannot be undone.')) {
-      return;
-    }
+    // Show delete confirmation modal
+    setDeleteConfirmBatchId(batchId);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirmBatchId) return;
     
     try {
-      await api.deleteBatch(id, batchId);
+      await api.deleteBatch(id, deleteConfirmBatchId);
       await fetchCheckDetails();
+      setShowDeleteConfirm(false);
+      setDeleteConfirmBatchId(null);
     } catch (err) {
       console.error('Error deleting batch:', err);
       const errorMessage = err?.data?.message || err?.message || 'Failed to delete batch. Please try again.';
       alert(errorMessage);
+      setShowDeleteConfirm(false);
+      setDeleteConfirmBatchId(null);
     }
+  };
+
+  const handleDeleteConfirmCancel = () => {
+    setShowDeleteConfirm(false);
+    setDeleteConfirmBatchId(null);
   };
 
   const handleDeleteWarningClose = () => {
@@ -1433,13 +1474,11 @@ const CheckDetails = () => {
                   <h4>Add New Batch</h4>
                   <div className="form-grid">
                     <div className="form-group">
-                      <label>Batch Run Number (Auto-generated)</label>
+                      <label>Batch Run Number</label>
                       <input 
                         type="text" 
                         value={batchFormData.batchRunNumber}
-                        disabled
-                        readOnly
-                        style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed' }}
+                        onChange={(e) => handleBatchFormChange('batchRunNumber', e.target.value)}
                       />
                       {batchValidationErrors.batchRunNumber && (
                         <span className="error-text" style={{ color: '#dc2626', fontSize: '12px', display: 'block', marginTop: '4px' }}>
@@ -1487,16 +1526,17 @@ const CheckDetails = () => {
                         onChange={(e) => handleBatchFormChange('batchAmount', e.target.value)}
                       />
                     </div>
-                    {searchParams.get('source') === 'unknown' && (
-                      <div className="form-group">
-                        <label>Invoice Number</label>
-                        <input 
-                          type="text" 
-                          value={batchFormData.invoiceNumber}
-                          onChange={(e) => handleBatchFormChange('invoiceNumber', e.target.value)}
-                        />
-                      </div>
-                    )}
+                    <div className="form-group">
+                      <label>Invoice Number</label>
+                      <input 
+                        type="text" 
+                        value={batchFormData.invoiceNumber}
+                        onChange={(e) => handleBatchFormChange('invoiceNumber', e.target.value)}
+                        disabled={searchParams.get('source') !== 'unknown'}
+                        readOnly={searchParams.get('source') !== 'unknown'}
+                        style={searchParams.get('source') !== 'unknown' ? { backgroundColor: '#f3f4f6', cursor: 'not-allowed' } : {}}
+                      />
+                    </div>
                     <div className="form-group full-width">
                       <label>Batch Notes</label>
                       <textarea 
@@ -1533,11 +1573,9 @@ const CheckDetails = () => {
                       <th className="sortable" onClick={() => handleSortBatches('batchAmount')}>
                         Amount {getSortArrow('batchAmount')}
                       </th>
-                      {searchParams.get('source') === 'unknown' && (
-                        <th className="sortable" onClick={() => handleSortBatches('invoiceNumber')}>
-                          Invoice Number {getSortArrow('invoiceNumber')}
-                        </th>
-                      )}
+                      <th className="sortable" onClick={() => handleSortBatches('invoiceNumber')}>
+                        Invoice Number {getSortArrow('invoiceNumber')}
+                      </th>
                       <th>Notes</th>
                       <th className="sortable" onClick={() => handleSortBatches('createdAt')}>
                         Created At {getSortArrow('createdAt')}
@@ -1557,11 +1595,14 @@ const CheckDetails = () => {
                               <input 
                                 type="text" 
                                 value={batchFormData.batchRunNumber}
-                                disabled
-                                readOnly
+                                onChange={(e) => handleBatchFormChange('batchRunNumber', e.target.value)}
                                 className="inline-input"
-                                style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed' }}
                               />
+                              {batchValidationErrors.batchRunNumber && (
+                                <span className="error-text" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '2px' }}>
+                                  {batchValidationErrors.batchRunNumber}
+                                </span>
+                              )}
                             </td>
                             <td>
                               <input 
@@ -1570,6 +1611,11 @@ const CheckDetails = () => {
                                 onChange={(e) => handleBatchFormChange('batchNumber', e.target.value)}
                                 className="inline-input"
                               />
+                              {batchValidationErrors.batchNumber && (
+                                <span className="error-text" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '2px' }}>
+                                  {batchValidationErrors.batchNumber}
+                                </span>
+                              )}
                             </td>
                             <td>
                               <USDateInput
@@ -1598,16 +1644,17 @@ const CheckDetails = () => {
                                 className="inline-input"
                               />
                             </td>
-                            {searchParams.get('source') === 'unknown' && (
-                              <td>
-                                <input 
-                                  type="text" 
-                                  value={batchFormData.invoiceNumber}
-                                  onChange={(e) => handleBatchFormChange('invoiceNumber', e.target.value)}
-                                  className="inline-input"
-                                />
-                              </td>
-                            )}
+                            <td>
+                              <input 
+                                type="text" 
+                                value={batchFormData.invoiceNumber}
+                                onChange={(e) => handleBatchFormChange('invoiceNumber', e.target.value)}
+                                className="inline-input"
+                                disabled={searchParams.get('source') !== 'unknown'}
+                                readOnly={searchParams.get('source') !== 'unknown'}
+                                style={searchParams.get('source') !== 'unknown' ? { backgroundColor: '#f3f4f6', cursor: 'not-allowed' } : {}}
+                              />
+                            </td>
                             <td>
                               <input 
                                 type="text" 
@@ -1656,9 +1703,7 @@ const CheckDetails = () => {
                             <td>{batch.batchDate ? formatDateUS(batch.batchDate) : 'N/A'}</td>
                             <td>{batch.batchType || 'N/A'}</td>
                             <td>{formatCurrency(batch.batchAmount)}</td>
-                            {searchParams.get('source') === 'unknown' && (
-                              <td>{batch.invoiceNumber || 'N/A'}</td>
-                            )}
+                            <td>{batch.invoiceNumber || 'N/A'}</td>
                             <td>{batch.batchNotes || 'N/A'}</td>
                             <td>
                               <UserTimestamp
@@ -1724,7 +1769,7 @@ const CheckDetails = () => {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={searchParams.get('source') === 'unknown' ? 10 : 9} className="empty-state">No batches found</td>
+                        <td colSpan={10} className="empty-state">No batches found</td>
                       </tr>
                     )}
                   </tbody>
@@ -2078,6 +2123,151 @@ const CheckDetails = () => {
               <button 
                 className="btn-ok" 
                 onClick={handleDeleteWarningClose}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal - Archived Batch */}
+      {showDeleteConfirm && (
+        <div 
+          className="modal-overlay"
+          onClick={handleDeleteConfirmCancel}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}
+        >
+          <div 
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'white',
+              borderRadius: '8px',
+              padding: '24px',
+              maxWidth: '450px',
+              width: '90%',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                background: '#FEF2F2',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: '12px'
+              }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ color: '#DC2626' }}>
+                  <path d="M3 6H5H21M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2C10.5304 2 11.0391 2.21071 11.4142 2.58579C11.7893 2.96086 12 3.46957 12 4V6M15 6V16C15 16.5304 14.7893 17.0391 14.4142 17.4142C14.0391 17.7893 13.5304 18 13 18H7C6.46957 18 5.96086 17.7893 5.58579 17.4142C5.21071 17.0391 5 16.5304 5 16V6H15Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '600', color: '#111827' }}>
+                Delete Batch
+              </h3>
+            </div>
+            <p style={{ marginBottom: '24px', marginLeft: '52px', color: '#374151', fontSize: '14px', lineHeight: '1.5' }}>
+              Are you sure you want to delete this archived batch? This action cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button 
+                className="btn-cancel" 
+                onClick={handleDeleteConfirmCancel}
+              >
+                Cancel
+              </button>
+              <button 
+                className="btn-save" 
+                onClick={handleDeleteConfirm}
+                style={{ background: '#DC2626', color: 'white' }}
+                onMouseEnter={(e) => e.target.style.background = '#B91C1C'}
+                onMouseLeave={(e) => e.target.style.background = '#DC2626'}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Validation Error Modal */}
+      {showValidationError && (
+        <div 
+          className="modal-overlay"
+          onClick={() => setShowValidationError(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}
+        >
+          <div 
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'white',
+              borderRadius: '8px',
+              padding: '24px',
+              maxWidth: '450px',
+              width: '90%',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                background: '#FEF2F2',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: '12px'
+              }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ color: '#DC2626' }}>
+                  <path d="M12 8V12M12 16H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '600', color: '#111827' }}>
+                Validation Failed
+              </h3>
+            </div>
+            <div style={{ marginBottom: '24px', marginLeft: '52px' }}>
+              <p style={{ margin: '0 0 12px 0', color: '#374151', fontSize: '14px', lineHeight: '1.5' }}>
+                The following errors were found:
+              </p>
+              <ul style={{ margin: 0, paddingLeft: '20px', color: '#DC2626', fontSize: '14px', lineHeight: '1.8' }}>
+                {validationErrorMessages.map((message, index) => (
+                  <li key={index} style={{ marginBottom: '4px' }}>{message}</li>
+                ))}
+              </ul>
+            </div>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button 
+                className="btn-primary" 
+                onClick={() => setShowValidationError(false)}
+                style={{ minWidth: '80px' }}
               >
                 OK
               </button>

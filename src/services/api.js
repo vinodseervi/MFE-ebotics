@@ -681,13 +681,13 @@ class ApiService {
 
   /**
    * Archive/Unarchive batch
-   * PATCH /api/v1/checks/{checkId}/batches/{batchId}?archived={true|false}
+   * POST /api/v1/checks/{checkId}/batches/{batchId}/archive?archived={true|false}
    * @param {string} checkId - Check ID (UUID)
    * @param {string} batchId - Batch ID (UUID)
    * @param {boolean} archived - Whether to archive (true) or unarchive (false)
    */
   async archiveBatch(checkId, batchId, archived = true) {
-    return this.patch(`/api/v1/checks/${checkId}/batches/${batchId}?archived=${archived}`, {});
+    return this.post(`/api/v1/checks/${checkId}/batches/${batchId}/archive?archived=${archived}`, {});
   }
 
   /**

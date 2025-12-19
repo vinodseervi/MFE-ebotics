@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import api from '../services/api';
+import SearchableDropdown from '../components/SearchableDropdown';
 import './Dashboard.css';
 
 const Dashboard = () => {
@@ -8,14 +9,45 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filters, setFilters] = useState({});
-  const [dateRange, setDateRange] = useState({
-    depositDateFrom: null,
-    depositDateTo: null
+  const [practices, setPractices] = useState([]);
+  const [showFilterSidebar, setShowFilterSidebar] = useState(false);
+  const [localFilters, setLocalFilters] = useState({
+    depositDateFrom: '',
+    depositDateTo: '',
+    practiceCodes: [],
+    unknown: false
   });
+
+  useEffect(() => {
+    fetchPractices();
+    fetchKPIData();
+  }, []);
 
   useEffect(() => {
     fetchKPIData();
   }, [filters]);
+
+  // Sync local filters with applied filters when sidebar opens
+  useEffect(() => {
+    if (showFilterSidebar) {
+      setLocalFilters({
+        depositDateFrom: filters.depositDateFrom || '',
+        depositDateTo: filters.depositDateTo || '',
+        practiceCodes: filters.practiceCodes || [],
+        unknown: filters.unknown || false
+      });
+    }
+  }, [showFilterSidebar, filters]);
+
+  const fetchPractices = async () => {
+    try {
+      const response = await api.getAllPractices();
+      const practicesList = Array.isArray(response) ? response : (response?.items || []);
+      setPractices(practicesList.filter(p => p.isActive !== false));
+    } catch (error) {
+      console.error('Error fetching practices:', error);
+    }
+  };
 
   const fetchKPIData = async () => {
     try {
@@ -59,30 +91,83 @@ const Dashboard = () => {
     return 'Current Month';
   };
 
-  const handleDateRangeChange = (field, value) => {
-    setDateRange(prev => ({
+  const handleFilterChange = (field, value) => {
+    setLocalFilters(prev => ({
       ...prev,
       [field]: value
     }));
   };
 
-  const applyDateFilter = () => {
+  const [selectedPracticeValue, setSelectedPracticeValue] = useState('');
+
+  const handlePracticeAdd = (practiceCode) => {
+    if (!practiceCode || practiceCode === '') return;
+    setLocalFilters(prev => {
+      const currentCodes = prev.practiceCodes || [];
+      if (currentCodes.includes(practiceCode)) {
+        return prev;
+      }
+      return {
+        ...prev,
+        practiceCodes: [...currentCodes, practiceCode]
+      };
+    });
+    // Reset dropdown after selection
+    setSelectedPracticeValue('');
+  };
+
+  const handlePracticeRemove = (practiceCode) => {
+    setLocalFilters(prev => ({
+      ...prev,
+      practiceCodes: (prev.practiceCodes || []).filter(code => code !== practiceCode)
+    }));
+  };
+
+  const applyFilters = () => {
     const newFilters = {};
-    if (dateRange.depositDateFrom) {
-      newFilters.depositDateFrom = dateRange.depositDateFrom;
+    
+    if (localFilters.depositDateFrom) {
+      newFilters.depositDateFrom = localFilters.depositDateFrom;
     }
-    if (dateRange.depositDateTo) {
-      newFilters.depositDateTo = dateRange.depositDateTo;
+    if (localFilters.depositDateTo) {
+      newFilters.depositDateTo = localFilters.depositDateTo;
     }
+    if (localFilters.practiceCodes && localFilters.practiceCodes.length > 0) {
+      newFilters.practiceCodes = [...localFilters.practiceCodes];
+    }
+    if (localFilters.unknown !== undefined && localFilters.unknown !== false) {
+      newFilters.unknown = localFilters.unknown;
+    }
+    
     setFilters(newFilters);
   };
 
   const clearFilters = () => {
-    setDateRange({
-      depositDateFrom: null,
-      depositDateTo: null
+    setLocalFilters({
+      depositDateFrom: '',
+      depositDateTo: '',
+      practiceCodes: [],
+      unknown: false
     });
     setFilters({});
+  };
+
+  const hasActiveFilters = () => {
+    return (
+      filters.depositDateFrom ||
+      filters.depositDateTo ||
+      (filters.practiceCodes && filters.practiceCodes.length > 0) ||
+      filters.unknown
+    );
+  };
+
+  const getAppliedFilters = () => {
+    const applied = {};
+    if (filters.depositDateFrom) applied.depositDateFrom = filters.depositDateFrom;
+    if (filters.depositDateTo) applied.depositDateTo = filters.depositDateTo;
+    if (filters.practiceCodes) applied.practiceCodes = filters.practiceCodes;
+    if (filters.unknown) applied.unknown = filters.unknown;
+    return applied;
   };
 
   const STATUS_COLORS = {
@@ -170,36 +255,115 @@ const Dashboard = () => {
           </p>
         </div>
         <div className="header-actions">
-          <div className="date-filter-container">
-            <div className="date-input-group">
-              <label>From:</label>
-              <input
-                type="date"
-                value={dateRange.depositDateFrom || ''}
-                onChange={(e) => handleDateRangeChange('depositDateFrom', e.target.value)}
-                className="date-input"
-              />
-            </div>
-            <div className="date-input-group">
-              <label>To:</label>
-              <input
-                type="date"
-                value={dateRange.depositDateTo || ''}
-                onChange={(e) => handleDateRangeChange('depositDateTo', e.target.value)}
-                className="date-input"
-              />
-            </div>
-            <button onClick={applyDateFilter} className="filter-button">
-              Apply
-            </button>
-            {(filters.depositDateFrom || filters.depositDateTo) && (
-              <button onClick={clearFilters} className="clear-button">
-                Clear
-              </button>
+          <button 
+            onClick={() => setShowFilterSidebar(true)} 
+            className={`custom-filter-button ${hasActiveFilters() ? 'has-filters' : ''}`}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>
+            </svg>
+            Custom Filter
+            {hasActiveFilters() && (
+              <span className="filter-badge">
+                {Object.keys(getAppliedFilters()).length}
+              </span>
             )}
-          </div>
+          </button>
         </div>
       </div>
+
+      {/* Active Filters */}
+      {hasActiveFilters() && (() => {
+        const appliedFilters = getAppliedFilters();
+        return (
+          <div className="active-filters-section">
+            <div className="active-filters-label">Active Filters:</div>
+            <div className="active-filters-chips">
+              {appliedFilters.depositDateFrom && (
+                <div className="filter-chip">
+                  <span>From: {formatDate(appliedFilters.depositDateFrom)}</span>
+                  <button
+                    className="chip-close-btn"
+                    onClick={() => {
+                      const newFilters = { ...filters };
+                      delete newFilters.depositDateFrom;
+                      setFilters(newFilters);
+                      setLocalFilters(prev => ({ ...prev, depositDateFrom: '' }));
+                    }}
+                    title="Remove date filter"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                      <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                </div>
+              )}
+              {appliedFilters.depositDateTo && (
+                <div className="filter-chip">
+                  <span>To: {formatDate(appliedFilters.depositDateTo)}</span>
+                  <button
+                    className="chip-close-btn"
+                    onClick={() => {
+                      const newFilters = { ...filters };
+                      delete newFilters.depositDateTo;
+                      setFilters(newFilters);
+                      setLocalFilters(prev => ({ ...prev, depositDateTo: '' }));
+                    }}
+                    title="Remove date filter"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                      <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                </div>
+              )}
+              {appliedFilters.practiceCodes && appliedFilters.practiceCodes.length > 0 && appliedFilters.practiceCodes.map((practiceCode) => (
+                <div key={practiceCode} className="filter-chip">
+                  <span>Practice: {practices.find(p => p.code === practiceCode)?.name || practiceCode}</span>
+                  <button
+                    className="chip-close-btn"
+                    onClick={() => {
+                      const newFilters = { ...filters };
+                      if (newFilters.practiceCodes) {
+                        newFilters.practiceCodes = newFilters.practiceCodes.filter(code => code !== practiceCode);
+                        if (newFilters.practiceCodes.length === 0) {
+                          delete newFilters.practiceCodes;
+                        }
+                      }
+                      setFilters(newFilters);
+                      handlePracticeRemove(practiceCode);
+                    }}
+                    title="Remove practice filter"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                      <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                </div>
+              ))}
+              {appliedFilters.unknown && (
+                <div className="filter-chip">
+                  <span>Unknown</span>
+                  <button
+                    className="chip-close-btn"
+                    onClick={() => {
+                      const newFilters = { ...filters };
+                      delete newFilters.unknown;
+                      setFilters(newFilters);
+                      setLocalFilters(prev => ({ ...prev, unknown: false }));
+                    }}
+                    title="Remove unknown filter"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                      <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* KPI Cards */}
       <div className="stats-grid">
@@ -304,14 +468,13 @@ const Dashboard = () => {
             <h3 className="chart-title">Status Distribution</h3>
             <div className="chart-subtitle">Check count by status</div>
           </div>
-          <ResponsiveContainer width="100%" height={220}>
+          <ResponsiveContainer width="100%" height={180}>
             <PieChart>
               <Pie
                 data={prepareStatusChartData()}
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ name, percentage }) => `${name}: ${percentage.toFixed(1)}%`}
                 outerRadius={80}
                 fill="#8884d8"
                 dataKey="value"
@@ -334,6 +497,18 @@ const Dashboard = () => {
               />
             </PieChart>
           </ResponsiveContainer>
+          <div className="chart-legend">
+            {prepareStatusChartData().map((entry, index) => (
+              <div key={index} className="legend-item">
+                <div 
+                  className="legend-color" 
+                  style={{ backgroundColor: STATUS_COLORS[entry.status] || '#8884d8' }}
+                ></div>
+                <span className="legend-label">{entry.name}</span>
+                <span className="legend-percentage">{entry.percentage.toFixed(1)}%</span>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="chart-card">
@@ -377,6 +552,103 @@ const Dashboard = () => {
           </ResponsiveContainer>
         </div>
       </div>
+
+      {/* Filter Sidebar */}
+      {showFilterSidebar && (
+        <>
+          <div className="filter-sidebar-overlay" onClick={() => setShowFilterSidebar(false)}></div>
+          <div className="filter-sidebar">
+            <div className="filter-sidebar-header">
+              <h2>Custom Filters</h2>
+              <button 
+                className="filter-sidebar-close"
+                onClick={() => setShowFilterSidebar(false)}
+                title="Close"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 6L6 18M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
+            <div className="filter-sidebar-content">
+              <div className="sidebar-filter-group">
+                <label>Deposit Date From:</label>
+                <input
+                  type="date"
+                  value={localFilters.depositDateFrom || ''}
+                  onChange={(e) => handleFilterChange('depositDateFrom', e.target.value)}
+                  className="sidebar-filter-input"
+                />
+              </div>
+              
+              <div className="sidebar-filter-group">
+                <label>Deposit Date To:</label>
+                <input
+                  type="date"
+                  value={localFilters.depositDateTo || ''}
+                  onChange={(e) => handleFilterChange('depositDateTo', e.target.value)}
+                  className="sidebar-filter-input"
+                />
+              </div>
+
+              <div className="sidebar-filter-group">
+                <label>Practice:</label>
+                <SearchableDropdown
+                  options={practices
+                    .filter(p => !localFilters.practiceCodes?.includes(p.code))
+                    .map(p => ({ value: p.code, label: `${p.code} - ${p.name}` }))}
+                  value={selectedPracticeValue}
+                  onChange={handlePracticeAdd}
+                  placeholder="Select practice..."
+                />
+                {localFilters.practiceCodes && localFilters.practiceCodes.length > 0 && (
+                  <div className="selected-practices">
+                    {localFilters.practiceCodes.map((practiceCode) => (
+                      <div key={practiceCode} className="selected-practice-chip">
+                        <span>{practices.find(p => p.code === practiceCode)?.name || practiceCode}</span>
+                        <button
+                          onClick={() => handlePracticeRemove(practiceCode)}
+                          className="chip-remove-btn"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                            <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="sidebar-filter-group">
+                <label className="sidebar-checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={localFilters.unknown || false}
+                    onChange={(e) => handleFilterChange('unknown', e.target.checked)}
+                    className="sidebar-filter-checkbox"
+                  />
+                  <span>Include Unknown Checks</span>
+                </label>
+              </div>
+            </div>
+            <div className="filter-sidebar-footer">
+              <button onClick={() => {
+                clearFilters();
+                setShowFilterSidebar(false);
+              }} className="sidebar-clear-button">
+                Clear All
+              </button>
+              <button onClick={() => {
+                applyFilters();
+                setShowFilterSidebar(false);
+              }} className="sidebar-apply-button">
+                Apply Filters
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

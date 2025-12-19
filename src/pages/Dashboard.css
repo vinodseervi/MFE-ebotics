@@ -99,43 +99,130 @@
   gap: 12px;
 }
 
-.date-filter-container {
+.custom-filter-button {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  padding: 10px 16px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.custom-filter-button:hover {
+  background: #2563eb;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.custom-filter-button svg {
+  flex-shrink: 0;
+}
+
+.custom-filter-button.has-filters {
+  background: #10b981;
+}
+
+.custom-filter-button.has-filters:hover {
+  background: #059669;
+}
+
+.filter-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 4px;
+}
+
+.filter-container {
+  width: 100%;
   background: white;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  padding: 12px;
 }
 
-.date-input-group {
+.filter-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
-.date-input-group label {
-  font-size: 13px;
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 1 auto;
+}
+
+.filter-group label {
+  font-size: 12px;
   color: #6b7280;
   font-weight: 500;
+  white-space: nowrap;
+  min-width: 50px;
 }
 
-.date-input {
-  padding: 8px 12px;
+.filter-input {
+  padding: 6px 10px;
   border: 1px solid #d1d5db;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 13px;
   color: #111827;
   background: white;
   transition: border-color 0.2s, box-shadow 0.2s;
+  min-width: 140px;
+  width: 140px;
 }
 
-.date-input:focus {
+.filter-input:focus {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.checkbox-group {
+  display: flex;
+  align-items: center;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #374151;
+  font-weight: 400;
+  margin: 0;
+}
+
+.filter-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #3b82f6;
+}
+
+.filter-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
 }
 
 .filter-button,
@@ -165,6 +252,287 @@
 
 .clear-button:hover {
   background: #e5e7eb;
+}
+
+/* Active Filters Section */
+.active-filters-section {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.active-filters-label {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.active-filters-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.filter-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #374151;
+}
+
+.filter-chip span {
+  white-space: nowrap;
+}
+
+.chip-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #6b7280;
+  transition: background 0.2s, color 0.2s;
+  flex-shrink: 0;
+}
+
+.chip-close-btn:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+/* Filter Sidebar */
+.filter-sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.filter-sidebar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 400px;
+  max-width: calc(100vw - 40px);
+  background: white;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.15);
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.filter-sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+.filter-sidebar-header h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.filter-sidebar-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #6b7280;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.filter-sidebar-close:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.filter-sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.sidebar-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebar-filter-group label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.sidebar-filter-input {
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #111827;
+  background: white;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  width: 100%;
+}
+
+.sidebar-filter-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.sidebar-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #374151;
+  font-weight: 400;
+}
+
+.sidebar-filter-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #3b82f6;
+}
+
+.selected-practices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.selected-practice-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #1e40af;
+}
+
+.selected-practice-chip span {
+  white-space: nowrap;
+}
+
+.chip-remove-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #1e40af;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.chip-remove-btn:hover {
+  background: #dbeafe;
+}
+
+.filter-sidebar-footer {
+  display: flex;
+  gap: 12px;
+  padding: 20px 24px;
+  border-top: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+.sidebar-clear-button,
+.sidebar-apply-button {
+  flex: 1;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sidebar-clear-button {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.sidebar-clear-button:hover {
+  background: #e5e7eb;
+}
+
+.sidebar-apply-button {
+  background: #3b82f6;
+  color: white;
+}
+
+.sidebar-apply-button:hover {
+  background: #2563eb;
+}
+
+@media (max-width: 768px) {
+  .filter-sidebar {
+    width: 100%;
+    max-width: 100vw;
+  }
 }
 
 /* Stats Grid */
@@ -405,6 +773,40 @@
   margin: 0;
 }
 
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+  justify-content: center;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.legend-label {
+  color: #374151;
+  font-weight: 500;
+}
+
+.legend-percentage {
+  color: #6b7280;
+  font-weight: 600;
+}
+
 /* Responsive Design */
 @media (max-width: 1400px) {
   .stats-grid {
@@ -443,18 +845,32 @@
     width: 100%;
   }
   
-  .date-filter-container {
-    flex-wrap: wrap;
+  .filter-container {
     width: 100%;
   }
   
-  .date-input-group {
-    flex: 1;
-    min-width: 150px;
+  .filter-row {
+    flex-direction: column;
+    align-items: stretch;
   }
   
-  .date-input-group input {
+  .filter-group {
+    width: 100%;
+  }
+  
+  .filter-group label {
+    min-width: 80px;
+  }
+  
+  .filter-input {
     flex: 1;
+    width: 100%;
+  }
+  
+  .filter-actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-end;
   }
 }
 

@@ -21,6 +21,8 @@ const CheckUpload = () => {
   const [uploading, setUploading] = useState(false);
   const [jobName, setJobName] = useState('');
   const [assigneeId, setAssigneeId] = useState('');
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [columnValidationError, setColumnValidationError] = useState(null);
   
   // Checks state
   const [checks, setChecks] = useState([]);
@@ -39,6 +41,11 @@ const CheckUpload = () => {
   const [revalidating, setRevalidating] = useState(false);
   const [promoting, setPromoting] = useState(false);
   const [showPromoteConfirm, setShowPromoteConfirm] = useState(false);
+  
+  // Delete state
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [jobToDelete, setJobToDelete] = useState(null);
   
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
@@ -120,7 +127,7 @@ const CheckUpload = () => {
     }
   };
 
-  const handleDrop = (e) => {
+  const handleDrop = async (e) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
@@ -132,14 +139,99 @@ const CheckUpload = () => {
           droppedFile.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
           droppedFile.name.endsWith('.csv') || 
           droppedFile.name.endsWith('.xlsx')) {
-        setFile(droppedFile);
+        
+        setColumnValidationError(null);
+        setError(null);
+        
+        // Validate columns
+        try {
+          await validateFileColumns(droppedFile);
+          setFile(droppedFile);
+        } catch (validationErr) {
+          setColumnValidationError(validationErr.message);
+          setFile(null);
+        }
       } else {
         setError('Please select a CSV or XLSX file');
+        setFile(null);
       }
     }
   };
 
-  const handleFileInput = (e) => {
+  // Required columns for validation
+  const requiredColumns = [
+    'Check Number',
+    'Date of Deposit',
+    'Check Amount',
+    'Payer',
+    'Location',
+    'Practice'
+  ];
+
+  // Validate file columns
+  const validateFileColumns = async (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        try {
+          const data = e.target.result;
+          let rows = [];
+          
+          if (file.name.endsWith('.csv')) {
+            // Parse CSV
+            const lines = data.split('\n');
+            if (lines.length > 0) {
+              const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+              rows = headers;
+            }
+          } else if (file.name.endsWith('.xlsx')) {
+            // Parse XLSX
+            const workbook = XLSX.read(data, { type: 'binary' });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+            if (jsonData.length > 0) {
+              rows = jsonData[0];
+            }
+          }
+          
+          // Normalize column names (case-insensitive, trim spaces)
+          const normalizedRows = rows.map(col => col.trim());
+          const normalizedRequired = requiredColumns.map(col => col.trim().toLowerCase());
+          
+          // Check for missing columns
+          const missingColumns = requiredColumns.filter(reqCol => {
+            const normalizedReq = reqCol.trim().toLowerCase();
+            return !normalizedRows.some(col => col.trim().toLowerCase() === normalizedReq);
+          });
+          
+          if (missingColumns.length > 0) {
+            reject({
+              message: `Missing required columns: ${missingColumns.join(', ')}`,
+              missingColumns: missingColumns
+            });
+          } else {
+            resolve({ valid: true, columns: rows });
+          }
+        } catch (err) {
+          reject({ message: 'Error reading file: ' + err.message });
+        }
+      };
+      
+      reader.onerror = () => {
+        reject({ message: 'Error reading file' });
+      };
+      
+      if (file.name.endsWith('.csv')) {
+        reader.readAsText(file);
+      } else {
+        reader.readAsBinaryString(file);
+      }
+    });
+  };
+
+  const handleFileInput = async (e) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
       if (selectedFile.type === 'text/csv' || 
@@ -147,10 +239,23 @@ const CheckUpload = () => {
           selectedFile.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
           selectedFile.name.endsWith('.csv') || 
           selectedFile.name.endsWith('.xlsx')) {
-        setFile(selectedFile);
+        
+        setColumnValidationError(null);
         setError(null);
+        
+        // Validate columns
+        try {
+          await validateFileColumns(selectedFile);
+          setFile(selectedFile);
+        } catch (validationErr) {
+          setColumnValidationError(validationErr.message);
+          setFile(null);
+          // Reset file input
+          e.target.value = '';
+        }
       } else {
         setError('Please select a CSV or XLSX file');
+        setFile(null);
       }
     }
   };
@@ -161,6 +266,7 @@ const CheckUpload = () => {
     setUploading(true);
     setError(null);
     setSuccessMessage(null);
+    setColumnValidationError(null);
     
     try {
       const response = await api.uploadBulkImportFile(file, jobName || null, assigneeId || null);
@@ -169,6 +275,7 @@ const CheckUpload = () => {
       setFile(null);
       setJobName('');
       setAssigneeId('');
+      setShowUploadModal(false);
       
       // Refresh dashboard and load the new job
       await fetchDashboard();
@@ -186,8 +293,8 @@ const CheckUpload = () => {
   };
 
   // Check if any blocking operation is in progress
-  const isProcessing = uploading || revalidating;
-  const processingMessage = uploading ? 'Processing and validating file...' : revalidating ? 'Re-validating checks...' : '';
+  const isProcessing = uploading || revalidating || deleting;
+  const processingMessage = uploading ? 'Processing and validating file...' : revalidating ? 'Re-validating checks...' : deleting ? 'Deleting job...' : '';
 
   const handleSelectJob = async (job) => {
     setSelectedJob(job);
@@ -422,6 +529,50 @@ const CheckUpload = () => {
     setShowPromoteConfirm(false);
   };
 
+  const handleDeleteClick = (job, e) => {
+    e.stopPropagation();
+    setJobToDelete(job);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!jobToDelete) return;
+    
+    setDeleting(true);
+    setError(null);
+    setSuccessMessage(null);
+    
+    try {
+      await api.deleteBulkImportJob(jobToDelete.jobId);
+      setMessageType('success');
+      setSuccessMessage(`Job "${jobToDelete.jobName || 'Unnamed Job'}" deleted successfully!`);
+      
+      // If the deleted job was selected, clear selection
+      if (selectedJob && selectedJob.jobId === jobToDelete.jobId) {
+        setSelectedJob(null);
+        setChecks([]);
+        setLocalEdits({});
+      }
+      
+      // Refresh dashboard
+      await fetchDashboard();
+      
+      setShowDeleteConfirm(false);
+      setJobToDelete(null);
+    } catch (err) {
+      console.error('Error deleting job:', err);
+      const errorMessage = err.data?.message || err.message || 'Failed to delete job. Please try again.';
+      setError(errorMessage);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteConfirm(false);
+    setJobToDelete(null);
+  };
+
   const handleDownloadInvalidChecks = async () => {
     if (!selectedJob) return;
     
@@ -548,6 +699,44 @@ const CheckUpload = () => {
     return String(num).padStart(3, '0');
   };
 
+  const getRowStatusStyle = (rowStatus) => {
+    const status = rowStatus || 'UNKNOWN';
+    const statusMap = {
+      'PROMOTED': { background: '#dbeafe', color: '#1e40af' },
+      'VALID': { background: '#d1fae5', color: '#059669' },
+      'INVALID': { background: '#fee2e2', color: '#dc2626' },
+      'PENDING': { background: '#fef3c7', color: '#d97706' }
+    };
+    return statusMap[status] || { background: '#f3f4f6', color: '#6b7280' };
+  };
+
+  const formatRowStatus = (rowStatus) => {
+    if (!rowStatus) return 'UNKNOWN';
+    return rowStatus;
+  };
+
+  const getJobStatusStyle = (status) => {
+    const jobStatus = status || 'PENDING';
+    const statusMap = {
+      'PROMOTED': { background: '#dbeafe', color: '#1e40af' },
+      'PARTIAL_PROMOTED': { background: '#dbeafe', color: '#3b82f6' },
+      'READY_TO_PROMOTE': { background: '#d1fae5', color: '#059669' },
+      'CORRECTION_REQUIRED': { background: '#fee2e2', color: '#dc2626' },
+      'COMPLETED': { background: '#d1fae5', color: '#059669' },
+      'FAILED': { background: '#fee2e2', color: '#dc2626' },
+      'PENDING': { background: '#fef3c7', color: '#d97706' }
+    };
+    return statusMap[jobStatus] || { background: '#f3f4f6', color: '#6b7280' };
+  };
+
+  const formatJobStatus = (status) => {
+    if (!status) return 'PENDING';
+    // Convert snake_case to Title Case
+    return status.split('_').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join(' ');
+  };
+
   // Truncate text and show tooltip on hover (similar to Checks page)
   const TruncatedText = ({ text, maxLength = 25 }) => {
     if (!text) return <span>-</span>;
@@ -604,6 +793,30 @@ const CheckUpload = () => {
           <h1 className="page-title">Check Upload</h1>
           <p className="page-subtitle">Bulk import checks from CSV/XLSX files</p>
         </div>
+        {!selectedJob && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button 
+              className="btn-upload-small" 
+              onClick={() => setShowUploadModal(true)}
+              disabled={isProcessing}
+            >
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" style={{ marginRight: '6px' }}>
+                <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M14 2V8H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M16 13H8M12 9V17" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+              Check Upload
+            </button>
+            <Tooltip text="Bulk import checks from CSV/XLSX files for upload" position="bottom">
+              <div className="info-icon-wrapper">
+                <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+                  <circle cx="10" cy="10" r="9" stroke="currentColor" strokeWidth="1.5"/>
+                  <path d="M10 14V10M10 6H10.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+              </div>
+            </Tooltip>
+          </div>
+        )}
       </div>
 
       {error && (
@@ -667,13 +880,64 @@ const CheckUpload = () => {
         </div>
       )}
 
-      {/* Dashboard View */}
-      {!selectedJob && (
-        <div>
-          {/* Upload Section */}
-          <div className="upload-section">
-            <h2 className="section-title">Upload CSV/XLSX File</h2>
-            <div
+      {/* Upload Modal */}
+      {showUploadModal && (
+        <div 
+          className="modal-overlay"
+          onClick={() => {
+            if (!uploading) {
+              setShowUploadModal(false);
+              setFile(null);
+              setJobName('');
+              setAssigneeId('');
+              setColumnValidationError(null);
+              setError(null);
+            }
+          }}
+        >
+          <div 
+            className="upload-modal-content"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '600', color: '#111827' }}>Upload CSV/XLSX File</h2>
+              <button
+                onClick={() => {
+                  if (!uploading) {
+                    setShowUploadModal(false);
+                    setFile(null);
+                    setJobName('');
+                    setAssigneeId('');
+                    setColumnValidationError(null);
+                    setError(null);
+                  }
+                }}
+                disabled={uploading}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  color: '#6b7280',
+                  cursor: uploading ? 'not-allowed' : 'pointer',
+                  padding: '0',
+                  width: '28px',
+                  height: '28px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '4px',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => !uploading && (e.target.style.background = '#f3f4f6')}
+                onMouseLeave={(e) => e.target.style.background = 'none'}
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Upload Section */}
+            <div className="upload-section-modal">
+              <div
               className={`upload-zone ${dragActive ? 'drag-active' : ''} ${file ? 'has-file' : ''}`}
               onDragEnter={handleDrag}
               onDragLeave={handleDrag}
@@ -682,7 +946,7 @@ const CheckUpload = () => {
             >
               <input
                 type="file"
-                id="file-input"
+                id="file-input-modal"
                 accept=".csv,.xlsx"
                 onChange={handleFileInput}
                 style={{ display: 'none' }}
@@ -700,7 +964,7 @@ const CheckUpload = () => {
                     <strong>Click to select CSV or XLSX file</strong>
                     <span>or drag and drop here</span>
                   </div>
-                  <label htmlFor="file-input" className="upload-label">
+                  <label htmlFor="file-input-modal" className="upload-label">
                     Select File
                   </label>
                 </>
@@ -746,17 +1010,51 @@ const CheckUpload = () => {
                   />
                 </div>
                 <div className="upload-actions">
-                  <button className="btn-cancel" onClick={() => { setFile(null); setJobName(''); setAssigneeId(''); }} disabled={isProcessing}>
+                  <button className="btn-cancel" onClick={() => { 
+                    setFile(null); 
+                    setJobName(''); 
+                    setAssigneeId(''); 
+                    setColumnValidationError(null);
+                    setError(null);
+                  }} disabled={isProcessing || uploading}>
                     Cancel
                   </button>
-                  <button className="btn-upload" onClick={handleUpload} disabled={uploading || isProcessing}>
-                    Upload & Process
+                  <button className="btn-upload" onClick={handleUpload} disabled={uploading || isProcessing || !file}>
+                    {uploading ? 'Uploading...' : 'Upload & Process'}
                   </button>
                 </div>
               </div>
             )}
-          </div>
 
+            {columnValidationError && (
+              <div className="error-message" style={{ marginTop: '16px' }}>
+                <span>{columnValidationError}</span>
+                <button 
+                  className="message-close-btn"
+                  onClick={() => setColumnValidationError(null)}
+                  style={{ 
+                    float: 'right', 
+                    background: 'none', 
+                    border: 'none', 
+                    cursor: 'pointer',
+                    fontSize: '18px',
+                    lineHeight: '1',
+                    padding: '0',
+                    marginLeft: '12px'
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dashboard View */}
+      {!selectedJob && (
+        <div>
           {/* Jobs List */}
           <div className="jobs-section" style={{ marginTop: '30px' }}>
             <h2 className="section-title">Import Jobs</h2>
@@ -801,10 +1099,9 @@ const CheckUpload = () => {
                             borderRadius: '4px',
                             fontSize: '12px',
                             fontWeight: '500',
-                            background: job.status === 'COMPLETED' ? '#d1fae5' : job.status === 'FAILED' ? '#fee2e2' : '#fef3c7',
-                            color: job.status === 'COMPLETED' ? '#059669' : job.status === 'FAILED' ? '#dc2626' : '#d97706'
+                            ...getJobStatusStyle(job.status)
                           }}>
-                            {job.status || 'PENDING'}
+                            {formatJobStatus(job.status)}
                           </span>
                         </td>
                         <td style={{ padding: '12px' }}>{job.totalRows || 0}</td>
@@ -813,13 +1110,37 @@ const CheckUpload = () => {
                         <td style={{ padding: '12px', color: '#2563eb' }}>{job.promotedRows || 0}</td>
                         <td style={{ padding: '12px' }}>{formatDateTime(job.createdAt)}</td>
                         <td style={{ padding: '12px' }}>
-                          <button
-                            className="btn-primary"
-                            style={{ padding: '6px 12px', fontSize: '12px' }}
-                            onClick={(e) => { e.stopPropagation(); handleSelectJob(job); }}
-                          >
-                            View
-                          </button>
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <button
+                              className="btn-primary"
+                              style={{ padding: '6px 12px', fontSize: '12px' }}
+                              onClick={(e) => { e.stopPropagation(); handleSelectJob(job); }}
+                              disabled={isProcessing}
+                            >
+                              View
+                            </button>
+                            <button
+                              className="btn-primary"
+                              style={{ 
+                                padding: '6px 8px',
+                                fontSize: '12px',
+                                color: '#dc2626',
+                                border: '1px solid #dc2626',
+                                background: 'white',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                minWidth: 'auto'
+                              }}
+                              onClick={(e) => handleDeleteClick(job, e)}
+                              disabled={isProcessing || deleting}
+                              title="Delete job"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
+                                <path d="M3 6H5H17M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2C10.5304 2 11.0391 2.21071 11.4142 2.58579C11.7893 2.96086 12 3.46957 12 4V6M15 6V16C15 16.5304 14.7893 17.0391 14.4142 17.4142C14.0391 17.7893 13.5304 18 13 18H7C6.46957 18 5.96086 17.7893 5.58579 17.4142C5.21071 17.0391 5 16.5304 5 16V6H15Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -991,10 +1312,9 @@ const CheckUpload = () => {
                             borderRadius: '4px',
                             fontSize: '12px',
                             fontWeight: '500',
-                            background: check.valid ? '#d1fae5' : '#fee2e2',
-                            color: check.valid ? '#059669' : '#dc2626'
+                            ...getRowStatusStyle(check.rowStatus)
                           }}>
-                            {check.valid ? 'Valid' : 'Invalid'}
+                            {formatRowStatus(check.rowStatus)}
                           </span>
                         </td>
                         <td style={{ padding: '12px' }}>{displayCheck.checkNumber || '-'}</td>
@@ -1066,16 +1386,14 @@ const CheckUpload = () => {
                           ) : '-'}
                         </td>
                         <td style={{ padding: '12px' }}>
-                          {!check.valid && (
-                            <button
-                              className="btn-primary"
-                              style={{ padding: '6px 12px', fontSize: '12px' }}
-                              onClick={() => handleEditCheck(check)}
-                              disabled={isProcessing}
-                            >
-                              Edit
-                            </button>
-                          )}
+                          <button
+                            className="btn-primary"
+                            style={{ padding: '6px 12px', fontSize: '12px' }}
+                            onClick={() => handleEditCheck(check)}
+                            disabled={isProcessing}
+                          >
+                            Edit
+                          </button>
                         </td>
                       </tr>
                       );
@@ -1130,6 +1448,65 @@ const CheckUpload = () => {
                 disabled={promoting || isProcessing}
               >
                 {promoting ? 'Promoting...' : 'Confirm'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '8px',
+            padding: '24px',
+            maxWidth: '400px',
+            width: '90%',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+          }}>
+            <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '20px', fontWeight: '600', color: '#dc2626' }}>
+              Confirm Delete
+            </h3>
+            <p style={{ marginBottom: '24px', color: '#374151', fontSize: '14px', lineHeight: '1.5' }}>
+              Are you sure you want to delete the job "{jobToDelete?.jobName || 'Unnamed Job'}"? This will permanently delete the job and all staged rows. This action cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button 
+                className="btn-cancel" 
+                onClick={handleDeleteCancel}
+                disabled={deleting || isProcessing}
+              >
+                Cancel
+              </button>
+              <button 
+                style={{
+                  padding: '10px 20px',
+                  background: '#dc2626',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  color: 'white',
+                  cursor: deleting || isProcessing ? 'not-allowed' : 'pointer',
+                  fontWeight: '500',
+                  transition: 'all 0.2s',
+                  opacity: deleting || isProcessing ? 0.6 : 1
+                }}
+                onClick={handleDeleteConfirm}
+                disabled={deleting || isProcessing}
+              >
+                {deleting ? 'Deleting...' : 'Delete'}
               </button>
             </div>
           </div>

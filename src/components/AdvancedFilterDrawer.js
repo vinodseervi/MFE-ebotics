@@ -156,6 +156,7 @@ const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onRese
       assigneeIds: [],
       reporterIds: [],
       checkNumber: '',
+      batchNumber: '',
       openedDateFrom: '',
       openedDateTo: '',
       startDate: '',
@@ -169,6 +170,7 @@ const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onRese
       assigneeIds: [],
       reporterIds: [],
       checkNumber: '',
+      batchNumber: '',
       depositDateFrom: '',
       depositDateTo: '',
       receivedDateFrom: '',
@@ -496,6 +498,18 @@ const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onRese
               placeholder="Enter check number (e.g., ch* or ch)"
             />
           </div>
+
+          {!isClarifications && (
+            <div className="filter-group">
+              <label>Batch Number</label>
+              <input
+                type="text"
+                value={localFilters.batchNumber || ''}
+                onChange={(e) => handleChange('batchNumber', e.target.value)}
+                placeholder="Enter batch number (e.g., B-00* or B-00)"
+              />
+            </div>
+          )}
 
           {isClarifications ? (
             <>

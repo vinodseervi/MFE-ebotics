@@ -39,19 +39,8 @@ const BulkActionModal = ({ isOpen, onClose, onSave, selectedCount, users, isUnkn
       };
       
       // When "Mark as Unknown" is checked, automatically check "Add Clarification" (only if not on Unknown page)
-      // On Unknown page, when marking as Known, unknown becomes false, so we don't auto-check clarification
       if (field === 'unknown' && value === true && !isUnknownPage) {
         newData.includeClarification = true;
-      }
-      
-      // On Unknown page, when marking as Known (unknown = false), we don't need clarification
-      if (field === 'unknown' && value === false && isUnknownPage) {
-        newData.includeClarification = false;
-      }
-      
-      // When "Mark as Unknown" is unchecked, allow unchecking clarification
-      if (field === 'unknown' && value === false) {
-        // Keep clarification state as is, user can manually uncheck if needed
       }
       
       return newData;
@@ -82,21 +71,10 @@ const BulkActionModal = ({ isOpen, onClose, onSave, selectedCount, users, isUnkn
       payload.reporterId = formData.reporterId;
     }
     
-    // On Unknown page, if "Mark as Known" checkbox is checked, set unknown to false
+    // On Unknown page, we don't allow marking as known via bulk action
     // On Checks page, if "Mark as Unknown" checkbox is checked, set unknown to true
-    if (isUnknownPage) {
-      // On Unknown page, checkbox checked means marking as Known (unknown = false)
-      // Checkbox unchecked means keeping as Unknown (unknown = true, but we don't need to send it)
-      // Only send unknown: false when marking as Known
-      const isMarkingAsKnown = !formData.unknown;
-      if (isMarkingAsKnown) {
-        payload.unknown = false;
-      }
-    } else {
-      // On Checks page, if unknown checkbox is checked, set unknown to true
-      if (formData.unknown) {
-        payload.unknown = true;
-      }
+    if (!isUnknownPage && formData.unknown) {
+      payload.unknown = true;
     }
 
     // Add clarification if enabled and has required fields
@@ -218,27 +196,22 @@ const BulkActionModal = ({ isOpen, onClose, onSave, selectedCount, users, isUnkn
                 </div>
               </div>
 
-              <div className="form-row">
-                <div className="form-group checkbox-group">
-                  <label className="checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={isUnknownPage ? !formData.unknown : formData.unknown}
-                      onChange={(e) => {
-                        if (isUnknownPage) {
-                          // On Unknown page, checking means marking as Known (unknown = false)
-                          handleChange('unknown', !e.target.checked);
-                        } else {
+              {!isUnknownPage && (
+                <div className="form-row">
+                  <div className="form-group checkbox-group">
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={formData.unknown}
+                        onChange={(e) => {
                           // On Checks page, checking means marking as Unknown (unknown = true)
                           handleChange('unknown', e.target.checked);
-                        }
-                      }}
-                    />
-                    <span>{isUnknownPage ? 'Mark as Known' : 'Mark as Unknown'}</span>
-                  </label>
-                </div>
+                        }}
+                      />
+                      <span>Mark as Unknown</span>
+                    </label>
+                  </div>
 
-                {!isUnknownPage && (
                   <div className="form-group checkbox-group">
                     <label className="checkbox-label">
                       <input
@@ -256,8 +229,8 @@ const BulkActionModal = ({ isOpen, onClose, onSave, selectedCount, users, isUnkn
                       <span>Add Clarification{formData.unknown && <span className="checkbox-hint"> (Auto selected)</span>}</span>
                     </label>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
 
             {!isUnknownPage && (

@@ -1,17 +1,17 @@
 .searchable-dropdown-trigger {
   position: relative;
-  padding: 10px 12px;
+  padding: 10px 10px;
   border: 1px solid #e5e7eb;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 13px;
   background: white;
   color: #374151;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-width: 150px;
-  width: 100%;
+  min-width: 120px;
+  width: auto;
   height: 40px;
   box-sizing: border-box;
   transition: all 0.2s;
@@ -47,6 +47,8 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: #6b7280;
+  min-width: 0;
+  font-size: 13px;
 }
 
 .searchable-dropdown-trigger:not(.disabled) .dropdown-value {

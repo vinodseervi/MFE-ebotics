@@ -43,6 +43,7 @@ const Checks = () => {
     assigneeIds: [], // Array for multiple assignee selections
     reporterIds: [], // Array for multiple reporter selections
     checkNumber: '',
+    batchNumber: '',
     depositDateFrom: '',
     depositDateTo: '',
     receivedDateFrom: '',
@@ -203,6 +204,11 @@ const Checks = () => {
 
       if (advancedFilters.checkNumber) {
         searchParams.checkNumber = formatCheckNumberPattern(advancedFilters.checkNumber);
+      }
+      
+      // Batch number (supports wildcards)
+      if (advancedFilters.batchNumber && advancedFilters.batchNumber.trim() !== '') {
+        searchParams.batchNumber = advancedFilters.batchNumber.trim();
       }
       // Note: searchTerm is handled client-side after fetching (see useEffect for client-side filtering)
 
@@ -394,6 +400,7 @@ const Checks = () => {
       assigneeIds: [],
       reporterIds: [],
       checkNumber: '',
+      batchNumber: '',
       depositDateFrom: '',
       depositDateTo: '',
       receivedDateFrom: '',
@@ -552,6 +559,7 @@ const Checks = () => {
       (advancedFilters.assigneeIds && advancedFilters.assigneeIds.length > 0) ||
       (advancedFilters.reporterIds && advancedFilters.reporterIds.length > 0) ||
       (advancedFilters.checkNumber && advancedFilters.checkNumber.trim() !== '') ||
+      (advancedFilters.batchNumber && advancedFilters.batchNumber.trim() !== '') ||
       (advancedFilters.depositDateFrom && advancedFilters.depositDateFrom.trim() !== '') ||
       (advancedFilters.depositDateTo && advancedFilters.depositDateTo.trim() !== '') ||
       (advancedFilters.receivedDateFrom && advancedFilters.receivedDateFrom.trim() !== '') ||
@@ -875,6 +883,22 @@ const Checks = () => {
                     setAdvancedFilters(prev => ({ ...prev, checkNumber: '' }));
                   }}
                   title="Remove check number filter"
+                >
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                    <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            )}
+            {advancedFilters.batchNumber && (
+              <div className="filter-chip">
+                <span>Batch: {advancedFilters.batchNumber}</span>
+                <button
+                  className="chip-close-btn"
+                  onClick={() => {
+                    setAdvancedFilters(prev => ({ ...prev, batchNumber: '' }));
+                  }}
+                  title="Remove batch number filter"
                 >
                   <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
                     <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>

@@ -542,6 +542,7 @@ class ApiService {
    * @param {Array<string>} searchParams.assigneeIds - Assignee user IDs array (UUIDs)
    * @param {Array<string>} searchParams.reporterIds - Reporter user IDs array (UUIDs)
    * @param {string} searchParams.checkNumber - Check number (supports wildcards like "*CHE")
+   * @param {string} searchParams.batchNumber - Batch number (supports wildcards like "B-00*")
    * @param {string} searchParams.depositDateFrom - Deposit date from (YYYY-MM-DD)
    * @param {string} searchParams.depositDateTo - Deposit date to (YYYY-MM-DD)
    * @param {string} searchParams.receivedDateFrom - Received date from (YYYY-MM-DD)
@@ -676,6 +677,27 @@ class ApiService {
    */
   async updateBatch(checkId, batchId, batchData) {
     return this.patch(`/api/v1/checks/${checkId}/batches/${batchId}`, batchData);
+  }
+
+  /**
+   * Archive/Unarchive batch
+   * PATCH /api/v1/checks/{checkId}/batches/{batchId}?archived={true|false}
+   * @param {string} checkId - Check ID (UUID)
+   * @param {string} batchId - Batch ID (UUID)
+   * @param {boolean} archived - Whether to archive (true) or unarchive (false)
+   */
+  async archiveBatch(checkId, batchId, archived = true) {
+    return this.patch(`/api/v1/checks/${checkId}/batches/${batchId}?archived=${archived}`, {});
+  }
+
+  /**
+   * Delete batch
+   * DELETE /api/v1/checks/{checkId}/batches/{batchId}
+   * @param {string} checkId - Check ID (UUID)
+   * @param {string} batchId - Batch ID (UUID)
+   */
+  async deleteBatch(checkId, batchId) {
+    return this.delete(`/api/v1/checks/${checkId}/batches/${batchId}`);
   }
 
   /**
@@ -922,6 +944,15 @@ class ApiService {
    */
   async bulkUpdateStagedChecks(jobId, items) {
     return this.put(`/api/v1/bulk-import/${jobId}/checks`, { items });
+  }
+
+  /**
+   * Delete bulk import job and all staged rows
+   * DELETE /api/v1/bulk-import/{jobId}
+   * @param {string} jobId - Job ID (UUID)
+   */
+  async deleteBulkImportJob(jobId) {
+    return this.delete(`/api/v1/bulk-import/${jobId}`);
   }
 }
 

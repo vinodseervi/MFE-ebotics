@@ -125,14 +125,17 @@
 
 .filters-section {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   margin-bottom: 12px;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  width: 100%;
+  overflow: hidden;
 }
 
 .search-bar {
   flex: 1;
+  min-width: 0;
   position: relative;
   display: flex;
   align-items: center;
@@ -149,11 +152,15 @@
   padding: 10px 12px 10px 40px;
   border: 1px solid #e5e7eb;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 13px;
   background: white;
   height: 40px;
   box-sizing: border-box;
   line-height: 20px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .search-bar input:focus {
@@ -165,7 +172,7 @@
 .filter-dropdowns {
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   flex-shrink: 0;
   align-items: center;
 }
@@ -173,6 +180,10 @@
 .filter-dropdowns .searchable-dropdown-trigger {
   height: 40px;
   box-sizing: border-box;
+  min-width: 120px;
+  max-width: 140px;
+  flex-shrink: 0;
+  width: auto;
 }
 
 .filter-select {
@@ -190,21 +201,22 @@
 }
 
 .btn-advanced-filter {
-  padding: 10px 16px;
+  padding: 10px 12px;
   background: white;
   border: 1px solid #e5e7eb;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 13px;
   color: #374151;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   transition: all 0.2s;
   white-space: nowrap;
   position: relative;
   height: 40px;
   box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 .btn-advanced-filter:hover {
@@ -794,6 +806,17 @@
   
   .filters-section {
     margin-bottom: 10px;
+    gap: 6px;
+  }
+  
+  .filter-dropdowns .searchable-dropdown-trigger {
+    min-width: 110px;
+    max-width: 130px;
+  }
+  
+  .btn-advanced-filter {
+    padding: 10px 10px;
+    font-size: 12px;
   }
 }
 
@@ -827,6 +850,28 @@
   
   .checks-table td {
     max-width: 160px;
+  }
+  
+  .filters-section {
+    gap: 6px;
+  }
+  
+  .filter-dropdowns .searchable-dropdown-trigger {
+    min-width: 100px;
+    max-width: 120px;
+    font-size: 12px;
+    padding: 10px 8px;
+  }
+  
+  .search-bar input {
+    font-size: 12px;
+    padding: 10px 10px 10px 36px;
+  }
+  
+  .btn-advanced-filter {
+    padding: 10px 8px;
+    font-size: 12px;
+    gap: 4px;
   }
 }
 

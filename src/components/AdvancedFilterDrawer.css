@@ -39,6 +39,25 @@
     width: 380px;
     max-width: calc(100vw - 40px);
   }
+  
+  .filter-group label {
+    min-width: 130px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 768px) {
+  .filter-group {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .filter-group label {
+    min-width: auto;
+    text-align: left;
+    width: 100%;
+  }
 }
 
 @keyframes slideIn {
@@ -94,14 +113,19 @@
 
 .filter-group {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 .filter-group label {
   font-size: 14px;
   font-weight: 500;
   color: #374151;
+  min-width: 140px;
+  flex-shrink: 0;
+  text-align: left;
 }
 
 .filter-group select,
@@ -113,6 +137,40 @@
   color: #374151;
   background: white;
   transition: all 0.2s;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Ensure USDateInput and SearchableDropdown components work in horizontal layout */
+.filter-group > div:not(.multi-select-wrapper) {
+  flex: 1;
+  min-width: 0;
+}
+
+.filter-group .searchable-dropdown-trigger {
+  width: 100%;
+}
+
+/* Checkbox filter styling for horizontal layout */
+.filter-group input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: auto;
+  margin-right: 8px;
+  cursor: pointer;
+  padding: 0;
+}
+
+/* For checkbox filters, label should come after checkbox */
+.filter-group.checkbox-filter {
+  justify-content: flex-start;
+}
+
+.filter-group.checkbox-filter label {
+  min-width: auto;
+  order: 2;
+  margin-left: 0;
+  text-align: left;
 }
 
 .filter-group select:focus,
@@ -132,10 +190,10 @@
   font-size: 11px;
   font-weight: 400;
   color: #9ca3af;
-  margin-left: 6px;
+  margin-left: 0;
   font-style: italic;
   display: block;
-  margin-top: 2px;
+  margin-top: 4px;
 }
 
 .date-display {
@@ -205,6 +263,8 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex: 1;
+  min-width: 0;
 }
 
 .multi-select-input {

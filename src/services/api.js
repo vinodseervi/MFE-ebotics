@@ -954,6 +954,24 @@ class ApiService {
   async deleteBulkImportJob(jobId) {
     return this.delete(`/api/v1/bulk-import/${jobId}`);
   }
+
+  /**
+   * Get dashboard KPIs (status percentage + amounts summary)
+   * POST /api/v1/checks/analytics/kpis
+   * @param {Object} filters - Filter parameters (optional)
+   * @param {string} filters.depositDateFrom - Deposit date from (YYYY-MM-DD)
+   * @param {string} filters.depositDateTo - Deposit date to (YYYY-MM-DD)
+   * @param {string} filters.receivedDateFrom - Received date from (YYYY-MM-DD)
+   * @param {string} filters.receivedDateTo - Received date to (YYYY-MM-DD)
+   * @param {string} filters.completedDateFrom - Completed date from (YYYY-MM-DD)
+   * @param {string} filters.completedDateTo - Completed date to (YYYY-MM-DD)
+   * @param {Array<string>} filters.practiceCodes - Practice codes array
+   * @param {boolean} filters.unknown - Whether to include unknown checks
+   * @returns {Promise<Object>} KPI response with status breakdown and amount summary
+   */
+  async getDashboardKPIs(filters = {}) {
+    return this.post('/api/v1/checks/analytics/kpis', filters);
+  }
 }
 
 // Export singleton instance

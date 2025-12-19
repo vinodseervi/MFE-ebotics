@@ -7,6 +7,9 @@ const USDateInput = ({ value, onChange, placeholder = 'MM/DD/YYYY', max, min, re
   const [showCalendar, setShowCalendar] = useState(false);
   const dateInputRef = useRef(null);
   const containerRef = useRef(null);
+  const isInteractingWithPicker = useRef(false);
+  const lastDateValue = useRef(value || '');
+  const dateSelectionTimeout = useRef(null);
 
   useEffect(() => {
     if (value) {
@@ -25,26 +28,111 @@ const USDateInput = ({ value, onChange, placeholder = 'MM/DD/YYYY', max, min, re
   }, [value]);
 
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (containerRef.current && !containerRef.current.contains(event.target)) {
-        setShowCalendar(false);
+    let clickTimeout;
+    let blurTimeout;
+
+    const handleMouseDown = (event) => {
+      // Check if click is within our container
+      const isInsideContainer = containerRef.current && containerRef.current.contains(event.target);
+      
+      // Check if click is on a date input (native picker UI)
+      const target = event.target;
+      const isDateInput = target.tagName === 'INPUT' && target.type === 'date';
+      
+      // Don't close if clicking on date input or inside container
+      if (isInsideContainer || isDateInput) {
+        isInteractingWithPicker.current = true;
+        return;
+      }
+      
+      // Clear any pending timeout
+      if (clickTimeout) {
+        clearTimeout(clickTimeout);
+      }
+      
+      // Use a longer delay to allow date picker month navigation
+      // The native date picker UI is rendered outside our DOM
+      clickTimeout = setTimeout(() => {
+        // Double-check that we're still supposed to be open and focus hasn't moved to date input
+        const activeElement = document.activeElement;
+        const isDateInputFocused = activeElement && activeElement.tagName === 'INPUT' && activeElement.type === 'date';
+        
+        if (!isDateInputFocused && !isInteractingWithPicker.current) {
+          setShowCalendar(false);
+        }
+      }, 500);
+    };
+
+    const handleBlur = () => {
+      // Clear any pending timeout
+      if (blurTimeout) {
+        clearTimeout(blurTimeout);
+      }
+      
+      // Use a much longer delay to allow date picker interactions (month navigation)
+      blurTimeout = setTimeout(() => {
+        const activeElement = document.activeElement;
+        const isInsideContainer = containerRef.current && containerRef.current.contains(activeElement);
+        const isDateInput = activeElement && activeElement.tagName === 'INPUT' && activeElement.type === 'date';
+        
+        // Only close if focus is truly outside and not on date input
+        // Also check if we're still interacting (user might be navigating months)
+        if (!isInsideContainer && !isDateInput && !isInteractingWithPicker.current) {
+          setShowCalendar(false);
+        }
+      }, 600);
+    };
+
+    const handleFocus = () => {
+      // When date input gets focus, we're interacting with picker
+      isInteractingWithPicker.current = true;
+      // Clear any pending blur timeout
+      if (blurTimeout) {
+        clearTimeout(blurTimeout);
       }
     };
 
+    // Capture the ref value at the start of the effect
+    const currentDateInput = dateInputRef.current;
+
     if (showCalendar) {
-      document.addEventListener('mousedown', handleClickOutside);
+      // Store the current value when calendar opens
+      lastDateValue.current = value || '';
+      
+      // Use a longer delay before adding click listener to avoid immediate closure
+      setTimeout(() => {
+        document.addEventListener('mousedown', handleMouseDown, true);
+      }, 150);
+      
       // Focus the hidden date input to show calendar
       setTimeout(() => {
         if (dateInputRef.current) {
           dateInputRef.current.showPicker?.();
+          dateInputRef.current.addEventListener('blur', handleBlur);
+          dateInputRef.current.addEventListener('focus', handleFocus);
+          isInteractingWithPicker.current = true;
         }
       }, 0);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('mousedown', handleMouseDown, true);
+      // Use the captured ref value from the start of the effect
+      if (currentDateInput) {
+        currentDateInput.removeEventListener('blur', handleBlur);
+        currentDateInput.removeEventListener('focus', handleFocus);
+      }
+      if (clickTimeout) {
+        clearTimeout(clickTimeout);
+      }
+      if (blurTimeout) {
+        clearTimeout(blurTimeout);
+      }
+      if (dateSelectionTimeout.current) {
+        clearTimeout(dateSelectionTimeout.current);
+      }
     };
-  }, [showCalendar]);
+  }, [showCalendar, value]);
 
   const handleTextChange = (e) => {
     let inputValue = e.target.value;
@@ -96,15 +184,40 @@ const USDateInput = ({ value, onChange, placeholder = 'MM/DD/YYYY', max, min, re
 
   const handleDateInputChange = (e) => {
     const dateValue = e.target.value;
-    if (dateValue) {
-      setDisplayValue(formatDateUS(dateValue));
-      onChange({ target: { name, value: dateValue } });
+    
+    // Clear any pending timeout
+    if (dateSelectionTimeout.current) {
+      clearTimeout(dateSelectionTimeout.current);
     }
-    setShowCalendar(false);
+    
+    if (dateValue) {
+      // Check if the value actually changed (user selected a date, not just navigated)
+      const valueChanged = dateValue !== lastDateValue.current;
+      
+      if (valueChanged) {
+        // Value changed - this is likely an actual date selection
+        setDisplayValue(formatDateUS(dateValue));
+        onChange({ target: { name, value: dateValue } });
+        lastDateValue.current = dateValue;
+        
+        // Close calendar after a short delay to ensure selection is complete
+        dateSelectionTimeout.current = setTimeout(() => {
+          setShowCalendar(false);
+          isInteractingWithPicker.current = false;
+        }, 200);
+      } else {
+        // Value didn't change - this might be month navigation
+        // Don't close the calendar, just keep it open
+        isInteractingWithPicker.current = true;
+      }
+    }
   };
 
   const handleCalendarClick = () => {
     setShowCalendar(true);
+    isInteractingWithPicker.current = true;
+    // Store current value when opening calendar
+    lastDateValue.current = value || '';
   };
 
   return (

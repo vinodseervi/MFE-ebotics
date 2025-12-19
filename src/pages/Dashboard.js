@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import React, { useState, useEffect, useCallback } from 'react';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import api from '../services/api';
 import SearchableDropdown from '../components/SearchableDropdown';
 import './Dashboard.css';
@@ -14,30 +14,13 @@ const Dashboard = () => {
   const [localFilters, setLocalFilters] = useState({
     depositDateFrom: '',
     depositDateTo: '',
+    receivedDateFrom: '',
+    receivedDateTo: '',
+    completedDateFrom: '',
+    completedDateTo: '',
     practiceCodes: [],
     unknown: false
   });
-
-  useEffect(() => {
-    fetchPractices();
-    fetchKPIData();
-  }, []);
-
-  useEffect(() => {
-    fetchKPIData();
-  }, [filters]);
-
-  // Sync local filters with applied filters when sidebar opens
-  useEffect(() => {
-    if (showFilterSidebar) {
-      setLocalFilters({
-        depositDateFrom: filters.depositDateFrom || '',
-        depositDateTo: filters.depositDateTo || '',
-        practiceCodes: filters.practiceCodes || [],
-        unknown: filters.unknown || false
-      });
-    }
-  }, [showFilterSidebar, filters]);
 
   const fetchPractices = async () => {
     try {
@@ -49,7 +32,7 @@ const Dashboard = () => {
     }
   };
 
-  const fetchKPIData = async () => {
+  const fetchKPIData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -65,7 +48,32 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
+
+  useEffect(() => {
+    fetchPractices();
+    fetchKPIData();
+  }, [fetchKPIData]);
+
+  useEffect(() => {
+    fetchKPIData();
+  }, [fetchKPIData]);
+
+  // Sync local filters with applied filters when sidebar opens
+  useEffect(() => {
+    if (showFilterSidebar) {
+      setLocalFilters({
+        depositDateFrom: filters.depositDateFrom || '',
+        depositDateTo: filters.depositDateTo || '',
+        receivedDateFrom: filters.receivedDateFrom || '',
+        receivedDateTo: filters.receivedDateTo || '',
+        completedDateFrom: filters.completedDateFrom || '',
+        completedDateTo: filters.completedDateTo || '',
+        practiceCodes: filters.practiceCodes || [],
+        unknown: filters.unknown || false
+      });
+    }
+  }, [showFilterSidebar, filters]);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
@@ -83,12 +91,37 @@ const Dashboard = () => {
   };
 
   const formatDateRange = () => {
-    if (!kpiData?.scope) return 'Current Month';
-    const { depositDateFrom, depositDateTo } = kpiData.scope;
+    if (!kpiData?.scope) return 'Overview of payment reconciliation for Current Month';
+    const { 
+      depositDateFrom, 
+      depositDateTo, 
+      receivedDateFrom, 
+      receivedDateTo, 
+      completedDateFrom, 
+      completedDateTo 
+    } = kpiData.scope;
+    
+    // Check which date range is being used (priority: deposit > received > completed)
     if (depositDateFrom && depositDateTo) {
-      return `${formatDate(depositDateFrom)} - ${formatDate(depositDateTo)}`;
+      return `Overview of payment reconciliation for Deposit Date Range: ${formatDate(depositDateFrom)} - ${formatDate(depositDateTo)}`;
     }
-    return 'Current Month';
+    if (receivedDateFrom && receivedDateTo) {
+      return `Overview of payment reconciliation for Received Date Range: ${formatDate(receivedDateFrom)} - ${formatDate(receivedDateTo)}`;
+    }
+    if (completedDateFrom && completedDateTo) {
+      return `Overview of payment reconciliation for Completed Date Range: ${formatDate(completedDateFrom)} - ${formatDate(completedDateTo)}`;
+    }
+    // If only one date is set, show it
+    if (depositDateFrom) {
+      return `Overview of payment reconciliation for Deposit Date From: ${formatDate(depositDateFrom)}`;
+    }
+    if (receivedDateFrom) {
+      return `Overview of payment reconciliation for Received Date From: ${formatDate(receivedDateFrom)}`;
+    }
+    if (completedDateFrom) {
+      return `Overview of payment reconciliation for Completed Date From: ${formatDate(completedDateFrom)}`;
+    }
+    return 'Overview of payment reconciliation for Current Month';
   };
 
   const handleFilterChange = (field, value) => {
@@ -132,6 +165,18 @@ const Dashboard = () => {
     if (localFilters.depositDateTo) {
       newFilters.depositDateTo = localFilters.depositDateTo;
     }
+    if (localFilters.receivedDateFrom) {
+      newFilters.receivedDateFrom = localFilters.receivedDateFrom;
+    }
+    if (localFilters.receivedDateTo) {
+      newFilters.receivedDateTo = localFilters.receivedDateTo;
+    }
+    if (localFilters.completedDateFrom) {
+      newFilters.completedDateFrom = localFilters.completedDateFrom;
+    }
+    if (localFilters.completedDateTo) {
+      newFilters.completedDateTo = localFilters.completedDateTo;
+    }
     if (localFilters.practiceCodes && localFilters.practiceCodes.length > 0) {
       newFilters.practiceCodes = [...localFilters.practiceCodes];
     }
@@ -146,6 +191,10 @@ const Dashboard = () => {
     setLocalFilters({
       depositDateFrom: '',
       depositDateTo: '',
+      receivedDateFrom: '',
+      receivedDateTo: '',
+      completedDateFrom: '',
+      completedDateTo: '',
       practiceCodes: [],
       unknown: false
     });
@@ -156,6 +205,10 @@ const Dashboard = () => {
     return (
       filters.depositDateFrom ||
       filters.depositDateTo ||
+      filters.receivedDateFrom ||
+      filters.receivedDateTo ||
+      filters.completedDateFrom ||
+      filters.completedDateTo ||
       (filters.practiceCodes && filters.practiceCodes.length > 0) ||
       filters.unknown
     );
@@ -165,6 +218,10 @@ const Dashboard = () => {
     const applied = {};
     if (filters.depositDateFrom) applied.depositDateFrom = filters.depositDateFrom;
     if (filters.depositDateTo) applied.depositDateTo = filters.depositDateTo;
+    if (filters.receivedDateFrom) applied.receivedDateFrom = filters.receivedDateFrom;
+    if (filters.receivedDateTo) applied.receivedDateTo = filters.receivedDateTo;
+    if (filters.completedDateFrom) applied.completedDateFrom = filters.completedDateFrom;
+    if (filters.completedDateTo) applied.completedDateTo = filters.completedDateTo;
     if (filters.practiceCodes) applied.practiceCodes = filters.practiceCodes;
     if (filters.unknown) applied.unknown = filters.unknown;
     return applied;
@@ -251,7 +308,7 @@ const Dashboard = () => {
         <div>
           <h1 className="page-title">Dashboard</h1>
           <p className="page-subtitle">
-            Overview of payment reconciliation for {formatDateRange()}
+            {formatDateRange()}
           </p>
         </div>
         <div className="header-actions">
@@ -281,7 +338,7 @@ const Dashboard = () => {
             <div className="active-filters-chips">
               {appliedFilters.depositDateFrom && (
                 <div className="filter-chip">
-                  <span>From: {formatDate(appliedFilters.depositDateFrom)}</span>
+                  <span>Deposit From: {formatDate(appliedFilters.depositDateFrom)}</span>
                   <button
                     className="chip-close-btn"
                     onClick={() => {
@@ -290,7 +347,7 @@ const Dashboard = () => {
                       setFilters(newFilters);
                       setLocalFilters(prev => ({ ...prev, depositDateFrom: '' }));
                     }}
-                    title="Remove date filter"
+                    title="Remove deposit date from filter"
                   >
                     <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
                       <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -300,7 +357,7 @@ const Dashboard = () => {
               )}
               {appliedFilters.depositDateTo && (
                 <div className="filter-chip">
-                  <span>To: {formatDate(appliedFilters.depositDateTo)}</span>
+                  <span>Deposit To: {formatDate(appliedFilters.depositDateTo)}</span>
                   <button
                     className="chip-close-btn"
                     onClick={() => {
@@ -309,7 +366,83 @@ const Dashboard = () => {
                       setFilters(newFilters);
                       setLocalFilters(prev => ({ ...prev, depositDateTo: '' }));
                     }}
-                    title="Remove date filter"
+                    title="Remove deposit date to filter"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                      <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                </div>
+              )}
+              {appliedFilters.receivedDateFrom && (
+                <div className="filter-chip">
+                  <span>Received From: {formatDate(appliedFilters.receivedDateFrom)}</span>
+                  <button
+                    className="chip-close-btn"
+                    onClick={() => {
+                      const newFilters = { ...filters };
+                      delete newFilters.receivedDateFrom;
+                      setFilters(newFilters);
+                      setLocalFilters(prev => ({ ...prev, receivedDateFrom: '' }));
+                    }}
+                    title="Remove received date from filter"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                      <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                </div>
+              )}
+              {appliedFilters.receivedDateTo && (
+                <div className="filter-chip">
+                  <span>Received To: {formatDate(appliedFilters.receivedDateTo)}</span>
+                  <button
+                    className="chip-close-btn"
+                    onClick={() => {
+                      const newFilters = { ...filters };
+                      delete newFilters.receivedDateTo;
+                      setFilters(newFilters);
+                      setLocalFilters(prev => ({ ...prev, receivedDateTo: '' }));
+                    }}
+                    title="Remove received date to filter"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                      <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                </div>
+              )}
+              {appliedFilters.completedDateFrom && (
+                <div className="filter-chip">
+                  <span>Completed From: {formatDate(appliedFilters.completedDateFrom)}</span>
+                  <button
+                    className="chip-close-btn"
+                    onClick={() => {
+                      const newFilters = { ...filters };
+                      delete newFilters.completedDateFrom;
+                      setFilters(newFilters);
+                      setLocalFilters(prev => ({ ...prev, completedDateFrom: '' }));
+                    }}
+                    title="Remove completed date from filter"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                      <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                </div>
+              )}
+              {appliedFilters.completedDateTo && (
+                <div className="filter-chip">
+                  <span>Completed To: {formatDate(appliedFilters.completedDateTo)}</span>
+                  <button
+                    className="chip-close-btn"
+                    onClick={() => {
+                      const newFilters = { ...filters };
+                      delete newFilters.completedDateTo;
+                      setFilters(newFilters);
+                      setLocalFilters(prev => ({ ...prev, completedDateTo: '' }));
+                    }}
+                    title="Remove completed date to filter"
                   >
                     <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
                       <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -587,6 +720,49 @@ const Dashboard = () => {
                   type="date"
                   value={localFilters.depositDateTo || ''}
                   onChange={(e) => handleFilterChange('depositDateTo', e.target.value)}
+                  min={localFilters.depositDateFrom || undefined}
+                  className="sidebar-filter-input"
+                />
+              </div>
+
+              <div className="sidebar-filter-group">
+                <label>Received Date From:</label>
+                <input
+                  type="date"
+                  value={localFilters.receivedDateFrom || ''}
+                  onChange={(e) => handleFilterChange('receivedDateFrom', e.target.value)}
+                  className="sidebar-filter-input"
+                />
+              </div>
+              
+              <div className="sidebar-filter-group">
+                <label>Received Date To:</label>
+                <input
+                  type="date"
+                  value={localFilters.receivedDateTo || ''}
+                  onChange={(e) => handleFilterChange('receivedDateTo', e.target.value)}
+                  min={localFilters.receivedDateFrom || undefined}
+                  className="sidebar-filter-input"
+                />
+              </div>
+
+              <div className="sidebar-filter-group">
+                <label>Completed Date From:</label>
+                <input
+                  type="date"
+                  value={localFilters.completedDateFrom || ''}
+                  onChange={(e) => handleFilterChange('completedDateFrom', e.target.value)}
+                  className="sidebar-filter-input"
+                />
+              </div>
+              
+              <div className="sidebar-filter-group">
+                <label>Completed Date To:</label>
+                <input
+                  type="date"
+                  value={localFilters.completedDateTo || ''}
+                  onChange={(e) => handleFilterChange('completedDateTo', e.target.value)}
+                  min={localFilters.completedDateFrom || undefined}
                   className="sidebar-filter-input"
                 />
               </div>
@@ -600,6 +776,7 @@ const Dashboard = () => {
                   value={selectedPracticeValue}
                   onChange={handlePracticeAdd}
                   placeholder="Select practice..."
+                  maxVisibleItems={5}
                 />
                 {localFilters.practiceCodes && localFilters.practiceCodes.length > 0 && (
                   <div className="selected-practices">

@@ -90,17 +90,17 @@ const Checks = () => {
     { key: 'updatedAt', label: 'Updated At' }
   ];
 
-  // Default visible columns (exclude altCheckNumber, checkType, practiceCode, locationCode)
+  // Default visible columns (exclude altCheckNumber, checkType, practiceCode, locationCode, batchDescription)
   const defaultColumns = [
     'depositDate',
     'checkNumber',
     'payer',
-    'batchDescription',
     'exchange',
     'totalAmount',
     'postedAmount',
     'remainingAmount',
-    'status'
+    'status',
+    'updatedAt'
   ];
 
   // Initialize visible columns with default columns
@@ -906,15 +906,95 @@ const Checks = () => {
                 </button>
               </div>
             )}
-            {(advancedFilters.startDate || advancedFilters.endDate) && (
+            {advancedFilters.depositDateFrom && (
               <div className="filter-chip">
-                <span>Date Range: {formatDateRange(advancedFilters.startDate || '', advancedFilters.endDate || '')}</span>
+                <span>Deposit From: {formatDateUS(advancedFilters.depositDateFrom)}</span>
                 <button
                   className="chip-close-btn"
                   onClick={() => {
-                    setAdvancedFilters(prev => ({ ...prev, startDate: '', endDate: '' }));
+                    setAdvancedFilters(prev => ({ ...prev, depositDateFrom: '' }));
                   }}
-                  title="Remove date range filter"
+                  title="Remove deposit date from filter"
+                >
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                    <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            )}
+            {advancedFilters.depositDateTo && (
+              <div className="filter-chip">
+                <span>Deposit To: {formatDateUS(advancedFilters.depositDateTo)}</span>
+                <button
+                  className="chip-close-btn"
+                  onClick={() => {
+                    setAdvancedFilters(prev => ({ ...prev, depositDateTo: '' }));
+                  }}
+                  title="Remove deposit date to filter"
+                >
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                    <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            )}
+            {advancedFilters.receivedDateFrom && (
+              <div className="filter-chip">
+                <span>Received From: {formatDateUS(advancedFilters.receivedDateFrom)}</span>
+                <button
+                  className="chip-close-btn"
+                  onClick={() => {
+                    setAdvancedFilters(prev => ({ ...prev, receivedDateFrom: '' }));
+                  }}
+                  title="Remove received date from filter"
+                >
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                    <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            )}
+            {advancedFilters.receivedDateTo && (
+              <div className="filter-chip">
+                <span>Received To: {formatDateUS(advancedFilters.receivedDateTo)}</span>
+                <button
+                  className="chip-close-btn"
+                  onClick={() => {
+                    setAdvancedFilters(prev => ({ ...prev, receivedDateTo: '' }));
+                  }}
+                  title="Remove received date to filter"
+                >
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                    <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            )}
+            {advancedFilters.completedDateFrom && (
+              <div className="filter-chip">
+                <span>Completed From: {formatDateUS(advancedFilters.completedDateFrom)}</span>
+                <button
+                  className="chip-close-btn"
+                  onClick={() => {
+                    setAdvancedFilters(prev => ({ ...prev, completedDateFrom: '' }));
+                  }}
+                  title="Remove completed date from filter"
+                >
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                    <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            )}
+            {advancedFilters.completedDateTo && (
+              <div className="filter-chip">
+                <span>Completed To: {formatDateUS(advancedFilters.completedDateTo)}</span>
+                <button
+                  className="chip-close-btn"
+                  onClick={() => {
+                    setAdvancedFilters(prev => ({ ...prev, completedDateTo: '' }));
+                  }}
+                  title="Remove completed date to filter"
                 >
                   <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
                     <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>

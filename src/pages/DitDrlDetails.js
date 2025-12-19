@@ -168,11 +168,22 @@ const DitDrlDetails = () => {
 
   const handleSave = async () => {
     try {
+      // Convert null values to 0 for numeric fields
+      const dataToSave = {
+        ...formData,
+        ccReceived: formData.ccReceived === null || formData.ccReceived === undefined ? 0 : formData.ccReceived,
+        echeckReceived: formData.echeckReceived === null || formData.echeckReceived === undefined ? 0 : formData.echeckReceived,
+        cashPaperReceived: formData.cashPaperReceived === null || formData.cashPaperReceived === undefined ? 0 : formData.cashPaperReceived,
+        sitePostingTotal: formData.sitePostingTotal === null || formData.sitePostingTotal === undefined ? 0 : formData.sitePostingTotal,
+        nonArMedicalRecords: formData.nonArMedicalRecords === null || formData.nonArMedicalRecords === undefined ? 0 : formData.nonArMedicalRecords,
+        miscAmount: formData.miscAmount === null || formData.miscAmount === undefined ? 0 : formData.miscAmount,
+      };
+      
       if (isNew) {
-        const newDitDrl = await api.createDitDrl(formData);
+        const newDitDrl = await api.createDitDrl(dataToSave);
         navigate(`/dit-drl/${newDitDrl.ditDrlId}`);
       } else {
-        await api.updateDitDrl(id, formData);
+        await api.updateDitDrl(id, dataToSave);
         await fetchDitDrlDetails();
         setIsEditMode(false);
       }
@@ -700,8 +711,21 @@ const DitDrlDetails = () => {
                     <input 
                       type="number" 
                       step="0.01"
-                      value={formData.ccReceived || 0} 
-                      onChange={(e) => handleFormChange('ccReceived', parseFloat(e.target.value) || 0)}
+                      value={
+                        formData.ccReceived !== undefined && formData.ccReceived !== null
+                          ? (formData.ccReceived === 0 ? '' : formData.ccReceived)
+                          : (displayData?.ccReceived && displayData.ccReceived !== 0 ? displayData.ccReceived : '')
+                      }
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '') {
+                          handleFormChange('ccReceived', null);
+                        } else {
+                          const numVal = parseFloat(val);
+                          handleFormChange('ccReceived', isNaN(numVal) ? null : numVal);
+                        }
+                      }}
+                      placeholder="0"
                     />
                   ) : (
                     <input type="text" value={formatCurrency(displayData?.ccReceived || 0)} disabled />
@@ -713,8 +737,21 @@ const DitDrlDetails = () => {
                     <input 
                       type="number" 
                       step="0.01"
-                      value={formData.echeckReceived || 0} 
-                      onChange={(e) => handleFormChange('echeckReceived', parseFloat(e.target.value) || 0)}
+                      value={
+                        formData.echeckReceived !== undefined && formData.echeckReceived !== null
+                          ? (formData.echeckReceived === 0 ? '' : formData.echeckReceived)
+                          : (displayData?.echeckReceived && displayData.echeckReceived !== 0 ? displayData.echeckReceived : '')
+                      }
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '') {
+                          handleFormChange('echeckReceived', null);
+                        } else {
+                          const numVal = parseFloat(val);
+                          handleFormChange('echeckReceived', isNaN(numVal) ? null : numVal);
+                        }
+                      }}
+                      placeholder="0"
                     />
                   ) : (
                     <input type="text" value={formatCurrency(displayData?.echeckReceived || 0)} disabled />
@@ -726,8 +763,21 @@ const DitDrlDetails = () => {
                     <input 
                       type="number" 
                       step="0.01"
-                      value={formData.cashPaperReceived || 0} 
-                      onChange={(e) => handleFormChange('cashPaperReceived', parseFloat(e.target.value) || 0)}
+                      value={
+                        formData.cashPaperReceived !== undefined && formData.cashPaperReceived !== null
+                          ? (formData.cashPaperReceived === 0 ? '' : formData.cashPaperReceived)
+                          : (displayData?.cashPaperReceived && displayData.cashPaperReceived !== 0 ? displayData.cashPaperReceived : '')
+                      }
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '') {
+                          handleFormChange('cashPaperReceived', null);
+                        } else {
+                          const numVal = parseFloat(val);
+                          handleFormChange('cashPaperReceived', isNaN(numVal) ? null : numVal);
+                        }
+                      }}
+                      placeholder="0"
                     />
                   ) : (
                     <input type="text" value={formatCurrency(displayData?.cashPaperReceived || 0)} disabled />
@@ -739,8 +789,21 @@ const DitDrlDetails = () => {
                     <input 
                       type="number" 
                       step="0.01"
-                      value={formData.sitePostingTotal || 0} 
-                      onChange={(e) => handleFormChange('sitePostingTotal', parseFloat(e.target.value) || 0)}
+                      value={
+                        formData.sitePostingTotal !== undefined && formData.sitePostingTotal !== null
+                          ? (formData.sitePostingTotal === 0 ? '' : formData.sitePostingTotal)
+                          : (displayData?.sitePostingTotal && displayData.sitePostingTotal !== 0 ? displayData.sitePostingTotal : '')
+                      }
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '') {
+                          handleFormChange('sitePostingTotal', null);
+                        } else {
+                          const numVal = parseFloat(val);
+                          handleFormChange('sitePostingTotal', isNaN(numVal) ? null : numVal);
+                        }
+                      }}
+                      placeholder="0"
                     />
                   ) : (
                     <input type="text" value={formatCurrency(displayData?.sitePostingTotal || 0)} disabled />
@@ -752,8 +815,21 @@ const DitDrlDetails = () => {
                     <input 
                       type="number" 
                       step="0.01"
-                      value={formData.nonArMedicalRecords || 0} 
-                      onChange={(e) => handleFormChange('nonArMedicalRecords', parseFloat(e.target.value) || 0)}
+                      value={
+                        formData.nonArMedicalRecords !== undefined && formData.nonArMedicalRecords !== null
+                          ? (formData.nonArMedicalRecords === 0 ? '' : formData.nonArMedicalRecords)
+                          : (displayData?.nonArMedicalRecords && displayData.nonArMedicalRecords !== 0 ? displayData.nonArMedicalRecords : '')
+                      }
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '') {
+                          handleFormChange('nonArMedicalRecords', null);
+                        } else {
+                          const numVal = parseFloat(val);
+                          handleFormChange('nonArMedicalRecords', isNaN(numVal) ? null : numVal);
+                        }
+                      }}
+                      placeholder="0"
                     />
                   ) : (
                     <input type="text" value={formatCurrency(displayData?.nonArMedicalRecords || 0)} disabled />
@@ -765,8 +841,21 @@ const DitDrlDetails = () => {
                     <input 
                       type="number" 
                       step="0.01"
-                      value={formData.miscAmount || 0} 
-                      onChange={(e) => handleFormChange('miscAmount', parseFloat(e.target.value) || 0)}
+                      value={
+                        formData.miscAmount !== undefined && formData.miscAmount !== null
+                          ? (formData.miscAmount === 0 ? '' : formData.miscAmount)
+                          : (displayData?.miscAmount && displayData.miscAmount !== 0 ? displayData.miscAmount : '')
+                      }
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '') {
+                          handleFormChange('miscAmount', null);
+                        } else {
+                          const numVal = parseFloat(val);
+                          handleFormChange('miscAmount', isNaN(numVal) ? null : numVal);
+                        }
+                      }}
+                      placeholder="0"
                     />
                   ) : (
                     <input type="text" value={formatCurrency(displayData?.miscAmount || 0)} disabled />

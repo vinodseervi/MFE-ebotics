@@ -28,6 +28,7 @@ const CheckDetails = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingBatchId, setEditingBatchId] = useState(null);
   const [isAddingBatch, setIsAddingBatch] = useState(false);
+  const [practices, setPractices] = useState([]);
   const { users, getUserName, getUserById } = useUsers(); // Get users from context
   const { isSuperAdmin, can } = usePermissions(); // Get Super Admin status and permission checker
   const [batchValidationErrors, setBatchValidationErrors] = useState({});
@@ -37,7 +38,6 @@ const CheckDetails = () => {
   const [archiveBatchId, setArchiveBatchId] = useState(null);
   const [archiveBatchIsArchived, setArchiveBatchIsArchived] = useState(false);
   const [showDeleteWarning, setShowDeleteWarning] = useState(false);
-  const [deleteWarningBatchId, setDeleteWarningBatchId] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmBatchId, setDeleteConfirmBatchId] = useState(null);
   const [showValidationError, setShowValidationError] = useState(false);
@@ -46,7 +46,6 @@ const CheckDetails = () => {
   // Clarifications state
   const [isAddingClarification, setIsAddingClarification] = useState(false);
   const [editingClarificationId, setEditingClarificationId] = useState(null);
-  const [expandedClarificationId, setExpandedClarificationId] = useState(null);
   const [showActivityDrawer, setShowActivityDrawer] = useState(false);
   const hasScrolledToClarification = useRef(false);
   const hasScrolledToBatch = useRef(false);
@@ -123,6 +122,20 @@ const CheckDetails = () => {
     }
   }, [id]);
 
+  // Fetch practices
+  useEffect(() => {
+    const fetchPractices = async () => {
+      try {
+        const response = await api.getAllPractices();
+        const practicesList = Array.isArray(response) ? response : (response?.items || []);
+        setPractices(practicesList.filter(p => p.isActive !== false));
+      } catch (error) {
+        console.error('Error fetching practices:', error);
+      }
+    };
+    fetchPractices();
+  }, []);
+
   // Fetch check details
   useEffect(() => {
     if (id) {
@@ -163,8 +176,6 @@ const CheckDetails = () => {
     if (clarificationIdParam && clarifications.length > 0 && activeTab === 'clarifications') {
       const clarification = clarifications.find(c => c.clarificationId === clarificationIdParam);
       if (clarification) {
-        setExpandedClarificationId(clarificationIdParam);
-        
         // Only scroll if this is a new clarification ID or we haven't scrolled yet
         const isNewClarification = lastClarificationId.current !== clarificationIdParam;
         if (isNewClarification || !hasScrolledToClarification.current) {
@@ -252,8 +263,10 @@ const CheckDetails = () => {
         againstCheckAdditional: data.againstCheckAdditional || '',
         correctionBatchDate: data.correctionBatchDate || '',
         edmNumber: data.edmNumber || '',
-        transferIn: data.transferIn || '',
-        transferOut: data.transferOut || ''
+        transferInFrom: data.transferInFrom || '',
+        transferInAmount: data.transferInAmount || 0,
+        transferOutFrom: data.transferOutFrom || '',
+        transferOutAmount: data.transferOutAmount || 0
       });
     } catch (err) {
       console.error('Error fetching check details:', err);
@@ -305,6 +318,11 @@ const CheckDetails = () => {
         ...prev,
         [field]: filteredValue
       };
+      
+      // If batchType is changed to MANUAL, clear batchRunNumber
+      if (field === 'batchType' && filteredValue === 'MANUAL') {
+        newData.batchRunNumber = '';
+      }
       
       // Clear validation errors when field changes
       if (batchValidationErrors[field]) {
@@ -362,7 +380,17 @@ const CheckDetails = () => {
 
   const handleSave = async () => {
     try {
-      await api.updateCheck(id, formData);
+      // Convert null values to 0 for numeric fields
+      const dataToSave = {
+        ...formData,
+        interestAmount: formData.interestAmount === null || formData.interestAmount === undefined ? 0 : formData.interestAmount,
+        nonArAmount: formData.nonArAmount === null || formData.nonArAmount === undefined ? 0 : formData.nonArAmount,
+        medicalRecordsFee: formData.medicalRecordsFee === null || formData.medicalRecordsFee === undefined ? 0 : formData.medicalRecordsFee,
+        correctionsAmount: formData.correctionsAmount === null || formData.correctionsAmount === undefined ? 0 : formData.correctionsAmount,
+        transferInAmount: formData.transferInAmount === null || formData.transferInAmount === undefined ? 0 : formData.transferInAmount,
+        transferOutAmount: formData.transferOutAmount === null || formData.transferOutAmount === undefined ? 0 : formData.transferOutAmount,
+      };
+      await api.updateCheck(id, dataToSave);
       await fetchCheckDetails();
       setIsEditMode(false);
     } catch (err) {
@@ -400,8 +428,8 @@ const CheckDetails = () => {
         // USDateInput returns YYYY-MM-DD format, but parseDateUS handles both formats
         batchDate: batchFormData.batchDate ? (parseDateUS(batchFormData.batchDate) || batchFormData.batchDate) : '',
         batchAmount: parseFloat(batchFormData.batchAmount) || 0,
-        // batchRunNumber is always auto-generated as random hex number
-        batchRunNumber: batchFormData.batchRunNumber || ''
+        // batchRunNumber is empty for MANUAL type, otherwise use provided value
+        batchRunNumber: batchFormData.batchType === 'MANUAL' ? '' : (batchFormData.batchRunNumber || '')
       };
       await api.createBatch(id, batchData);
       await fetchCheckDetails();
@@ -425,12 +453,14 @@ const CheckDetails = () => {
 
   const handleEditBatch = (batch) => {
     setEditingBatchId(batch.batchId);
+    const batchType = batch.batchType || 'MANUAL';
     setBatchFormData({
-      batchRunNumber: batch.batchRunNumber || '',
+      // Clear batchRunNumber if batchType is MANUAL
+      batchRunNumber: batchType === 'MANUAL' ? '' : (batch.batchRunNumber || ''),
       batchNumber: batch.batchNumber || '',
       // Keep date in YYYY-MM-DD format for USDateInput (it will display as MM/DD/YYYY)
       batchDate: batch.batchDate || '',
-      batchType: batch.batchType || 'MANUAL',
+      batchType: batchType,
       batchAmount: batch.batchAmount || '',
       batchNotes: batch.batchNotes || '',
       invoiceNumber: batch.invoiceNumber || ''
@@ -462,8 +492,8 @@ const CheckDetails = () => {
         // USDateInput returns YYYY-MM-DD format, but parseDateUS handles both formats
         batchDate: batchFormData.batchDate ? (parseDateUS(batchFormData.batchDate) || batchFormData.batchDate) : '',
         batchAmount: parseFloat(batchFormData.batchAmount) || 0,
-        // batchRunNumber is always auto-generated as random hex number
-        batchRunNumber: batchFormData.batchRunNumber || ''
+        // batchRunNumber is empty for MANUAL type, otherwise use provided value
+        batchRunNumber: batchFormData.batchType === 'MANUAL' ? '' : (batchFormData.batchRunNumber || '')
       };
       await api.updateBatch(id, editingBatchId, batchData);
       await fetchCheckDetails();
@@ -530,7 +560,6 @@ const CheckDetails = () => {
     
     // Check if batch is archived
     if (!isArchived) {
-      setDeleteWarningBatchId(batchId);
       setShowDeleteWarning(true);
       return;
     }
@@ -564,7 +593,6 @@ const CheckDetails = () => {
 
   const handleDeleteWarningClose = () => {
     setShowDeleteWarning(false);
-    setDeleteWarningBatchId(null);
   };
   
   const handleSortBatches = (field) => {
@@ -754,11 +782,6 @@ const CheckDetails = () => {
     }
   };
 
-  const toggleClarificationExpanded = (clarificationId) => {
-    setExpandedClarificationId(prev => 
-      prev === clarificationId ? null : clarificationId
-    );
-  };
 
   // Navigation functions
   const handlePreviousCheck = async () => {
@@ -1345,8 +1368,21 @@ const CheckDetails = () => {
                     <input 
                       type="number" 
                       step="0.01"
-                      value={formData.interestAmount !== undefined ? formData.interestAmount : (check?.interestAmount || 0)} 
-                      onChange={(e) => handleFormChange('interestAmount', parseFloat(e.target.value) || 0)}
+                      value={
+                        formData.interestAmount !== undefined 
+                          ? (formData.interestAmount === 0 || formData.interestAmount === null ? '' : formData.interestAmount)
+                          : (check?.interestAmount && check.interestAmount !== 0 ? check.interestAmount : '')
+                      } 
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '') {
+                          handleFormChange('interestAmount', null);
+                        } else {
+                          const numVal = parseFloat(val);
+                          handleFormChange('interestAmount', isNaN(numVal) ? null : numVal);
+                        }
+                      }}
+                      placeholder="0"
                     />
                   ) : (
                     <input type="text" value={formatCurrency(check?.interestAmount)} disabled />
@@ -1358,8 +1394,21 @@ const CheckDetails = () => {
                     <input 
                       type="number" 
                       step="0.01"
-                      value={formData.nonArAmount !== undefined ? formData.nonArAmount : (check?.nonArAmount || 0)} 
-                      onChange={(e) => handleFormChange('nonArAmount', parseFloat(e.target.value) || 0)}
+                      value={
+                        formData.nonArAmount !== undefined 
+                          ? (formData.nonArAmount === 0 || formData.nonArAmount === null ? '' : formData.nonArAmount)
+                          : (check?.nonArAmount && check.nonArAmount !== 0 ? check.nonArAmount : '')
+                      } 
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '') {
+                          handleFormChange('nonArAmount', null);
+                        } else {
+                          const numVal = parseFloat(val);
+                          handleFormChange('nonArAmount', isNaN(numVal) ? null : numVal);
+                        }
+                      }}
+                      placeholder="0"
                     />
                   ) : (
                     <input type="text" value={formatCurrency(check?.nonArAmount)} disabled />
@@ -1371,8 +1420,21 @@ const CheckDetails = () => {
                     <input 
                       type="number" 
                       step="0.01"
-                      value={formData.medicalRecordsFee !== undefined ? formData.medicalRecordsFee : (check?.medicalRecordsFee || 0)} 
-                      onChange={(e) => handleFormChange('medicalRecordsFee', parseFloat(e.target.value) || 0)}
+                      value={
+                        formData.medicalRecordsFee !== undefined 
+                          ? (formData.medicalRecordsFee === 0 || formData.medicalRecordsFee === null ? '' : formData.medicalRecordsFee)
+                          : (check?.medicalRecordsFee && check.medicalRecordsFee !== 0 ? check.medicalRecordsFee : '')
+                      } 
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '') {
+                          handleFormChange('medicalRecordsFee', null);
+                        } else {
+                          const numVal = parseFloat(val);
+                          handleFormChange('medicalRecordsFee', isNaN(numVal) ? null : numVal);
+                        }
+                      }}
+                      placeholder="0"
                     />
                   ) : (
                     <input type="text" value={formatCurrency(check?.medicalRecordsFee)} disabled />
@@ -1384,8 +1446,21 @@ const CheckDetails = () => {
                     <input 
                       type="number" 
                       step="0.01"
-                      value={formData.correctionsAmount !== undefined ? formData.correctionsAmount : (check?.correctionsAmount || 0)} 
-                      onChange={(e) => handleFormChange('correctionsAmount', parseFloat(e.target.value) || 0)}
+                      value={
+                        formData.correctionsAmount !== undefined 
+                          ? (formData.correctionsAmount === 0 || formData.correctionsAmount === null ? '' : formData.correctionsAmount)
+                          : (check?.correctionsAmount && check.correctionsAmount !== 0 ? check.correctionsAmount : '')
+                      } 
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '') {
+                          handleFormChange('correctionsAmount', null);
+                        } else {
+                          const numVal = parseFloat(val);
+                          handleFormChange('correctionsAmount', isNaN(numVal) ? null : numVal);
+                        }
+                      }}
+                      placeholder="0"
                     />
                   ) : (
                     <input type="text" value={formatCurrency(check?.correctionsAmount)} disabled />
@@ -1418,22 +1493,92 @@ const CheckDetails = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Transfer-In</label>
-                  <input 
-                    type="text" 
-                    value={formData.transferIn || ''}
-                    onChange={(e) => handleFormChange('transferIn', e.target.value)}
-                    disabled={!isEditMode}
-                  />
+                  <label>Transfer In From</label>
+                  {isEditMode ? (
+                    <SearchableDropdown
+                      options={practices.map(p => ({ value: p.code, label: `${p.code} - ${p.name}` }))}
+                      value={formData.transferInFrom || ''}
+                      onChange={(val) => handleFormChange('transferInFrom', val)}
+                      placeholder="Select practice..."
+                      maxVisibleItems={5}
+                    />
+                  ) : (
+                    <input 
+                      type="text" 
+                      value={check?.transferInFrom ? (practices.find(p => p.code === check.transferInFrom)?.name || check.transferInFrom) : 'N/A'}
+                      disabled
+                    />
+                  )}
                 </div>
                 <div className="form-group">
-                  <label>Transfer-Out</label>
-                  <input 
-                    type="text" 
-                    value={formData.transferOut || ''}
-                    onChange={(e) => handleFormChange('transferOut', e.target.value)}
-                    disabled={!isEditMode}
-                  />
+                  <label>Transfer In Amount</label>
+                  {isEditMode ? (
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      value={
+                        formData.transferInAmount !== undefined && formData.transferInAmount !== null
+                          ? (formData.transferInAmount === 0 ? '' : formData.transferInAmount)
+                          : (check?.transferInAmount && check.transferInAmount !== 0 ? check.transferInAmount : '')
+                      }
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '') {
+                          handleFormChange('transferInAmount', null);
+                        } else {
+                          const numVal = parseFloat(val);
+                          handleFormChange('transferInAmount', isNaN(numVal) ? null : numVal);
+                        }
+                      }}
+                      placeholder="0"
+                    />
+                  ) : (
+                    <input type="text" value={formatCurrency(check?.transferInAmount || 0)} disabled />
+                  )}
+                </div>
+                <div className="form-group">
+                  <label>Transfer Out From</label>
+                  {isEditMode ? (
+                    <SearchableDropdown
+                      options={practices.map(p => ({ value: p.code, label: `${p.code} - ${p.name}` }))}
+                      value={formData.transferOutFrom || ''}
+                      onChange={(val) => handleFormChange('transferOutFrom', val)}
+                      placeholder="Select practice..."
+                      maxVisibleItems={5}
+                    />
+                  ) : (
+                    <input 
+                      type="text" 
+                      value={check?.transferOutFrom ? (practices.find(p => p.code === check.transferOutFrom)?.name || check.transferOutFrom) : 'N/A'}
+                      disabled
+                    />
+                  )}
+                </div>
+                <div className="form-group">
+                  <label>Transfer Out Amount</label>
+                  {isEditMode ? (
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      value={
+                        formData.transferOutAmount !== undefined && formData.transferOutAmount !== null
+                          ? (formData.transferOutAmount === 0 ? '' : formData.transferOutAmount)
+                          : (check?.transferOutAmount && check.transferOutAmount !== 0 ? check.transferOutAmount : '')
+                      }
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '') {
+                          handleFormChange('transferOutAmount', null);
+                        } else {
+                          const numVal = parseFloat(val);
+                          handleFormChange('transferOutAmount', isNaN(numVal) ? null : numVal);
+                        }
+                      }}
+                      placeholder="0"
+                    />
+                  ) : (
+                    <input type="text" value={formatCurrency(check?.transferOutAmount || 0)} disabled />
+                  )}
                 </div>
               </div>
             </div>
@@ -1474,11 +1619,24 @@ const CheckDetails = () => {
                   <h4>Add New Batch</h4>
                   <div className="form-grid">
                     <div className="form-group">
+                      <label>Batch Type</label>
+                      <select
+                        value={batchFormData.batchType}
+                        onChange={(e) => handleBatchFormChange('batchType', e.target.value)}
+                      >
+                        <option value="MANUAL">MANUAL</option>
+                        <option value="AUTO">AUTO</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
                       <label>Batch Run Number</label>
                       <input 
                         type="text" 
                         value={batchFormData.batchRunNumber}
                         onChange={(e) => handleBatchFormChange('batchRunNumber', e.target.value)}
+                        disabled={batchFormData.batchType === 'MANUAL'}
+                        readOnly={batchFormData.batchType === 'MANUAL'}
+                        style={batchFormData.batchType === 'MANUAL' ? { backgroundColor: '#f3f4f6', cursor: 'not-allowed' } : {}}
                       />
                       {batchValidationErrors.batchRunNumber && (
                         <span className="error-text" style={{ color: '#dc2626', fontSize: '12px', display: 'block', marginTop: '4px' }}>
@@ -1507,16 +1665,6 @@ const CheckDetails = () => {
                         onChange={(e) => handleBatchFormChange('batchDate', e.target.value)}
                         placeholder="MM/DD/YYYY"
                       />
-                    </div>
-                    <div className="form-group">
-                      <label>Batch Type</label>
-                      <select
-                        value={batchFormData.batchType}
-                        onChange={(e) => handleBatchFormChange('batchType', e.target.value)}
-                      >
-                        <option value="MANUAL">MANUAL</option>
-                        <option value="AUTO">AUTO</option>
-                      </select>
                     </div>
                     <div className="form-group">
                       <label>Batch Amount</label>
@@ -1558,6 +1706,9 @@ const CheckDetails = () => {
                 <table className="batches-table">
                   <thead>
                     <tr>
+                      <th className="sortable" onClick={() => handleSortBatches('batchType')}>
+                        Type {getSortArrow('batchType')}
+                      </th>
                       <th className="sortable" onClick={() => handleSortBatches('batchRunNumber')}>
                         Run Number {getSortArrow('batchRunNumber')}
                       </th>
@@ -1566,9 +1717,6 @@ const CheckDetails = () => {
                       </th>
                       <th className="sortable" onClick={() => handleSortBatches('batchDate')}>
                         Date {getSortArrow('batchDate')}
-                      </th>
-                      <th className="sortable" onClick={() => handleSortBatches('batchType')}>
-                        Type {getSortArrow('batchType')}
                       </th>
                       <th className="sortable" onClick={() => handleSortBatches('batchAmount')}>
                         Amount {getSortArrow('batchAmount')}
@@ -1592,11 +1740,24 @@ const CheckDetails = () => {
                         editingBatchId === batch.batchId ? (
                           <tr key={batch.batchId} className="editing-row">
                             <td>
+                              <select
+                                value={batchFormData.batchType}
+                                onChange={(e) => handleBatchFormChange('batchType', e.target.value)}
+                                className="inline-input"
+                              >
+                                <option value="MANUAL">MANUAL</option>
+                                <option value="AUTO">AUTO</option>
+                              </select>
+                            </td>
+                            <td>
                               <input 
                                 type="text" 
                                 value={batchFormData.batchRunNumber}
                                 onChange={(e) => handleBatchFormChange('batchRunNumber', e.target.value)}
                                 className="inline-input"
+                                disabled={batchFormData.batchType === 'MANUAL'}
+                                readOnly={batchFormData.batchType === 'MANUAL'}
+                                style={batchFormData.batchType === 'MANUAL' ? { backgroundColor: '#f3f4f6', cursor: 'not-allowed' } : {}}
                               />
                               {batchValidationErrors.batchRunNumber && (
                                 <span className="error-text" style={{ color: '#dc2626', fontSize: '11px', display: 'block', marginTop: '2px' }}>
@@ -1625,16 +1786,6 @@ const CheckDetails = () => {
                                 placeholder="MM/DD/YYYY"
                                 className="inline-input"
                               />
-                            </td>
-                            <td>
-                              <select
-                                value={batchFormData.batchType}
-                                onChange={(e) => handleBatchFormChange('batchType', e.target.value)}
-                                className="inline-input"
-                              >
-                                <option value="MANUAL">MANUAL</option>
-                                <option value="AUTO">AUTO</option>
-                              </select>
                             </td>
                             <td>
                               <input 
@@ -1698,10 +1849,10 @@ const CheckDetails = () => {
                           </tr>
                         ) : (
                           <tr key={batch.batchId} data-batch-id={batch.batchId} className={batch.isArchived ? 'batch-archived' : ''}>
+                            <td>{batch.batchType || 'N/A'}</td>
                             <td>{batch.batchRunNumber || 'N/A'}</td>
                             <td>{batch.batchNumber || 'N/A'}</td>
                             <td>{batch.batchDate ? formatDateUS(batch.batchDate) : 'N/A'}</td>
-                            <td>{batch.batchType || 'N/A'}</td>
                             <td>{formatCurrency(batch.batchAmount)}</td>
                             <td>{batch.invoiceNumber || 'N/A'}</td>
                             <td>{batch.batchNotes || 'N/A'}</td>

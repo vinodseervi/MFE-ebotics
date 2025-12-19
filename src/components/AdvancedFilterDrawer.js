@@ -63,22 +63,6 @@ const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onRese
     }
   };
 
-  const fetchLocations = async (practiceCode) => {
-    try {
-      const practice = practices.find(p => p.code === practiceCode);
-      if (practice && practice.practiceId) {
-        const response = await api.getPracticeLocations(practice.practiceId);
-        if (response && Array.isArray(response)) {
-          setLocations(response);
-        } else if (response && response.items) {
-          setLocations(response.items);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching locations:', error);
-    }
-  };
-
   const handleChange = (field, value) => {
     // Filter emojis from string inputs
     const filteredValue = typeof value === 'string' ? filterEmojis(value) : value;
@@ -602,6 +586,7 @@ const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onRese
                   name="openedDateTo"
                   value={localFilters.openedDateTo || ''}
                   onChange={(e) => handleDateChange('openedDateTo', e.target.value)}
+                  min={localFilters.openedDateFrom || undefined}
                 />
               </div>
             </>
@@ -622,6 +607,7 @@ const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onRese
                   name="dateReceivedTo"
                   value={localFilters.dateReceivedTo || ''}
                   onChange={(e) => handleDateChange('dateReceivedTo', e.target.value)}
+                  min={localFilters.dateReceivedFrom || undefined}
                 />
               </div>
 
@@ -640,6 +626,7 @@ const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onRese
                   name="completedDateTo"
                   value={localFilters.completedDateTo || ''}
                   onChange={(e) => handleDateChange('completedDateTo', e.target.value)}
+                  min={localFilters.completedDateFrom || undefined}
                 />
               </div>
             </>
@@ -660,6 +647,7 @@ const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onRese
                   name="depositDateTo"
                   value={localFilters.depositDateTo || ''}
                   onChange={(e) => handleDateChange('depositDateTo', e.target.value)}
+                  min={localFilters.depositDateFrom || undefined}
                 />
               </div>
 
@@ -678,6 +666,7 @@ const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onRese
                   name="receivedDateTo"
                   value={localFilters.receivedDateTo || ''}
                   onChange={(e) => handleDateChange('receivedDateTo', e.target.value)}
+                  min={localFilters.receivedDateFrom || undefined}
                 />
               </div>
 
@@ -696,6 +685,7 @@ const AdvancedFilterDrawer = ({ isOpen, onClose, filters, onApplyFilters, onRese
                   name="completedDateTo"
                   value={localFilters.completedDateTo || ''}
                   onChange={(e) => handleDateChange('completedDateTo', e.target.value)}
+                  min={localFilters.completedDateFrom || undefined}
                 />
               </div>
             </>

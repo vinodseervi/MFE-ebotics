@@ -87,7 +87,8 @@ const DitDrl = () => {
     'postedCcmg',
     'totalPosted',
     'remainingAmount',
-    'status'
+    'status',
+    'updatedAt'
   ];
 
   // Initialize visible columns with default columns
@@ -737,15 +738,63 @@ const DitDrl = () => {
                 </button>
               </div>
             )}
-            {(advancedFilters.dateReceivedFrom || advancedFilters.dateReceivedTo) && (
+            {advancedFilters.dateReceivedFrom && (
               <div className="filter-chip">
-                <span>Date Range: {formatDateRange(advancedFilters.dateReceivedFrom || '', advancedFilters.dateReceivedTo || '')}</span>
+                <span>Date Received From: {formatDateUS(advancedFilters.dateReceivedFrom)}</span>
                 <button
                   className="chip-close-btn"
                   onClick={() => {
-                    setAdvancedFilters(prev => ({ ...prev, dateReceivedFrom: '', dateReceivedTo: '' }));
+                    setAdvancedFilters(prev => ({ ...prev, dateReceivedFrom: '' }));
                   }}
-                  title="Remove date range filter"
+                  title="Remove date received from filter"
+                >
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                    <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            )}
+            {advancedFilters.dateReceivedTo && (
+              <div className="filter-chip">
+                <span>Date Received To: {formatDateUS(advancedFilters.dateReceivedTo)}</span>
+                <button
+                  className="chip-close-btn"
+                  onClick={() => {
+                    setAdvancedFilters(prev => ({ ...prev, dateReceivedTo: '' }));
+                  }}
+                  title="Remove date received to filter"
+                >
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                    <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            )}
+            {advancedFilters.completedDateFrom && (
+              <div className="filter-chip">
+                <span>Completed From: {formatDateUS(advancedFilters.completedDateFrom)}</span>
+                <button
+                  className="chip-close-btn"
+                  onClick={() => {
+                    setAdvancedFilters(prev => ({ ...prev, completedDateFrom: '' }));
+                  }}
+                  title="Remove completed date from filter"
+                >
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+                    <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            )}
+            {advancedFilters.completedDateTo && (
+              <div className="filter-chip">
+                <span>Completed To: {formatDateUS(advancedFilters.completedDateTo)}</span>
+                <button
+                  className="chip-close-btn"
+                  onClick={() => {
+                    setAdvancedFilters(prev => ({ ...prev, completedDateTo: '' }));
+                  }}
+                  title="Remove completed date to filter"
                 >
                   <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
                     <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -834,27 +883,34 @@ const DitDrl = () => {
           <table className="dit-drl-table">
             <thead>
               <tr className="totals-row">
-                <th>
-                  <Tooltip text="Totals reflect only the rows currently displayed on this page" position="top">
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                      <Info 
-                        size={16} 
-                        style={{ 
-                          color: '#374151', 
-                          cursor: 'pointer',
-                          transition: 'color 0.2s',
-                          fontWeight: 'bold',
-                          strokeWidth: 2.5,
-                          flexShrink: 0
-                        }}
-                        onMouseEnter={(e) => e.target.style.color = '#0d9488'}
-                        onMouseLeave={(e) => e.target.style.color = '#374151'}
-                      />
-                      Totals:
-                    </span>
-                  </Tooltip>
-                </th>
-                {visibleColumns.map(colKey => {
+                {visibleColumns.map((colKey, index) => {
+                  // Show "Totals:" in the first column
+                  if (index === 0) {
+                    return (
+                      <th key={colKey}>
+                        <Tooltip text="Totals reflect only the rows currently displayed on this page" position="top">
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                            <Info 
+                              size={16} 
+                              style={{ 
+                                color: '#374151', 
+                                cursor: 'pointer',
+                                transition: 'color 0.2s',
+                                fontWeight: 'bold',
+                                strokeWidth: 2.5,
+                                flexShrink: 0
+                              }}
+                              onMouseEnter={(e) => e.target.style.color = '#0d9488'}
+                              onMouseLeave={(e) => e.target.style.color = '#374151'}
+                            />
+                            Totals:
+                          </span>
+                        </Tooltip>
+                      </th>
+                    );
+                  }
+                  
+                  // Show totals for columns that have them
                   switch (colKey) {
                     case 'totalDrlReceived':
                       return <th key={colKey}>{formatCurrency(totals.totalDrlReceived)}</th>;

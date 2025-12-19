@@ -633,7 +633,7 @@
 }
 
 .checks-table th {
-  padding: 10px 8px;
+  padding: 8px 4px;
   text-align: left;
   font-size: 11px;
   font-weight: 600;
@@ -649,7 +649,7 @@
   width: 40px;
   min-width: 40px;
   max-width: 40px;
-  padding: 10px 4px;
+  padding: 8px 0px 8px 4px; /* top right bottom left - no right padding */
 }
 
 /* Optimize date columns to be more compact */
@@ -657,6 +657,7 @@
 .checks-table td:nth-child(2) {
   min-width: 100px;
   max-width: 110px;
+  padding: 8px 4px 8px 0px !important; /* top right bottom left - no left padding to minimize gap from checkbox */
 }
 
 /* Optimize text columns - allow truncation but set reasonable limits */
@@ -681,7 +682,7 @@
 }
 
 .checks-table td {
-  padding: 10px 8px;
+  padding: 8px 4px;
   font-size: 13px;
   color: #374151;
   border-bottom: 1px solid #e5e7eb;
@@ -840,7 +841,7 @@
   
   .checks-table th,
   .checks-table td {
-    padding: 8px 6px;
+    padding: 6px 3px;
     font-size: 12px;
   }
   

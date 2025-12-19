@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useUsers } from '../context/UsersContext';
-import { formatDateTime } from '../utils/dateUtils';
+import { formatDateTime, formatDateUS } from '../utils/dateUtils';
 import './ActivityDrawer.css';
 
 const ActivityDrawer = ({ isOpen, onClose, checkId }) => {
@@ -61,25 +61,6 @@ const ActivityDrawer = ({ isOpen, onClose, checkId }) => {
     setFilteredActivities(filtered);
   }, [activities, searchTerm, getUserName]);
 
-  const getActivityTypeLabel = (activityType) => {
-    const typeMap = {
-      'CHECK_CREATED': 'Check Created',
-      'CHECK_UPDATED': 'Check Updated',
-      'CHECK_DELETED': 'Check Deleted',
-      'BATCH_CREATED': 'Batch Created',
-      'BATCH_ADDED': 'Batch Added',
-      'BATCH_UPDATED': 'Batch Updated',
-      'ALLOCATION_CREATED': 'Allocation Created',
-      'ALLOCATION_UPDATED': 'Allocation Updated',
-      'CLARIFICATION_CREATED': 'Clarification Created',
-      'CLARIFICATION_ADDED': 'Clarification Added',
-      'CLARIFICATION_UPDATED': 'Clarification Updated',
-      'CLARIFICATION_COMMENTED': 'Clarification Commented',
-      'BULK_ASSIGNMENT': 'Bulk Assignment',
-    };
-    return typeMap[activityType] || activityType?.replace(/_/g, ' ') || 'Activity';
-  };
-
   const handleBatchClick = (batchId, batchNumber, activityCheckId) => {
     // Navigate to check details page with batches tab and batchId for highlighting
     // Use the checkId from activity metadata if available, otherwise use current checkId
@@ -120,9 +101,46 @@ const ActivityDrawer = ({ isOpen, onClose, checkId }) => {
       .trim();
   };
 
-  const formatValue = (value) => {
+  const formatValue = (value, fieldName = '') => {
     if (value === null || value === undefined) return 'N/A';
     if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    
+    // Check if this is a date field
+    const dateFields = ['batchDate', 'date', 'Date', 'createdAt', 'updatedAt', 'openedAt', 'completedDate', 'depositDate', 'receivedDate', 'correctionBatchDate'];
+    const isDateField = dateFields.some(df => fieldName.toLowerCase().includes(df.toLowerCase()));
+    
+    if (isDateField) {
+      // Try to format as date
+      try {
+        // Handle different date formats
+        let dateStr = String(value);
+        
+        // If it's in format like "2025,11,12" or "2025,9,12", convert it
+        if (dateStr.includes(',')) {
+          const parts = dateStr.split(',').map(p => p.trim());
+          if (parts.length === 3) {
+            const year = parts[0];
+            const month = parts[1].padStart(2, '0');
+            const day = parts[2].padStart(2, '0');
+            dateStr = `${year}-${month}-${day}`;
+          }
+        }
+        
+        // If it's already in YYYY-MM-DD format or can be parsed
+        if (dateStr.match(/^\d{4}-\d{2}-\d{2}/) || dateStr.match(/^\d{4}-\d{1,2}-\d{1,2}/)) {
+          return formatDateUS(dateStr);
+        }
+        
+        // Try parsing as date
+        const date = new Date(dateStr);
+        if (!isNaN(date.getTime())) {
+          return formatDateUS(date.toISOString().split('T')[0]);
+        }
+      } catch (e) {
+        // If date parsing fails, return as string
+      }
+    }
+    
     if (typeof value === 'string' && value.length > 50) {
       return value.substring(0, 50) + '...';
     }
@@ -313,12 +331,12 @@ const ActivityDrawer = ({ isOpen, onClose, checkId }) => {
                             <div className="change-values">
                               <div className="change-value old">
                                 <span className="value-label">From:</span>
-                                <span className="value-text">{formatValue(change.oldValue)}</span>
+                                <span className="value-text">{formatValue(change.oldValue, change.field)}</span>
                               </div>
                               <div className="change-arrow">→</div>
                               <div className="change-value new">
                                 <span className="value-label">To:</span>
-                                <span className="value-text">{formatValue(change.newValue)}</span>
+                                <span className="value-text">{formatValue(change.newValue, change.field)}</span>
                               </div>
                             </div>
                           </div>

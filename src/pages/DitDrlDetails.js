@@ -1,23 +1,19 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useUsers } from '../context/UsersContext';
 import { usePermissions, PERMISSIONS } from '../hooks/usePermissions';
 import PermissionGuard from '../components/PermissionGuard';
-import { formatDateUS, parseDateUS, formatDateTime, formatDateTimeTooltip } from '../utils/dateUtils';
-import { MdOutlineHistory } from 'react-icons/md';
-import { Info } from 'lucide-react';
+import { formatDateUS, parseDateUS } from '../utils/dateUtils';
 import SearchableDropdown from '../components/SearchableDropdown';
 import USDateInput from '../components/USDateInput';
 import UserTimestamp from '../components/UserTimestamp';
-import Tooltip from '../components/Tooltip';
 import { filterEmojis } from '../utils/emojiFilter';
 import './CheckDetails.css';
 
 const DitDrlDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   // Check both id param and pathname to handle /dit-drl/new route
   const isNew = id === 'new' || window.location.pathname === '/dit-drl/new' || window.location.pathname.endsWith('/dit-drl/new');
   
@@ -42,10 +38,11 @@ const DitDrlDetails = () => {
   const [showValidationError, setShowValidationError] = useState(false);
   const [validationErrorMessages, setValidationErrorMessages] = useState([]);
   
-  // Navigation state
+  // Navigation state (for potential future navigation features)
+  // eslint-disable-next-line no-unused-vars
   const [ditDrlIds, setDitDrlIds] = useState([]);
+  // eslint-disable-next-line no-unused-vars
   const [currentIndex, setCurrentIndex] = useState(-1);
-  const [navigationLoading, setNavigationLoading] = useState(false);
   
   // Form data
   const [formData, setFormData] = useState({

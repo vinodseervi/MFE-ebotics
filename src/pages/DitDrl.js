@@ -54,7 +54,7 @@ const DitDrl = () => {
   const [sortField, setSortField] = useState('dateReceived');
   const [sortDirection, setSortDirection] = useState('asc'); // Default: oldest first (by Date Received)
   
-  const { users, getUserName, getUserById } = useUsers(); // Get users from context
+  const { getUserName, getUserById } = useUsers(); // Get users from context
 
   // Column selector
   const [showColumnSelector, setShowColumnSelector] = useState(false);

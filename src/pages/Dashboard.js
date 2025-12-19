@@ -98,7 +98,7 @@ const Dashboard = () => {
     'IN_PROGRESS': 'In Progress',
     'COMPLETED': 'Completed',
     'OVER_POSTED': 'Over Posted',
-    'UNDER_CLARIFICATIONS': 'Under Clarifications'
+    'UNDER_CLARIFICATIONS': 'Clarifications'
   };
 
   const prepareStatusChartData = () => {
@@ -304,7 +304,7 @@ const Dashboard = () => {
             <h3 className="chart-title">Status Distribution</h3>
             <div className="chart-subtitle">Check count by status</div>
           </div>
-          <ResponsiveContainer width="100%" height={350}>
+          <ResponsiveContainer width="100%" height={220}>
             <PieChart>
               <Pie
                 data={prepareStatusChartData()}
@@ -312,7 +312,7 @@ const Dashboard = () => {
                 cy="50%"
                 labelLine={false}
                 label={({ name, percentage }) => `${name}: ${percentage.toFixed(1)}%`}
-                outerRadius={120}
+                outerRadius={80}
                 fill="#8884d8"
                 dataKey="value"
               >
@@ -341,7 +341,7 @@ const Dashboard = () => {
             <h3 className="chart-title">Status Comparison</h3>
             <div className="chart-subtitle">Count and percentage by status</div>
           </div>
-          <ResponsiveContainer width="100%" height={350}>
+          <ResponsiveContainer width="100%" height={220}>
             <BarChart data={prepareStatusBarData()}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis 
@@ -349,7 +349,8 @@ const Dashboard = () => {
                 stroke="#6b7280"
                 angle={-45}
                 textAnchor="end"
-                height={80}
+                height={60}
+                tick={{ fontSize: 11 }}
               />
               <YAxis stroke="#6b7280" />
               <Tooltip 

@@ -43,7 +43,6 @@ const DitDrlDetails = () => {
   
   // Site codes for dropdown
   const [siteCodes, setSiteCodes] = useState([]);
-  const [practices, setPractices] = useState([]);
   
   // Clarifications state
   const [isAddingClarification, setIsAddingClarification] = useState(false);
@@ -100,7 +99,6 @@ const DitDrlDetails = () => {
         const practicesResponse = await api.getAllPractices();
         const practicesList = Array.isArray(practicesResponse) ? practicesResponse : (practicesResponse?.items || []);
         const activePractices = practicesList.filter(p => p.isActive !== false);
-        setPractices(activePractices);
         
         // Then, fetch DIT/DRL sites for all practices
         const allSiteCodes = [];

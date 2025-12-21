@@ -1,19 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import { useUsers } from '../context/UsersContext';
 import { usePermissions, PERMISSIONS } from '../hooks/usePermissions';
 import PermissionGuard from '../components/PermissionGuard';
-import { formatDateUS, parseDateUS } from '../utils/dateUtils';
+import { formatDateUS, parseDateUS, formatDateTime } from '../utils/dateUtils';
 import SearchableDropdown from '../components/SearchableDropdown';
 import USDateInput from '../components/USDateInput';
 import UserTimestamp from '../components/UserTimestamp';
+import ActivityDrawer from '../components/ActivityDrawer';
+import { MdOutlineHistory } from 'react-icons/md';
 import { filterEmojis } from '../utils/emojiFilter';
 import './CheckDetails.css';
 
 const DitDrlDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   // Check both id param and pathname to handle /dit-drl/new route
   const isNew = id === 'new' || window.location.pathname === '/dit-drl/new' || window.location.pathname.endsWith('/dit-drl/new');
   
@@ -37,6 +40,17 @@ const DitDrlDetails = () => {
   const [archiveBatchIsArchived, setArchiveBatchIsArchived] = useState(false);
   const [showValidationError, setShowValidationError] = useState(false);
   const [validationErrorMessages, setValidationErrorMessages] = useState([]);
+  
+  // Site codes for dropdown
+  const [siteCodes, setSiteCodes] = useState([]);
+  const [practices, setPractices] = useState([]);
+  
+  // Clarifications state
+  const [isAddingClarification, setIsAddingClarification] = useState(false);
+  const [editingClarificationId, setEditingClarificationId] = useState(null);
+  const [showActivityDrawer, setShowActivityDrawer] = useState(false);
+  const hasScrolledToClarification = useRef(false);
+  const lastClarificationId = useRef(null);
   
   // Navigation state (for potential future navigation features)
   // eslint-disable-next-line no-unused-vars
@@ -66,6 +80,58 @@ const DitDrlDetails = () => {
     batchSource: 'ONSHORE'
   });
 
+  const [clarificationFormData, setClarificationFormData] = useState({
+    clarificationType: '',
+    details: '',
+    assignee: 'ON-SHORE', // Default assignee
+    reportee: 'EBOTICS', // Default reportee
+    assigneeId: '', // Not required for default assignment
+    reporterId: '', // Not required for default assignment
+    status: 'OPEN'
+  });
+  const [expandedCommentsClarificationId, setExpandedCommentsClarificationId] = useState(null);
+  const [commentText, setCommentText] = useState({});
+
+  // Fetch practices and site codes on mount (especially important for new payment creation)
+  useEffect(() => {
+    const fetchPracticesAndSites = async () => {
+      try {
+        // First, fetch all practices
+        const practicesResponse = await api.getAllPractices();
+        const practicesList = Array.isArray(practicesResponse) ? practicesResponse : (practicesResponse?.items || []);
+        const activePractices = practicesList.filter(p => p.isActive !== false);
+        setPractices(activePractices);
+        
+        // Then, fetch DIT/DRL sites for all practices
+        const allSiteCodes = [];
+        for (const practice of activePractices) {
+          try {
+            const sites = await api.getDitDrlSites(practice.practiceId);
+            const sitesList = Array.isArray(sites) ? sites : [];
+            // Only include active sites
+            const activeSites = sitesList.filter(site => site.active !== false);
+            activeSites.forEach(site => {
+              if (site.code && !allSiteCodes.includes(site.code)) {
+                allSiteCodes.push(site.code);
+              }
+            });
+          } catch (err) {
+            console.error(`Error fetching sites for practice ${practice.practiceId}:`, err);
+            // Continue with other practices even if one fails
+          }
+        }
+        
+        // Sort and set site codes
+        setSiteCodes(allSiteCodes.sort());
+      } catch (err) {
+        console.error('Error fetching practices or site codes:', err);
+      }
+    };
+    
+    // Fetch immediately when component mounts (especially for new payment creation)
+    fetchPracticesAndSites();
+  }, []);
+
   // Load DIT/DRL Payment IDs from sessionStorage
   useEffect(() => {
     if (!isNew) {
@@ -82,6 +148,60 @@ const DitDrlDetails = () => {
       }
     }
   }, [id, isNew]);
+
+    // Check for tab, clarificationId in URL and auto-switch tabs
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    const clarificationIdParam = searchParams.get('clarificationId');
+    
+    if (tabParam && ['overview', 'batches', 'clarifications'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    } else if (clarificationIdParam && id) {
+      setActiveTab('clarifications');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, id]);
+
+  // Reset scroll flags when DIT/DRL ID changes
+  useEffect(() => {
+    hasScrolledToClarification.current = false;
+    lastClarificationId.current = null;
+  }, [id]);
+
+  // Expand specific clarification after clarifications are loaded
+  useEffect(() => {
+    const clarificationIdParam = searchParams.get('clarificationId');
+    const clarifications = ditDrl?.clarifications || [];
+    if (clarificationIdParam && clarifications.length > 0 && activeTab === 'clarifications') {
+      const clarification = clarifications.find(c => c.clarificationId === clarificationIdParam);
+      if (clarification) {
+        // Only scroll if this is a new clarification ID or we haven't scrolled yet
+        const isNewClarification = lastClarificationId.current !== clarificationIdParam;
+        if (isNewClarification || !hasScrolledToClarification.current) {
+          lastClarificationId.current = clarificationIdParam;
+          hasScrolledToClarification.current = false; // Reset to allow scroll
+          
+          // Scroll to the clarification card after a short delay to ensure it's rendered
+          setTimeout(() => {
+            const element = document.querySelector(`[data-clarification-id="${clarificationIdParam}"]`);
+            if (element) {
+              element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              // Highlight the clarification briefly
+              element.style.backgroundColor = '#fef3c7';
+              setTimeout(() => {
+                element.style.backgroundColor = '';
+              }, 2000);
+              hasScrolledToClarification.current = true;
+            }
+          }, 300);
+        }
+      }
+    } else if (!clarificationIdParam) {
+      // Reset when clarificationId is removed from URL
+      hasScrolledToClarification.current = false;
+      lastClarificationId.current = null;
+    }
+  }, [ditDrl?.clarifications, searchParams, activeTab]);
 
   // Fetch DIT/DRL Payment details
   useEffect(() => {
@@ -430,6 +550,136 @@ const DitDrlDetails = () => {
     setBatchValidationErrors({});
   };
 
+  // Clarification handlers
+  const handleClarificationFormChange = (field, value) => {
+    // Filter emojis from string inputs
+    const filteredValue = typeof value === 'string' ? filterEmojis(value) : value;
+    
+    // Auto-select opposite for assignee/reporter
+    if (field === 'assignee' && value) {
+      const oppositeReporter = value === 'ON-SHORE' ? 'EBOTICS' : 'ON-SHORE';
+      setClarificationFormData(prev => ({
+        ...prev,
+        [field]: filteredValue,
+        reportee: oppositeReporter // Auto-select opposite
+      }));
+    } else if (field === 'reportee' && value) {
+      const oppositeAssignee = value === 'ON-SHORE' ? 'EBOTICS' : 'ON-SHORE';
+      setClarificationFormData(prev => ({
+        ...prev,
+        [field]: filteredValue,
+        assignee: oppositeAssignee // Auto-select opposite
+      }));
+    } else {
+      setClarificationFormData(prev => ({
+        ...prev,
+        [field]: filteredValue
+      }));
+    }
+  };
+
+  const toggleCommentsExpanded = (clarificationId) => {
+    setExpandedCommentsClarificationId(prev => 
+      prev === clarificationId ? null : clarificationId
+    );
+  };
+
+  const handleAddClarification = async () => {
+    try {
+      await api.createDitDrlClarification(id, clarificationFormData);
+      await fetchDitDrlDetails(); // Refresh DIT/DRL data to get updated clarifications
+      setIsAddingClarification(false);
+      setClarificationFormData({
+        clarificationType: '',
+        details: '',
+        assignee: 'ON-SHORE', // Default assignee
+        reportee: 'EBOTICS', // Default reportee
+        assigneeId: '', // Not required for default assignment
+        reporterId: '', // Not required for default assignment
+        status: 'OPEN'
+      });
+    } catch (err) {
+      console.error('Error creating clarification:', err);
+      alert('Failed to create clarification. Please try again.');
+    }
+  };
+
+  const handleEditClarification = (clarification) => {
+    setEditingClarificationId(clarification.clarificationId);
+    // Automatically expand comments when editing
+    setExpandedCommentsClarificationId(clarification.clarificationId);
+    setClarificationFormData({
+      clarificationType: clarification.clarificationType || '',
+      details: clarification.details || '',
+      assignee: clarification.assignee || 'ON-SHORE', // Default to ON-SHORE if not set
+      reportee: clarification.reportee || 'EBOTICS', // Default to EBOTICS if not set
+      assigneeId: clarification.assigneeId || '',
+      reporterId: clarification.reporterId || '',
+      status: clarification.status || 'OPEN'
+    });
+  };
+
+  const handleUpdateClarification = async () => {
+    try {
+      await api.updateDitDrlClarification(id, editingClarificationId, clarificationFormData);
+      await fetchDitDrlDetails(); // Refresh DIT/DRL data to get updated clarifications
+      const previousClarificationId = editingClarificationId;
+      setEditingClarificationId(null);
+      // Keep comments expanded after update
+      setExpandedCommentsClarificationId(previousClarificationId);
+      setClarificationFormData({
+        clarificationType: '',
+        details: '',
+        assignee: 'ON-SHORE', // Default assignee
+        reportee: 'EBOTICS', // Default reportee
+        assigneeId: '', // Not required for default assignment
+        reporterId: '', // Not required for default assignment
+        status: 'OPEN'
+      });
+    } catch (err) {
+      console.error('Error updating clarification:', err);
+      alert('Failed to update clarification. Please try again.');
+    }
+  };
+
+  const handleCancelClarification = () => {
+    setIsAddingClarification(false);
+    setEditingClarificationId(null);
+    // Collapse comments when canceling edit
+    setExpandedCommentsClarificationId(null);
+    setClarificationFormData({
+      clarificationType: '',
+      details: '',
+      assignee: 'ON-SHORE', // Default assignee
+      reportee: 'EBOTICS', // Default reportee
+      assigneeId: '', // Not required for default assignment
+      reporterId: '', // Not required for default assignment
+      status: 'OPEN'
+    });
+  };
+
+  const handleAddComment = async (clarificationId) => {
+    const comment = commentText[clarificationId];
+    if (!comment || !comment.trim()) {
+      alert('Please enter a comment');
+      return;
+    }
+
+    try {
+      await api.updateDitDrlClarification(id, clarificationId, {
+        newComment: comment
+      });
+      await fetchDitDrlDetails(); // Refresh DIT/DRL data to get updated clarifications
+      setCommentText(prev => ({
+        ...prev,
+        [clarificationId]: ''
+      }));
+    } catch (err) {
+      console.error('Error adding comment:', err);
+      alert('Failed to add comment. Please try again.');
+    }
+  };
+
   const handleSortBatches = (field) => {
     if (batchSortField === field) {
       setBatchSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
@@ -537,7 +787,7 @@ const DitDrlDetails = () => {
   const displayData = isNewCheck ? formData : ditDrl;
 
   return (
-    <div className="check-details-page" data-testid="dit-drl-details-page">
+    <div className={`check-details-page ${showActivityDrawer ? 'activity-sidebar-open' : ''}`} data-testid="dit-drl-details-page">
       {/* Header */}
       <div className="page-header">
         <div className="header-left">
@@ -546,7 +796,7 @@ const DitDrlDetails = () => {
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                 <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
-              Back to DIT/DRL Payments
+              Back
             </button>
             <div className="title-row">
               <h1 className="page-title">
@@ -560,6 +810,22 @@ const DitDrlDetails = () => {
             </div>
           </div>
         </div>
+        {!isNewCheck && (
+          <div className="header-right">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'flex-end' }}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <button 
+                  className="activity-btn" 
+                  onClick={() => setShowActivityDrawer(true)}
+                  title="View Activity History"
+                >
+                  <MdOutlineHistory size={16} />
+                  <span>Activity</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Financial Summary Card */}
@@ -688,12 +954,24 @@ const DitDrlDetails = () => {
               <div className="form-grid">
                 <div className="form-group">
                   <label>Site Code</label>
-                  <input 
-                    type="text" 
-                    value={formData?.siteCode || ''}
-                    onChange={(e) => handleFormChange('siteCode', e.target.value)}
-                    disabled={!isEditMode}
-                  />
+                  {isEditMode ? (
+                    <SearchableDropdown
+                      options={siteCodes.map(siteCode => ({
+                        value: siteCode,
+                        label: siteCode
+                      }))}
+                      value={formData?.siteCode || ''}
+                      onChange={(value) => handleFormChange('siteCode', value)}
+                      placeholder="Select Site Code"
+                      maxVisibleItems={5}
+                    />
+                  ) : (
+                    <input 
+                      type="text" 
+                      value={formData?.siteCode || ''}
+                      disabled
+                    />
+                  )}
                 </div>
                 <div className="form-group">
                   <label>Date Received</label>
@@ -1194,28 +1472,258 @@ const DitDrlDetails = () => {
           </div>
         )}
 
+        {/* Clarifications Tab */}
         {!isNewCheck && activeTab === 'clarifications' && (
           <div className="tab-content">
-            <div className="details-card">
-              <h3 className="card-title">Clarifications</h3>
-              {displayData.clarifications && displayData.clarifications.length > 0 ? (
+            <div className="clarifications-card">
+              <div className="card-header">
+                <h3 className="card-title">Clarifications</h3>
+                {!isAddingClarification && !editingClarificationId && (
+                  <button className="btn-secondary" onClick={() => setIsAddingClarification(true)}>
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                      <path d="M10 3V17M3 10H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    </svg>
+                    Add Clarification
+                  </button>
+                )}
+              </div>
+
+              {/* Add Clarification Form */}
+              {isAddingClarification && (
+                <div className="clarification-form-card">
+                  <h4>Add New Clarification</h4>
+                  <div className="form-grid">
+                    <div className="form-group">
+                      <label>Clarification Type</label>
+                      <input 
+                        type="text" 
+                        value={clarificationFormData.clarificationType}
+                        onChange={(e) => handleClarificationFormChange('clarificationType', e.target.value)}
+                        placeholder="Enter type"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Status</label>
+                      <select 
+                        value={clarificationFormData.status}
+                        onChange={(e) => handleClarificationFormChange('status', e.target.value)}
+                      >
+                        <option value="OPEN">Open</option>
+                        <option value="RESOLVED">Resolved</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Assignee</label>
+                      <select 
+                        value={clarificationFormData.assignee || 'ON-SHORE'}
+                        onChange={(e) => handleClarificationFormChange('assignee', e.target.value)}
+                      >
+                        <option value="ON-SHORE">ON-SHORE</option>
+                        <option value="EBOTICS">EBOTICS</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Reporter</label>
+                      <select 
+                        value={clarificationFormData.reportee || 'EBOTICS'}
+                        onChange={(e) => handleClarificationFormChange('reportee', e.target.value)}
+                      >
+                        <option value="ON-SHORE">ON-SHORE</option>
+                        <option value="EBOTICS">EBOTICS</option>
+                      </select>
+                    </div>
+                    <div className="form-group full-width">
+                      <label>Details</label>
+                      <textarea 
+                        value={clarificationFormData.details}
+                        onChange={(e) => handleClarificationFormChange('details', e.target.value)}
+                        rows="4"
+                        placeholder="Enter clarification details"
+                      />
+                    </div>
+                  </div>
+                  <div className="form-actions">
+                    <button className="btn-cancel" onClick={handleCancelClarification}>Cancel</button>
+                    <button className="btn-save" onClick={handleAddClarification}>Save Clarification</button>
+                  </div>
+                </div>
+              )}
+
+              {/* Clarifications List */}
+              {ditDrl?.clarifications && ditDrl.clarifications.length > 0 ? (
                 <div className="clarifications-list-redesigned">
-                  {displayData.clarifications.map((clarification) => (
-                    <div key={clarification.clarificationId} className="clarification-item">
-                      <div className="clarification-row-1">
-                        <div className="clarification-main-info">
-                          <span className="clarification-type">{clarification.clarificationType || 'N/A'}</span>
-                          <span className={`clarification-status ${clarification.status?.toLowerCase()}`}>
-                            {clarification.status || 'OPEN'}
-                          </span>
+                  {ditDrl.clarifications.map((clarification) => (
+                    <div 
+                      key={clarification.clarificationId}
+                      className={`clarification-item ${editingClarificationId === clarification.clarificationId ? 'editing' : ''}`}
+                      data-clarification-id={clarification.clarificationId}
+                    >
+                      {editingClarificationId === clarification.clarificationId ? (
+                        // Edit Mode
+                        <div className="clarification-edit-form">
+                          <h4>Edit Clarification</h4>
+                          <div className="form-grid">
+                            <div className="form-group">
+                              <label>Clarification Type</label>
+                              <input 
+                                type="text" 
+                                value={clarificationFormData.clarificationType}
+                                onChange={(e) => handleClarificationFormChange('clarificationType', e.target.value)}
+                              />
+                            </div>
+                            <div className="form-group">
+                              <label>Status</label>
+                              <select 
+                                value={clarificationFormData.status}
+                                onChange={(e) => handleClarificationFormChange('status', e.target.value)}
+                              >
+                                <option value="OPEN">Open</option>
+                                <option value="RESOLVED">Resolved</option>
+                              </select>
+                            </div>
+                            <div className="form-group">
+                              <label>Assignee</label>
+                              <select 
+                                value={clarificationFormData.assignee || 'ON-SHORE'}
+                                onChange={(e) => handleClarificationFormChange('assignee', e.target.value)}
+                              >
+                                <option value="ON-SHORE">ON-SHORE</option>
+                                <option value="EBOTICS">EBOTICS</option>
+                              </select>
+                            </div>
+                            <div className="form-group">
+                              <label>Reporter</label>
+                              <select 
+                                value={clarificationFormData.reportee || 'EBOTICS'}
+                                onChange={(e) => handleClarificationFormChange('reportee', e.target.value)}
+                              >
+                                <option value="ON-SHORE">ON-SHORE</option>
+                                <option value="EBOTICS">EBOTICS</option>
+                              </select>
+                            </div>
+                            <div className="form-group full-width">
+                              <label>Details</label>
+                              <textarea 
+                                value={clarificationFormData.details}
+                                onChange={(e) => handleClarificationFormChange('details', e.target.value)}
+                                rows="4"
+                              />
+                            </div>
+                          </div>
+                          <div className="form-actions">
+                            <button className="btn-cancel" onClick={handleCancelClarification}>Cancel</button>
+                            <button className="btn-save" onClick={handleUpdateClarification}>Update</button>
+                          </div>
                         </div>
-                      </div>
-                      <div className="clarification-row-2">
-                        <div className="clarification-details-full">
-                          <span className="field-label-inline">Details:</span>
-                          <span className="field-value-inline">{clarification.details || 'No details provided'}</span>
-                        </div>
-                      </div>
+                      ) : (
+                        // View Mode
+                        <>
+                          {/* Row 1: Type, Status, Assignee, Reporter, Opened, Actions */}
+                          <div className="clarification-row-1">
+                            <div className="clarification-main-info">
+                              <span className="clarification-type">{clarification.clarificationType || 'N/A'}</span>
+                              <span className={`clarification-status ${clarification.status?.toLowerCase()}`}>
+                                {clarification.status || 'OPEN'}
+                              </span>
+                              <span className="clarification-field-inline">
+                                <span className="field-label-inline">Assignee:</span>
+                                <span className="field-value-inline">{clarification.assignee || 'N/A'}</span>
+                              </span>
+                              <span className="clarification-field-inline">
+                                <span className="field-label-inline">Reporter:</span>
+                                <span className="field-value-inline">{clarification.reportee || 'N/A'}</span>
+                              </span>
+                              <span className="clarification-field-inline">
+                                <span className="field-label-inline">Opened:</span>
+                                <span className="field-value-inline">{clarification.openedAt ? formatDateUS(clarification.openedAt.split('T')[0]) : 'N/A'}</span>
+                              </span>
+                            </div>
+                            <div className="clarification-actions">
+                              <button 
+                                className="btn-icon edit"
+                                onClick={() => handleEditClarification(clarification)}
+                                title="Edit"
+                              >
+                                <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                                  <path d="M11 3H5C4.46957 3 3.96086 3.21071 3.58579 3.58579C3.21071 3.96086 3 4.46957 3 5V15C3 15.5304 3.21071 16.0391 3.58579 16.4142C3.96086 16.7893 4.46957 17 5 17H15C15.5304 17 16.0391 16.7893 16.4142 16.4142C16.7893 16.0391 17 15.5304 17 15V9" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                                  <path d="M14.5 1.5L18.5 5.5L11 13H7V9L14.5 1.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Row 2: Details */}
+                          <div className="clarification-row-2">
+                            <div className="clarification-details-full">
+                              <span className="field-label-inline">Details:</span>
+                              <span className="field-value-inline">{clarification.details || 'No details provided'}</span>
+                            </div>
+                          </div>
+
+                          {/* Row 3: Comments Section (minimized by default) */}
+                          <div className="clarification-row-3">
+                            <button 
+                              className="comments-toggle-btn-below"
+                              onClick={() => toggleCommentsExpanded(clarification.clarificationId)}
+                              title={expandedCommentsClarificationId === clarification.clarificationId ? 'Hide comments' : 'Show comments'}
+                            >
+                              <span className="comments-label">Comments</span>
+                              <span className="comments-count">({clarification.comments?.length || 0})</span>
+                              <svg 
+                                width="16" 
+                                height="16" 
+                                viewBox="0 0 20 20" 
+                                fill="none"
+                                className={`comments-arrow ${expandedCommentsClarificationId === clarification.clarificationId ? 'expanded' : ''}`}
+                              >
+                                <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            </button>
+                            
+                            {expandedCommentsClarificationId === clarification.clarificationId && (
+                              <div className="comments-section-expanded">
+                                <div className="comments-list">
+                                  {clarification.comments && clarification.comments.length > 0 ? (
+                                    clarification.comments.map((comment) => (
+                                      <div key={comment.commentId} className="comment-item">
+                                        <div className="comment-header">
+                                          <span className="comment-author">{comment.userDisplayName || 'Unknown'}</span>
+                                          <span className="comment-date">{formatDateTime(comment.commentedAt)}</span>
+                                        </div>
+                                        <div className="comment-text">{comment.comment}</div>
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <div className="comments-empty-state">No comments yet</div>
+                                  )}
+                                </div>
+                                
+                                {/* Add Comment Form */}
+                                <div className="add-comment-form">
+                                  <textarea 
+                                    placeholder="Add a comment..."
+                                    value={commentText[clarification.clarificationId] || ''}
+                                    onChange={(e) => {
+                                      const filteredValue = filterEmojis(e.target.value);
+                                      setCommentText(prev => ({
+                                        ...prev,
+                                        [clarification.clarificationId]: filteredValue
+                                      }));
+                                    }}
+                                    rows="3"
+                                  />
+                                  <button 
+                                    className="btn-secondary"
+                                    onClick={() => handleAddComment(clarification.clarificationId)}
+                                  >
+                                    Add Comment
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1225,6 +1733,7 @@ const DitDrlDetails = () => {
             </div>
           </div>
         )}
+
       </div>
 
       {/* Archive/Unarchive Confirmation Modal */}
@@ -1425,6 +1934,14 @@ const DitDrlDetails = () => {
           </div>
         </div>
       )}
+
+      {/* Activity Drawer */}
+      <ActivityDrawer
+        isOpen={showActivityDrawer}
+        onClose={() => setShowActivityDrawer(false)}
+        checkId={ditDrl?.ditDrlId}
+        isDitDrl={true}
+      />
     </div>
   );
 };

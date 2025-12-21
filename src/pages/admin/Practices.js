@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../../services/api';
-import { Edit, MapPin, Plus, Building2, Phone, Mail, Search, Info } from 'lucide-react';
+import { Edit, MapPin, Plus, Building2, Phone, Mail, Search, Info, Globe } from 'lucide-react';
 import { countryCodes, parsePhoneNumber, formatPhoneNumber, getDefaultCountry, validatePhoneInput, getPhoneMaxLength, getPhonePlaceholder } from '../../utils/countryCodes';
 import { usePermissions, PERMISSIONS } from '../../hooks/usePermissions';
 import PermissionGuard from '../../components/PermissionGuard';
 import { formatDateTime } from '../../utils/dateUtils';
+import { useUsers } from '../../context/UsersContext';
 import './Admin.css';
 
 const Practices = () => {
   const { can } = usePermissions();
+  const { getUserName } = useUsers();
   const [practices, setPractices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -18,9 +20,12 @@ const Practices = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [showEditLocationModal, setShowEditLocationModal] = useState(false);
+  const [showDitDrlSiteModal, setShowDitDrlSiteModal] = useState(false);
+  const [showEditDitDrlSiteModal, setShowEditDitDrlSiteModal] = useState(false);
   const [editingPractice, setEditingPractice] = useState(null);
   const [selectedPractice, setSelectedPractice] = useState(null);
   const [editingLocation, setEditingLocation] = useState(null);
+  const [editingDitDrlSite, setEditingDitDrlSite] = useState(null);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -54,22 +59,40 @@ const Practices = () => {
     email: ''
   });
 
+  const [ditDrlSiteFormData, setDitDrlSiteFormData] = useState({
+    name: '',
+    code: ''
+  });
+
+  const [editDitDrlSiteFormData, setEditDitDrlSiteFormData] = useState({
+    name: '',
+    active: true
+  });
+
   const [formErrors, setFormErrors] = useState({});
   const [editFormErrors, setEditFormErrors] = useState({});
   const [locationFormErrors, setLocationFormErrors] = useState({});
   const [editLocationFormErrors, setEditLocationFormErrors] = useState({});
+  const [ditDrlSiteFormErrors, setDitDrlSiteFormErrors] = useState({});
+  const [editDitDrlSiteFormErrors, setEditDitDrlSiteFormErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isSubmittingLocation, setIsSubmittingLocation] = useState(false);
   const [isUpdatingLocation, setIsUpdatingLocation] = useState(false);
+  const [isSubmittingDitDrlSite, setIsSubmittingDitDrlSite] = useState(false);
+  const [isUpdatingDitDrlSite, setIsUpdatingDitDrlSite] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [showLocationStatusModal, setShowLocationStatusModal] = useState(false);
+  const [showDitDrlSiteStatusModal, setShowDitDrlSiteStatusModal] = useState(false);
   const [statusUpdatePractice, setStatusUpdatePractice] = useState(null);
   const [statusUpdateLocation, setStatusUpdateLocation] = useState(null);
+  const [statusUpdateDitDrlSite, setStatusUpdateDitDrlSite] = useState(null);
   const [newStatus, setNewStatus] = useState(null);
   const [newLocationStatus, setNewLocationStatus] = useState(null);
+  const [newDitDrlSiteStatus, setNewDitDrlSiteStatus] = useState(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isUpdatingLocationStatus, setIsUpdatingLocationStatus] = useState(false);
+  const [isUpdatingDitDrlSiteStatus, setIsUpdatingDitDrlSiteStatus] = useState(false);
   const [checkingCode, setCheckingCode] = useState(false);
   const [checkingLocationCode, setCheckingLocationCode] = useState(false);
   const [practiceCountryCode, setPracticeCountryCode] = useState(getDefaultCountry());
@@ -698,6 +721,178 @@ const Practices = () => {
     }
   };
 
+  // DIT/DRL Sites handlers
+  const handleAddDitDrlSiteClick = (practice) => {
+    setSelectedPractice(practice);
+    setDitDrlSiteFormData({
+      name: '',
+      code: ''
+    });
+    setDitDrlSiteFormErrors({});
+    setShowDitDrlSiteModal(true);
+  };
+
+  const handleDitDrlSiteInputChange = (e) => {
+    const { name, value } = e.target;
+    setDitDrlSiteFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    if (ditDrlSiteFormErrors[name]) {
+      setDitDrlSiteFormErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
+    }
+  };
+
+  const handleEditDitDrlSiteInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setEditDitDrlSiteFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+    if (editDitDrlSiteFormErrors[name]) {
+      setEditDitDrlSiteFormErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
+    }
+  };
+
+  const validateDitDrlSiteForm = () => {
+    const errors = {};
+    
+    if (!ditDrlSiteFormData.name.trim()) {
+      errors.name = 'Name is required';
+    }
+    
+    if (!ditDrlSiteFormData.code.trim()) {
+      errors.code = 'Code is required';
+    }
+    
+    setDitDrlSiteFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const validateEditDitDrlSiteForm = () => {
+    const errors = {};
+    
+    if (!editDitDrlSiteFormData.name.trim()) {
+      errors.name = 'Name is required';
+    }
+    
+    setEditDitDrlSiteFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleDitDrlSiteSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!validateDitDrlSiteForm()) {
+      return;
+    }
+
+    try {
+      setIsSubmittingDitDrlSite(true);
+      
+      await api.createDitDrlSite(
+        selectedPractice.practiceId,
+        ditDrlSiteFormData.code.trim(),
+        ditDrlSiteFormData.name.trim()
+      );
+      
+      setShowDitDrlSiteModal(false);
+      setSelectedPractice(null);
+      setDitDrlSiteFormData({
+        name: '',
+        code: ''
+      });
+      setDitDrlSiteFormErrors({});
+      
+      await fetchPractices();
+    } catch (error) {
+      console.error('Error creating DIT/DRL site:', error);
+      const errorMessage = error.message || error.error || 'Failed to create DIT/DRL site. Please try again.';
+      setDitDrlSiteFormErrors({ submit: errorMessage });
+    } finally {
+      setIsSubmittingDitDrlSite(false);
+    }
+  };
+
+  const handleEditDitDrlSiteClick = (practice, site) => {
+    setSelectedPractice(practice);
+    setEditingDitDrlSite(site);
+    setEditDitDrlSiteFormData({
+      name: site.name || '',
+      active: site.active !== undefined ? site.active : true
+    });
+    setEditDitDrlSiteFormErrors({});
+    setShowEditDitDrlSiteModal(true);
+  };
+
+  const handleUpdateDitDrlSite = async (e) => {
+    e.preventDefault();
+    
+    if (!validateEditDitDrlSiteForm()) {
+      return;
+    }
+
+    try {
+      setIsUpdatingDitDrlSite(true);
+      
+      const updateData = {
+        name: editDitDrlSiteFormData.name.trim(),
+        active: editDitDrlSiteFormData.active
+      };
+
+      await api.updateDitDrlSite(selectedPractice.practiceId, editingDitDrlSite.siteId, updateData);
+      
+      setShowEditDitDrlSiteModal(false);
+      setSelectedPractice(null);
+      setEditingDitDrlSite(null);
+      setEditDitDrlSiteFormErrors({});
+      
+      await fetchPractices();
+    } catch (error) {
+      console.error('Error updating DIT/DRL site:', error);
+      const errorMessage = error.message || error.error || 'Failed to update DIT/DRL site. Please try again.';
+      setEditDitDrlSiteFormErrors({ submit: errorMessage });
+    } finally {
+      setIsUpdatingDitDrlSite(false);
+    }
+  };
+
+  const handleDitDrlSiteStatusToggle = (practice, site) => {
+    const newStatusValue = !site.active;
+    setSelectedPractice(practice);
+    setStatusUpdateDitDrlSite(site);
+    setNewDitDrlSiteStatus(newStatusValue);
+    setShowDitDrlSiteStatusModal(true);
+  };
+
+  const handleConfirmDitDrlSiteStatusUpdate = async () => {
+    if (!statusUpdateDitDrlSite || !selectedPractice || newDitDrlSiteStatus === null) return;
+
+    try {
+      setIsUpdatingDitDrlSiteStatus(true);
+      await api.updateDitDrlSite(selectedPractice.practiceId, statusUpdateDitDrlSite.siteId, {
+        active: newDitDrlSiteStatus
+      });
+      
+      await fetchPractices();
+      
+      setShowDitDrlSiteStatusModal(false);
+      setSelectedPractice(null);
+      setStatusUpdateDitDrlSite(null);
+      setNewDitDrlSiteStatus(null);
+    } catch (error) {
+      console.error('Error updating DIT/DRL site status:', error);
+    } finally {
+      setIsUpdatingDitDrlSiteStatus(false);
+    }
+  };
+
   const formatStatus = (status) => {
     if (!status) return '';
     return status.charAt(0) + status.slice(1).toLowerCase();
@@ -965,6 +1160,16 @@ const Practices = () => {
                       Add Location
                     </button>
                   </PermissionGuard>
+                  <PermissionGuard permission={PERMISSIONS.PRACTICE_LOCATION_CREATE}>
+                    <button 
+                      className="btn-primary"
+                      onClick={() => handleAddDitDrlSiteClick(practice)}
+                      style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <Plus size={16} />
+                      Add DIT/DRL Site
+                    </button>
+                  </PermissionGuard>
                 </div>
               </div>
               {practice.locations && practice.locations.length > 0 && (
@@ -1097,6 +1302,81 @@ const Practices = () => {
                             }}
                             onClick={() => handleEditLocationClick(practice, location)}
                             title="Edit location"
+                          />
+                        </PermissionGuard>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {practice.ditDrlSites && practice.ditDrlSites.length > 0 && (
+                <div className="locations-section">
+                  <p className="locations-count">{practice.ditDrlSites.length} DIT/DRL Sites:</p>
+                  <div className="locations-grid">
+                    {practice.ditDrlSites.map((site) => (
+                      <div key={site.siteId} className="location-item">
+                        <Globe size={18} style={{ color: '#6b7280', flexShrink: 0 }} />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                            <span className="location-name" style={{ margin: 0, display: 'inline-block', verticalAlign: 'middle' }}>{site.name || '-'}</span>
+                            {(site.createdBy || site.updatedBy) && (
+                              <div className="info-icon-wrapper" style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle' }}>
+                                <Info 
+                                  size={16} 
+                                  style={{ 
+                                    color: '#374151', 
+                                    cursor: 'pointer',
+                                    transition: 'color 0.2s',
+                                    fontWeight: 'bold',
+                                    strokeWidth: 2.5,
+                                    display: 'block'
+                                  }}
+                                  onMouseEnter={(e) => e.target.style.color = '#0d9488'}
+                                  onMouseLeave={(e) => e.target.style.color = '#374151'}
+                                />
+                                <div className="info-tooltip">
+                                  {site.createdBy && (
+                                    <div className="tooltip-line">
+                                      Created by <strong>{getUserName(site.createdBy)}</strong> on {formatDateTime(site.createdAt) || '-'}
+                                    </div>
+                                  )}
+                                  {site.updatedBy && (
+                                    <div className="tooltip-line">
+                                      Updated by <strong>{getUserName(site.updatedBy)}</strong> on {formatDateTime(site.updatedAt) || '-'}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          <div className="location-code">Code: {site.code || '-'}</div>
+                        </div>
+                        <PermissionGuard permission={PERMISSIONS.PRACTICE_LOCATION_STATUS_UPDATE}>
+                          <span 
+                            className={`status-badge clickable ${site.active ? 'status-active' : 'status-inactive'}`}
+                            onClick={() => handleDitDrlSiteStatusToggle(practice, site)}
+                            title={`Click to ${site.active ? 'deactivate' : 'activate'} site`}
+                          >
+                            {site.active ? 'Active' : 'Inactive'}
+                          </span>
+                        </PermissionGuard>
+                        {!can(PERMISSIONS.PRACTICE_LOCATION_STATUS_UPDATE) && (
+                          <span 
+                            className={`status-badge ${site.active ? 'status-active' : 'status-inactive'}`}
+                          >
+                            {site.active ? 'Active' : 'Inactive'}
+                          </span>
+                        )}
+                        <PermissionGuard permission={PERMISSIONS.PRACTICE_LOCATION_UPDATE}>
+                          <Edit
+                            size={16}
+                            style={{
+                              color: '#3b82f6',
+                              cursor: 'pointer',
+                              flexShrink: 0
+                            }}
+                            onClick={() => handleEditDitDrlSiteClick(practice, site)}
+                            title="Edit site"
                           />
                         </PermissionGuard>
                       </div>
@@ -2129,6 +2409,216 @@ const Practices = () => {
                   disabled={isUpdatingLocationStatus}
                 >
                   {isUpdatingLocationStatus ? 'Updating...' : 'YES'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add DIT/DRL Site Modal */}
+      {showDitDrlSiteModal && selectedPractice && (
+        <div className="modal-overlay" onClick={() => !isSubmittingDitDrlSite && setShowDitDrlSiteModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Add DIT/DRL Site to {selectedPractice.name}</h2>
+              <button 
+                className="modal-close"
+                onClick={() => setShowDitDrlSiteModal(false)}
+                disabled={isSubmittingDitDrlSite}
+              >
+                <svg width="24" height="24" viewBox="0 0 20 20" fill="none">
+                  <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleDitDrlSiteSubmit} className="modal-form">
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="dit-drl-site-name">Name *</label>
+                  <input
+                    type="text"
+                    id="dit-drl-site-name"
+                    name="name"
+                    value={ditDrlSiteFormData.name}
+                    onChange={handleDitDrlSiteInputChange}
+                    placeholder="Enter site name"
+                    disabled={isSubmittingDitDrlSite}
+                    required
+                  />
+                  {ditDrlSiteFormErrors.name && <span className="error-text">{ditDrlSiteFormErrors.name}</span>}
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="dit-drl-site-code">Code *</label>
+                  <input
+                    type="text"
+                    id="dit-drl-site-code"
+                    name="code"
+                    value={ditDrlSiteFormData.code}
+                    onChange={handleDitDrlSiteInputChange}
+                    placeholder="Enter site code"
+                    disabled={isSubmittingDitDrlSite}
+                    required
+                  />
+                  {ditDrlSiteFormErrors.code && <span className="error-text">{ditDrlSiteFormErrors.code}</span>}
+                </div>
+              </div>
+
+              {ditDrlSiteFormErrors.submit && (
+                <div className="error-text" style={{ marginTop: '12px' }}>
+                  {ditDrlSiteFormErrors.submit}
+                </div>
+              )}
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setShowDitDrlSiteModal(false)}
+                  disabled={isSubmittingDitDrlSite}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={isSubmittingDitDrlSite}
+                >
+                  {isSubmittingDitDrlSite ? 'Creating...' : 'Create Site'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit DIT/DRL Site Modal */}
+      {showEditDitDrlSiteModal && selectedPractice && editingDitDrlSite && (
+        <div className="modal-overlay" onClick={() => !isUpdatingDitDrlSite && setShowEditDitDrlSiteModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Edit DIT/DRL Site</h2>
+              <button 
+                className="modal-close"
+                onClick={() => setShowEditDitDrlSiteModal(false)}
+                disabled={isUpdatingDitDrlSite}
+              >
+                <svg width="24" height="24" viewBox="0 0 20 20" fill="none">
+                  <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateDitDrlSite} className="modal-form">
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="edit-dit-drl-site-name">Name *</label>
+                  <input
+                    type="text"
+                    id="edit-dit-drl-site-name"
+                    name="name"
+                    value={editDitDrlSiteFormData.name}
+                    onChange={handleEditDitDrlSiteInputChange}
+                    placeholder="Enter site name"
+                    disabled={isUpdatingDitDrlSite}
+                    required
+                  />
+                  {editDitDrlSiteFormErrors.name && <span className="error-text">{editDitDrlSiteFormErrors.name}</span>}
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="edit-dit-drl-site-active">Status *</label>
+                  <select
+                    id="edit-dit-drl-site-active"
+                    name="active"
+                    value={editDitDrlSiteFormData.active ? 'true' : 'false'}
+                    onChange={(e) => {
+                      setEditDitDrlSiteFormData(prev => ({
+                        ...prev,
+                        active: e.target.value === 'true'
+                      }));
+                    }}
+                    disabled={isUpdatingDitDrlSite}
+                    required
+                  >
+                    <option value="true">Active</option>
+                    <option value="false">Inactive</option>
+                  </select>
+                </div>
+              </div>
+
+              {editDitDrlSiteFormErrors.submit && (
+                <div className="error-text" style={{ marginTop: '12px' }}>
+                  {editDitDrlSiteFormErrors.submit}
+                </div>
+              )}
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setShowEditDitDrlSiteModal(false)}
+                  disabled={isUpdatingDitDrlSite}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={isUpdatingDitDrlSite}
+                >
+                  {isUpdatingDitDrlSite ? 'Updating...' : 'Update Site'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DIT/DRL Site Status Update Confirmation Modal */}
+      {showDitDrlSiteStatusModal && statusUpdateDitDrlSite && selectedPractice && (
+        <div className="modal-overlay" onClick={() => !isUpdatingDitDrlSiteStatus && setShowDitDrlSiteStatusModal(false)}>
+          <div className="modal-content status-confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Confirm Status Update</h2>
+              <button 
+                className="modal-close"
+                onClick={() => setShowDitDrlSiteStatusModal(false)}
+                disabled={isUpdatingDitDrlSiteStatus}
+              >
+                <svg width="24" height="24" viewBox="0 0 20 20" fill="none">
+                  <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+              </button>
+            </div>
+
+            <div className="status-modal-body">
+              <p className="status-modal-message">
+                {statusUpdateDitDrlSite.active ? (
+                  <>Are you sure you want to <span className="status-text-badge status-text-deactivate">deactivate</span> site <strong>{statusUpdateDitDrlSite.name}</strong>?</>
+                ) : (
+                  <>Are you sure you want to <span className="status-text-badge status-text-activate">activate</span> site <strong>{statusUpdateDitDrlSite.name}</strong>?</>
+                )}
+              </p>
+
+              <div className="status-modal-actions">
+                <button
+                  type="button"
+                  className="status-btn-no"
+                  onClick={() => setShowDitDrlSiteStatusModal(false)}
+                  disabled={isUpdatingDitDrlSiteStatus}
+                >
+                  NO
+                </button>
+                <button
+                  type="button"
+                  className={`status-btn-yes ${newDitDrlSiteStatus ? 'status-btn-activate' : 'status-btn-deactivate'}`}
+                  onClick={handleConfirmDitDrlSiteStatusUpdate}
+                  disabled={isUpdatingDitDrlSiteStatus}
+                >
+                  {isUpdatingDitDrlSiteStatus ? 'Updating...' : 'YES'}
                 </button>
               </div>
             </div>

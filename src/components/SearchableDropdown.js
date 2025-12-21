@@ -32,48 +32,61 @@ const SearchableDropdown = ({
   // Calculate dropdown position with viewport boundary checks
   useEffect(() => {
     if (isOpen && triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect();
-      const spacing = 4;
-      const margin = 10;
-      const popupWidth = Math.max(rect.width, 280);
-      const estimatedHeight = 300; // Approximate dropdown height
-      
-      // Calculate initial position (using fixed positioning)
-      let top = rect.bottom + spacing;
-      let left = rect.left;
-      
-      // Check if popup would overflow right edge
-      const viewportWidth = window.innerWidth;
-      if (left + popupWidth > viewportWidth - margin) {
-        // Position to the left of trigger instead
-        left = rect.right - popupWidth;
-        // If still overflows, align to right edge of viewport
-        if (left < margin) {
-          left = viewportWidth - popupWidth - margin;
+      // Use a small delay to ensure DOM is fully updated
+      const timeoutId = setTimeout(() => {
+        if (!triggerRef.current) return;
+        
+        const rect = triggerRef.current.getBoundingClientRect();
+        const spacing = 4;
+        const margin = 10;
+        const popupWidth = Math.max(rect.width, 280);
+        const estimatedHeight = 300; // Approximate dropdown height
+        
+        // Calculate initial position (using fixed positioning)
+        // getBoundingClientRect() gives viewport coordinates, perfect for fixed positioning
+        let top = rect.bottom + spacing;
+        let left = rect.left;
+        
+        // Check if popup would overflow right edge
+        const viewportWidth = window.innerWidth;
+        if (left + popupWidth > viewportWidth - margin) {
+          // Position to the left of trigger instead
+          left = rect.right - popupWidth;
+          // If still overflows, align to right edge of viewport
+          if (left < margin) {
+            left = viewportWidth - popupWidth - margin;
+          }
         }
-      }
-      
-      // Check if popup would overflow bottom edge
-      const viewportHeight = window.innerHeight;
-      const bottomSpace = viewportHeight - rect.bottom;
-      if (bottomSpace < estimatedHeight + margin) {
-        // Position above trigger instead
-        top = rect.top - estimatedHeight - spacing;
-        // If still overflows, align to top edge
-        if (top < margin) {
-          top = margin;
+        
+        // Check if popup would overflow bottom edge
+        const viewportHeight = window.innerHeight;
+        const bottomSpace = viewportHeight - rect.bottom;
+        if (bottomSpace < estimatedHeight + margin) {
+          // Position above trigger instead
+          top = rect.top - estimatedHeight - spacing;
+          // If still overflows, align to top edge
+          if (top < margin) {
+            top = margin;
+          }
+        } else {
+          // Prefer positioning below the trigger
+          top = rect.bottom + spacing;
         }
-      }
+        
+        // Ensure minimum margins from edges
+        if (left < margin) left = margin;
+        if (top < margin) top = margin;
+        
+        setDropdownPosition({
+          top: top,
+          left: left,
+          width: popupWidth
+        });
+      }, 0);
       
-      // Ensure minimum margins from edges
-      if (left < margin) left = margin;
-      if (top < margin) top = margin;
-      
-      setDropdownPosition({
-        top: top,
-        left: left,
-        width: popupWidth
-      });
+      return () => clearTimeout(timeoutId);
+    } else {
+      setDropdownPosition(null);
     }
   }, [isOpen]);
 

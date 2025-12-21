@@ -5,7 +5,7 @@ import { useUsers } from '../context/UsersContext';
 import { formatDateTime, formatDateUS } from '../utils/dateUtils';
 import './ActivityDrawer.css';
 
-const ActivityDrawer = ({ isOpen, onClose, checkId }) => {
+const ActivityDrawer = ({ isOpen, onClose, checkId, isDitDrl = false }) => {
   const navigate = useNavigate();
   const [activities, setActivities] = useState([]);
   const [filteredActivities, setFilteredActivities] = useState([]);
@@ -22,7 +22,9 @@ const ActivityDrawer = ({ isOpen, onClose, checkId }) => {
     
     setLoading(true);
     try {
-      const response = await api.getCheckActivities(checkId, page, size);
+      const response = isDitDrl 
+        ? await api.getDitDrlActivities(checkId, page, size)
+        : await api.getCheckActivities(checkId, page, size);
       setActivities(response.items || []);
       setTotalPages(response.totalPages || 0);
       setTotalElements(response.totalElements || 0);
@@ -62,25 +64,42 @@ const ActivityDrawer = ({ isOpen, onClose, checkId }) => {
   }, [activities, searchTerm, getUserName]);
 
   const handleBatchClick = (batchId, batchNumber, activityCheckId) => {
-    // Navigate to check details page with batches tab and batchId for highlighting
+    // Navigate to check/DIT/DRL details page with batches tab and batchId for highlighting
     // Use the checkId from activity metadata if available, otherwise use current checkId
     const targetCheckId = activityCheckId || checkId;
-    if (targetCheckId && batchId) {
-      navigate(`/checks/${targetCheckId}?tab=batches&batchId=${batchId}`);
-    } else if (targetCheckId) {
-      navigate(`/checks/${targetCheckId}?tab=batches`);
+    if (isDitDrl) {
+      if (targetCheckId && batchId) {
+        navigate(`/dit-drl/${targetCheckId}?tab=batches&batchId=${batchId}`);
+      } else if (targetCheckId) {
+        navigate(`/dit-drl/${targetCheckId}?tab=batches`);
+      }
+    } else {
+      if (targetCheckId && batchId) {
+        navigate(`/checks/${targetCheckId}?tab=batches&batchId=${batchId}`);
+      } else if (targetCheckId) {
+        navigate(`/checks/${targetCheckId}?tab=batches`);
+      }
     }
   };
 
   const handleClarificationClick = (clarificationId, activityCheckId) => {
-    // Navigate to check details page with clarifications tab and highlight the clarification
+    // Navigate to check/DIT/DRL details page with clarifications tab and highlight the clarification
     // Use the checkId from activity metadata if available, otherwise use current checkId
     const targetCheckId = activityCheckId || checkId;
-    if (targetCheckId) {
-      navigate(`/checks/${targetCheckId}?tab=clarifications&clarificationId=${clarificationId}`);
+    if (isDitDrl) {
+      if (targetCheckId) {
+        navigate(`/dit-drl/${targetCheckId}?tab=clarifications&clarificationId=${clarificationId}`);
+      } else {
+        // If no checkId, navigate to clarifications page
+        navigate(`/clarifications?clarificationId=${clarificationId}`);
+      }
     } else {
-      // If no checkId, navigate to clarifications page
-      navigate(`/clarifications?clarificationId=${clarificationId}`);
+      if (targetCheckId) {
+        navigate(`/checks/${targetCheckId}?tab=clarifications&clarificationId=${clarificationId}`);
+      } else {
+        // If no checkId, navigate to clarifications page
+        navigate(`/clarifications?clarificationId=${clarificationId}`);
+      }
     }
   };
 

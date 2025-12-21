@@ -496,6 +496,56 @@ class ApiService {
     return this.get(`/api/v1/practices/locations/code-exists?code=${encodeURIComponent(code)}`);
   }
 
+  // ==================== DIT/DRL Sites Management APIs ====================
+
+  /**
+   * Create a new DIT/DRL site for a practice
+   * POST /api/v1/practices/{practiceId}/dit-drl/sites?code={code}&name={name}
+   * @param {string} practiceId - Practice ID (UUID)
+   * @param {string} code - Site code
+   * @param {string} name - Site name
+   */
+  async createDitDrlSite(practiceId, code, name) {
+    const queryParams = new URLSearchParams();
+    queryParams.append('code', code);
+    queryParams.append('name', name);
+    
+    return this.post(`/api/v1/practices/${practiceId}/dit-drl/sites?${queryParams.toString()}`, {});
+  }
+
+  /**
+   * Get all DIT/DRL sites for a practice
+   * GET /api/v1/practices/{practiceId}/dit-drl/sites
+   * @param {string} practiceId - Practice ID (UUID)
+   */
+  async getDitDrlSites(practiceId) {
+    return this.get(`/api/v1/practices/${practiceId}/dit-drl/sites`);
+  }
+
+  /**
+   * Update a DIT/DRL site
+   * PATCH /api/v1/practices/{practiceId}/dit-drl/sites/{siteId}?name={name}&active={active}
+   * @param {string} practiceId - Practice ID (UUID)
+   * @param {string} siteId - Site ID (UUID)
+   * @param {Object} updateData - Update data
+   * @param {string} [updateData.name] - Site name
+   * @param {boolean} [updateData.active] - Whether site is active
+   */
+  async updateDitDrlSite(practiceId, siteId, updateData) {
+    const queryParams = new URLSearchParams();
+    if (updateData.name !== undefined && updateData.name !== null) {
+      queryParams.append('name', updateData.name);
+    }
+    if (updateData.active !== undefined && updateData.active !== null) {
+      queryParams.append('active', updateData.active);
+    }
+    
+    const queryString = queryParams.toString();
+    const endpoint = `/api/v1/practices/${practiceId}/dit-drl/sites/${siteId}${queryString ? `?${queryString}` : ''}`;
+    
+    return this.patch(endpoint, {});
+  }
+
   // ==================== Check Management APIs ====================
 
   /**
@@ -851,6 +901,66 @@ class ApiService {
    */
   async deleteDitDrlBatch(ditDrlId, batchId) {
     return this.delete(`/api/v1/dit-drl/${ditDrlId}/batches/${batchId}`);
+  }
+
+  /**
+   * Get all clarifications for a DIT/DRL
+   * GET /api/v1/dit-drl/{ditDrlId}/clarifications
+   * @param {string} ditDrlId - DIT/DRL ID (UUID)
+   */
+  async getDitDrlClarifications(ditDrlId) {
+    return this.get(`/api/v1/dit-drl/${ditDrlId}/clarifications`);
+  }
+
+  /**
+   * Create a new clarification for a DIT/DRL
+   * POST /api/v1/dit-drl/{ditDrlId}/clarifications
+   * @param {string} ditDrlId - DIT/DRL ID (UUID)
+   * @param {Object} clarificationData - Clarification data
+   * @param {string} clarificationData.clarificationType - Type of clarification
+   * @param {string} clarificationData.details - Clarification details
+   * @param {string} clarificationData.assigneeId - Assignee user ID (UUID)
+   * @param {string} clarificationData.reporterId - Reporter user ID (UUID)
+   * @param {string} [clarificationData.assignee] - Assignee type (ON-SHORE/OFF-SHORE)
+   * @param {string} [clarificationData.reportee] - Reportee type (EBOTICS)
+   * @param {string} [clarificationData.status] - Clarification status (OPEN/RESOLVED)
+   */
+  async createDitDrlClarification(ditDrlId, clarificationData) {
+    return this.post(`/api/v1/dit-drl/${ditDrlId}/clarifications`, clarificationData);
+  }
+
+  /**
+   * Update a DIT/DRL clarification
+   * PATCH /api/v1/dit-drl/{ditDrlId}/clarifications/{clarificationId}
+   * @param {string} ditDrlId - DIT/DRL ID (UUID)
+   * @param {string} clarificationId - Clarification ID (UUID)
+   * @param {Object} clarificationData - Clarification data to update (can include newComment)
+   * @param {string} [clarificationData.clarificationType] - Type of clarification
+   * @param {string} [clarificationData.details] - Clarification details
+   * @param {string} [clarificationData.assigneeId] - Assignee user ID (UUID)
+   * @param {string} [clarificationData.reporterId] - Reporter user ID (UUID)
+   * @param {string} [clarificationData.assignee] - Assignee type (ON-SHORE/OFF-SHORE)
+   * @param {string} [clarificationData.reportee] - Reportee type (EBOTICS)
+   * @param {string} [clarificationData.status] - Clarification status (OPEN/RESOLVED)
+   * @param {string} [clarificationData.newComment] - New comment to add
+   */
+  async updateDitDrlClarification(ditDrlId, clarificationId, clarificationData) {
+    return this.patch(`/api/v1/dit-drl/${ditDrlId}/clarifications/${clarificationId}`, clarificationData);
+  }
+
+  /**
+   * Get DIT/DRL activities
+   * GET /api/v1/dit-drl/{ditDrlId}/activities
+   * @param {string} ditDrlId - DIT/DRL ID (UUID)
+   * @param {number} page - Page number (default: 0)
+   * @param {number} size - Page size (default: 20)
+   */
+  async getDitDrlActivities(ditDrlId, page = 0, size = 20) {
+    const queryParams = new URLSearchParams();
+    queryParams.append('page', page);
+    queryParams.append('size', size);
+    
+    return this.get(`/api/v1/dit-drl/${ditDrlId}/activities?${queryParams.toString()}`);
   }
 
   // ==================== Clarification Management APIs ====================

@@ -1066,9 +1066,9 @@ const CheckDetails = () => {
       {/* Combined Check & Posting Summary Card */}
       <div className="financial-summary-card merged">
         <div className="financial-sections">
-          <div className="financial-section">
+          <div className="financial-section check-summary-section">
             <h3 className="section-title">Check Summary</h3>
-            <div className="financial-grid compact">
+            <div className="financial-grid check-summary-grid">
               <div className="financial-item">
                 <span className="financial-label">DOD</span>
                 <span className="financial-value">
@@ -1122,11 +1122,9 @@ const CheckDetails = () => {
                 </span>
               </div>
               <div className="financial-item">
-                <span className="financial-label">TAT by Deposit</span>
-                <span className="financial-value">
-                  {typeof check.turnaroundByDepositDays === 'number'
-                    ? `${check.turnaroundByDepositDays} day${check.turnaroundByDepositDays === 1 ? '' : 's'}`
-                    : 'N/A'}
+                <span className="financial-label">Check Amount</span>
+                <span className="financial-value primary">
+                  {formatCurrency(check?.totalAmount || 0)}
                 </span>
               </div>
             </div>
@@ -1134,7 +1132,13 @@ const CheckDetails = () => {
           
           <div className="financial-section posting-section">
             <h3 className="section-title">Posting Summary</h3>
-            <div className="financial-grid posting-grid">
+            <div className="financial-grid posting-summary-grid">
+              <div className="financial-item">
+                <span className="financial-label">Date</span>
+                <span className="financial-value">
+                  {check.depositDate ? formatDateUS(check.depositDate) : 'N/A'}
+                </span>
+              </div>
               <div className="financial-item">
                 <span className="financial-label">Total Amount</span>
                 <span className="financial-value primary">
@@ -1151,12 +1155,6 @@ const CheckDetails = () => {
                 <span className="financial-label">Posted Amount</span>
                 <span className="financial-value success">
                   {formatCurrency(check?.postedAmount || 0)}
-                </span>
-              </div>
-              <div className="financial-item">
-                <span className="financial-label">Other Amount</span>
-                <span className="financial-value">
-                  {formatCurrency(check?.otherAmount || 0)}
                 </span>
               </div>
             </div>
